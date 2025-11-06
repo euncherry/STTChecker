@@ -8,6 +8,12 @@
     "scheme": "sttchecker",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "assetBundlePatterns": [
+      "**/*",
+      "assets/**/*",
+      "assets/model/*.onnx",
+      "assets/model/*.json"
+    ],
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -43,7 +49,9 @@
         {
           "microphonePermission": "음성 녹음을 위해 마이크 접근 권한이 필요합니다."
         }
-      ]
+      ],
+      "expo-web-browser",
+      "./plugins/withOnnxruntime"
     ],
     "experiments": {
       "typedRoutes": true

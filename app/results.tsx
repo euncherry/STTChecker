@@ -14,7 +14,7 @@ export default function ResultsScreen() {
       contentContainerStyle={styles.contentContainer}
     >
       <Text variant="headlineMedium" style={styles.pageTitle}>
-        분석 결과
+        분석 결과!
       </Text>
 
       {/* 점수 카드 */}

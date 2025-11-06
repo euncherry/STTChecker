@@ -3,10 +3,12 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { StatusBar } from "expo-status-bar"; // StatusBar 임포트
+import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { PaperProvider, useTheme } from "react-native-paper"; // useTheme 임포트
+import { PaperProvider, useTheme } from "react-native-paper";
+import ModelLoadingScreen from "../components/ModelLoadingScreen";
 import { theme } from "../constants/theme";
+import { ONNXProvider, useONNX } from "../utils/onnx/onnxContext";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -38,21 +40,24 @@ export default function RootLayout() {
 
   return (
     <PaperProvider theme={theme}>
-      {/* 상태표시줄 스타일을 'light' (흰색 글씨)로 설정합니다.
-        보라색 커스텀 헤더와 네이티브 헤더 모두에 적용됩니다.
-      */}
       <StatusBar style="light" />
-      <RootLayoutNav />
+      <ONNXProvider>
+        <RootLayoutNav />
+      </ONNXProvider>
     </PaperProvider>
   );
 }
 
 function RootLayoutNav() {
-  // 테마 색상을 가져옵니다.
   const { colors } = useTheme();
+  const { isLoading, loadingProgress, error } = useONNX(); // ✅ 이제 작동함
+
+  // 모델 로딩 중이면 로딩 화면 표시
+  if (isLoading) {
+    return <ModelLoadingScreen progress={loadingProgress} error={error} />;
+  }
 
   return (
-    // <ModelProvider>
     <Stack>
       {/* 1. 탭 스크린 (메인, 히스토리) - 네이티브 헤더 숨김 */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -63,8 +68,8 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           title: "녹음 진행",
-          headerStyle: { backgroundColor: colors.primary }, // 헤더 배경 보라색
-          headerTintColor: colors.onPrimary, // 헤더 글씨 흰색
+          headerStyle: { backgroundColor: colors.primary },
+          headerTintColor: colors.onPrimary,
         }}
       />
 
@@ -73,11 +78,10 @@ function RootLayoutNav() {
         name="results"
         options={{
           title: "분석 결과",
-          headerStyle: { backgroundColor: colors.primary }, // 헤더 배경 보라색
-          headerTintColor: colors.onPrimary, // 헤더 글씨 흰색
+          headerStyle: { backgroundColor: colors.primary },
+          headerTintColor: colors.onPrimary,
         }}
       />
     </Stack>
-    // </ModelProvider>
   );
 }

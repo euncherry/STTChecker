@@ -50,7 +50,7 @@ export default function RecordScreen() {
 
   // 타이머 관련 상태
   const [timer, setTimer] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
 
   // --- 1. 권한 요청 및 초기 설정 ---
   useEffect(() => {

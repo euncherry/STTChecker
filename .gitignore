@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+#model 
+assets\model\wav2vec2_korean_final.onnx
+assets\model\vocab.json
