@@ -2,70 +2,70 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { Alert, Platform, StyleSheet, View } from "react-native";
+import AudioRecord from "react-native-audio-record";
 import { ActivityIndicator, Button, Text, useTheme } from "react-native-paper";
-// ✅ expo-audio 올바른 임포트
 import {
-  AudioModule,
-  RecordingOptions,
-  setAudioModeAsync,
-  useAudioRecorder,
-  useAudioRecorderState,
-} from "expo-audio";
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 export default function RecordScreen() {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
   const targetText = Array.isArray(params.text) ? params.text[0] : params.text;
 
-  // ✅ expo-audio 훅 사용 (16kHz 커스텀 설정)
-  const recordingOptions: RecordingOptions = {
-    // 최상위 레벨 필수 속성들
-    extension: ".m4a",
-    sampleRate: 16000,
-    numberOfChannels: 1,
-    bitRate: 256000,
-
-    // 플랫폼별 추가 설정
-    android: {
-      outputFormat: "mpeg4",
-      audioEncoder: "aac",
-    },
-    ios: {
-      audioQuality: 96,
-      linearPCMBitDepth: 16,
-      linearPCMIsBigEndian: false,
-      linearPCMIsFloat: false,
-      outputFormat: "mpeg4aac",
-    },
-    web: {
-      mimeType: "audio/webm",
-      bitsPerSecond: 256000,
-    },
-  };
-
-  const audioRecorder = useAudioRecorder(recordingOptions);
-  const recorderState = useAudioRecorderState(audioRecorder);
-
-  // 타이머 관련 상태
+  const [isRecording, setIsRecording] = useState(false);
   const [timer, setTimer] = useState(0);
   const timerRef = useRef<number | null>(null);
 
-  // --- 1. 권한 요청 및 초기 설정 ---
+  // 1. 녹음 설정 초기화
   useEffect(() => {
-    (async () => {
-      const status = await AudioModule.requestRecordingPermissionsAsync();
-      if (!status.granted) {
-        Alert.alert("권한 필요", "녹음을 위해 마이크 접근 권한이 필요합니다.");
-      }
-
-      await setAudioModeAsync({
-        playsInSilentMode: true,
-        allowsRecording: true,
-      });
-    })();
+    initializeRecording();
+    return () => {
+      stopTimer();
+    };
   }, []);
+
+  const initializeRecording = async () => {
+    try {
+      // ✅ react-native-audio-record 설정
+      const options = {
+        sampleRate: 16000, // ✅ 16kHz (모델 요구사항)
+        channels: 1, // ✅ 모노
+        bitsPerSample: 16, // ✅ 16bit
+        audioSource: 6, // VOICE_RECOGNITION (Android)
+        wavFile: `recording_${Date.now()}.wav`, // 고유한 파일명
+      };
+
+      console.log("[RecordScreen] 🎤 녹음 설정:", options);
+      AudioRecord.init(options);
+
+      // 권한 요청 (Platform별 처리)
+      if (Platform.OS === "android") {
+        const { PermissionsAndroid } = require("react-native");
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: "마이크 권한",
+            message: "발음 연습을 위해 마이크 권한이 필요합니다.",
+            buttonNeutral: "나중에",
+            buttonNegative: "거부",
+            buttonPositive: "허용",
+          }
+        );
+
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert("권한 거부", "마이크 권한이 거부되었습니다.");
+        }
+      }
+    } catch (error) {
+      console.error("[RecordScreen] 초기화 실패:", error);
+      Alert.alert("오류", "녹음 초기화에 실패했습니다.");
+    }
+  };
 
   // 타이머 로직
   const startTimer = () => {
@@ -90,61 +90,75 @@ export default function RecordScreen() {
       .padStart(2, "0")}`;
   };
 
-  // --- 2. 녹음 시작 및 중지 함수 ---
-  async function startRecording() {
+  // 2. 녹음 시작
+  const startRecording = async () => {
     try {
-      await audioRecorder.prepareToRecordAsync();
-      audioRecorder.record();
-      startTimer(); // 타이머 시작
-    } catch (err) {
-      console.error("녹음 시작 실패:", err);
+      console.log("[RecordScreen] 🎙️ 녹음 시작...");
+
+      // react-native-audio-record 녹음 시작
+      AudioRecord.start();
+
+      setIsRecording(true);
+      startTimer();
+
+      console.log("[RecordScreen] ✅ 녹음 시작됨");
+    } catch (error) {
+      console.error("[RecordScreen] ❌ 녹음 시작 실패:", error);
       Alert.alert("오류", "녹음을 시작하는 데 실패했습니다.");
       stopTimer();
     }
-  }
+  };
 
-  async function stopRecording() {
+  // 3. 녹음 중지 및 결과 페이지로 이동
+  const stopRecording = async () => {
     try {
-      stopTimer(); // 타이머 중지
-
-      // 녹음 중지
-      await audioRecorder.stop();
-
-      const uri = audioRecorder.uri;
-
-      if (uri) {
-        console.log("녹음 파일 저장 경로:", uri);
-
-        // 3. 결과 페이지로 이동 (녹음 파일 URI와 목표 문장 전달)
-        router.replace({
-          pathname: "/results",
-          params: {
-            audioUri: uri,
-            targetText: targetText || "입력 문장 없음",
-          },
-        });
-      } else {
-        Alert.alert("오류", "녹음 파일 URI를 얻을 수 없습니다.");
-      }
-    } catch (err) {
-      console.error("녹음 중지 실패:", err);
-      Alert.alert("오류", "녹음을 중지하는 데 실패했습니다.");
-    }
-  }
-
-  // 컴포넌트 언마운트 시 타이머 정리
-  useEffect(() => {
-    return () => {
       stopTimer();
-      if (recorderState.isRecording) {
-        audioRecorder.stop();
-      }
-    };
-  }, [recorderState.isRecording]);
+      console.log("[RecordScreen] 🛑 녹음 중지 중...");
 
-  // --- 3. UI 렌더링 ---
+      // ✅ WAV 파일 경로 받기
+      const audioFile = await AudioRecord.stop();
+
+      setIsRecording(false);
+
+      console.log("[RecordScreen] 📁 WAV 파일 저장됨:", audioFile);
+      console.log("[RecordScreen] ⏱️ 녹음 시간:", formatTime(timer));
+
+      // Platform별 파일 경로 처리
+      let fileUri = audioFile;
+      if (Platform.OS === "android" && !audioFile.startsWith("file://")) {
+        fileUri = `file://${audioFile}`;
+      }
+
+      console.log("[RecordScreen] 📍 최종 파일 URI:", fileUri);
+      console.log("[RecordScreen] ✅ 녹음 설정 확인:");
+      console.log("  - 샘플레이트: 16000Hz (모델 요구사항)");
+      console.log("  - 채널: 1 (모노)");
+      console.log("  - 비트 깊이: 16-bit PCM");
+      console.log("  - 포맷: WAV");
+      console.log("[RecordScreen] ℹ️ STT 전처리에서 다음 검증이 수행됩니다:");
+      console.log("  1️⃣ 16kHz 리샘플링 (필요시)");
+      console.log("  2️⃣ 모노 채널 변환 (필요시)");
+      console.log("  3️⃣ Float32 정규화 (PCM → [-1.0, 1.0])");
+
+      // 4. 결과 페이지로 이동
+      router.replace({
+        pathname: "/results",
+        params: {
+          audioUri: fileUri,
+          targetText: targetText || "입력 문장 없음",
+          recordingDuration: timer.toString(),
+        },
+      });
+    } catch (error) {
+      console.error("[RecordScreen] ❌ 녹음 중지 실패:", error);
+      Alert.alert("오류", "녹음을 중지하는 데 실패했습니다.");
+      setIsRecording(false);
+    }
+  };
+
+  // UI 렌더링
   return (
-    <View
+    <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.topContent}>
@@ -157,9 +171,9 @@ export default function RecordScreen() {
       </View>
 
       <View style={styles.feedbackContainer}>
-        {recorderState.isRecording ? (
+        {isRecording ? (
           <>
-            {/* 녹음 중 피드백: 애니메이션 및 타이머 */}
+            {/* 녹음 중 피드백 */}
             <ActivityIndicator
               animating={true}
               color={theme.colors.error}
@@ -200,19 +214,25 @@ export default function RecordScreen() {
 
       <Button
         mode="contained"
-        onPress={recorderState.isRecording ? stopRecording : startRecording}
+        onPress={isRecording ? stopRecording : startRecording}
         style={styles.button}
-        buttonColor={
-          recorderState.isRecording ? theme.colors.error : theme.colors.primary
-        }
-        icon={recorderState.isRecording ? "stop" : "microphone"}
+        buttonColor={isRecording ? theme.colors.error : theme.colors.primary}
+        icon={isRecording ? "stop" : "microphone"}
         labelStyle={styles.buttonLabel}
         contentStyle={styles.buttonContent}
-        disabled={!targetText} // 목표 문장이 없으면 녹음 불가능
+        disabled={!targetText}
       >
-        {recorderState.isRecording ? "녹음 중지 및 분석" : "녹음 시작"}
+        {isRecording ? "녹음 중지 및 분석" : "녹음 시작"}
       </Button>
-    </View>
+
+      {/* 디버깅용 플랫폼 표시 */}
+      <Text
+        variant="bodySmall"
+        style={[styles.debugText, { paddingBottom: insets.bottom + 5 }]}
+      >
+        {Platform.OS === "android" ? "🤖 Android (WAV)" : "🍎 iOS (WAV)"}
+      </Text>
+    </SafeAreaView>
   );
 }
 
@@ -270,5 +290,11 @@ const styles = StyleSheet.create({
   buttonLabel: {
     fontSize: 18,
     fontWeight: "bold",
+  },
+  debugText: {
+    position: "absolute",
+    bottom: 10,
+    alignSelf: "center",
+    opacity: 0.5,
   },
 });

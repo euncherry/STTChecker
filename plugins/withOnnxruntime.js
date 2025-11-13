@@ -1,4 +1,5 @@
 // plugins/withOnnxruntime.js
+// Android MainApplication에 ONNX Runtime 패키지를 자동으로 등록하는 Expo 플러그인
 const { withMainApplication } = require("@expo/config-plugins");
 
 module.exports = function withOnnxruntime(config) {

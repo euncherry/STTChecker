@@ -3,6 +3,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
 import { useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -15,6 +16,7 @@ function TabBarIcon(props: {
 
 export default function TabLayout() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -27,10 +29,10 @@ export default function TabLayout() {
         tabBarInactiveTintColor: theme.colors.outline, // 비활성 (회색)
         tabBarStyle: {
           backgroundColor: theme.colors.surface, // 탭 바 배경 (흰색)
-          borderTopWidth: 1, // 상단 경계선 제거
+          borderTopWidth: 1, // 상단 경계선
           elevation: 0, // 그림자
-          height: 60, // 탭 바 높이 조절
-          paddingBottom: 5,
+          height: 60 + insets.bottom, // 탭 바 높이 + 하단 safe area
+          paddingBottom: insets.bottom + 5, // 하단 safe area + 여백
           paddingTop: 5,
         },
       }}
@@ -57,6 +59,13 @@ export default function TabLayout() {
               color={color}
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="test"
+        options={{
+          title: "테스트",
+          tabBarIcon: ({ color }) => <TabBarIcon name="flask" color={color} />,
         }}
       />
     </Tabs>

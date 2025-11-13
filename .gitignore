@@ -40,6 +40,6 @@ yarn-error.*
 /ios
 /android
 
-#model 
-assets\model\wav2vec2_korean_final.onnx
-assets\model\vocab.json
+# Model files (large AI models)
+assets/model/wav2vec2_korean_final.onnx
+assets/model/vocab.json

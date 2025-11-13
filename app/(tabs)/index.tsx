@@ -39,7 +39,8 @@ export default function MainScreen() {
 
   // 예시 문장들
   const templates = [
-    "안녕하세요, 만나서 반갑습니다",
+    // "안녕하세요, 만나서 반갑습니다",
+    "안녕하세요",
     "오늘 날씨가 정말 좋네요",
   ];
 
