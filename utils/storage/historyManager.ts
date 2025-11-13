@@ -1,7 +1,6 @@
 // utils/storage/historyManager.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Directory, File, Paths } from "expo-file-system";
-import * as MediaLibrary from "expo-media-library";
 import * as Sharing from "expo-sharing";
 
 const HISTORY_KEY = "@pronunciation_history";
@@ -294,52 +293,16 @@ export async function filterHistoriesByDateRange(
     return itemDate >= startDate && itemDate <= endDate;
   });
 }
-
 /**
- * ✅ 파일을 공유 저장소로 내보내기
+ * ✅ 파일 공유/저장하기
  */
-export async function exportAudioFile(audioFilePath: string): Promise<boolean> {
+export async function shareAudioFile(audioFilePath: string): Promise<void> {
   try {
-    if (!audioFilePath) {
-      throw new Error("파일 경로가 없습니다");
-    }
-
     const file = new File(audioFilePath);
     if (!file.exists) {
       throw new Error("파일을 찾을 수 없습니다");
     }
 
-    // 권한 요청
-    const { status } = await MediaLibrary.requestPermissionsAsync();
-
-    if (status !== "granted") {
-      throw new Error("저장소 권한이 필요합니다");
-    }
-
-    // MediaLibrary에 저장
-    const asset = await MediaLibrary.createAssetAsync(audioFilePath);
-
-    // "발음연습" 앨범에 추가
-    const album = await MediaLibrary.getAlbumAsync("발음연습");
-    if (album) {
-      await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-    } else {
-      await MediaLibrary.createAlbumAsync("발음연습", asset, false);
-    }
-
-    console.log(`[Export] ✅ 파일 내보내기 완료: ${asset.uri}`);
-    return true;
-  } catch (error) {
-    console.error("[Export] ❌ 내보내기 실패:", error);
-    throw error;
-  }
-}
-
-/**
- * ✅ 파일 공유하기 (다른 앱으로)
- */
-export async function shareAudioFile(audioFilePath: string): Promise<void> {
-  try {
     const isAvailable = await Sharing.isAvailableAsync();
     if (!isAvailable) {
       throw new Error("공유 기능을 사용할 수 없습니다");
@@ -347,7 +310,8 @@ export async function shareAudioFile(audioFilePath: string): Promise<void> {
 
     await Sharing.shareAsync(audioFilePath, {
       mimeType: "audio/wav",
-      dialogTitle: "녹음 파일 공유",
+      dialogTitle: "녹음 파일 저장 또는 공유",
+      UTI: "public.audio", // iOS용
     });
 
     console.log("[Share] ✅ 파일 공유 완료");

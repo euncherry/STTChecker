@@ -14,7 +14,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useONNX } from "../utils/onnx/onnxContext";
-import { saveAudioFile, saveHistory } from "../utils/storage/historyManager";
+import { saveHistory } from "../utils/storage/historyManager";
 import { preprocessAudioFile } from "../utils/stt/audioPreprocessor";
 import { runSTTInference } from "../utils/stt/inference";
 import { calculateCER, calculateWER } from "../utils/stt/metrics";
@@ -200,22 +200,11 @@ export default function ResultsScreen() {
     try {
       console.log("[ResultsScreen] 💾 히스토리 저장 시작...");
 
-      // 1. 임시 WAV 파일을 영구 저장소로 복사
-      const historyId = Date.now().toString();
-      const { uri: permanentAudioPath, size } = await saveAudioFile(
-        audioUri,
-        historyId
-      );
-
-      console.log(
-        `[ResultsScreen] 📁 파일 저장 완료: ${(size / 1024).toFixed(2)}KB`
-      );
-
-      // 2. 히스토리 메타데이터 저장
+      // 히스토리 메타데이터 저장
       const savedItem = await saveHistory({
         targetText: targetText || "",
         recognizedText,
-        audioFilePath: permanentAudioPath,
+        audioFilePath: "", // 오디오 파일 저장 비활성화
         cerScore,
         werScore,
         tags,
@@ -225,20 +214,16 @@ export default function ResultsScreen() {
 
       console.log("[ResultsScreen] ✅ 히스토리 저장 완료:", savedItem.id);
 
-      Alert.alert(
-        "저장 완료",
-        `연습 기록이 저장되었습니다.\n(파일 크기: ${(size / 1024).toFixed(2)}KB)`,
-        [
-          {
-            text: "히스토리 보기",
-            onPress: () => router.push("/(tabs)/history"),
-          },
-          {
-            text: "확인",
-            style: "cancel",
-          },
-        ]
-      );
+      Alert.alert("저장 완료", "연습 기록이 저장되었습니다.", [
+        {
+          text: "히스토리 보기",
+          onPress: () => router.push("/(tabs)/history"),
+        },
+        {
+          text: "확인",
+          style: "cancel",
+        },
+      ]);
     } catch (error) {
       console.error("[ResultsScreen] ❌ 저장 실패:", error);
       Alert.alert(

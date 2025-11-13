@@ -12,6 +12,9 @@ React Native + Expo 기반의 한국어 발음 평가 애플리케이션입니�
 - **오디오 녹음**: react-native-audio-record (Android, WAV 16kHz 직접 녹음)
 - **오디오 재생**: expo-audio (useAudioPlayer, useAudioPlayerStatus)
 - **파일 시스템**: expo-file-system (새로운 File/Directory/Paths API)
+- **데이터 저장**: @react-native-async-storage/async-storage (히스토리 메타데이터)
+- **미디어 라이브러리**: expo-media-library (오디오 파일 내보내기)
+- **파일 공유**: expo-sharing (다른 앱으로 공유)
 - **UI**: React Native Paper (Material Design 3)
 - **언어**: TypeScript
 
@@ -41,10 +44,12 @@ STTChecker-1/
 │   │   ├── modelLoader.ts       # 모델 로딩 및 초기화 (Android assets → cache)
 │   │   ├── onnxContext.tsx      # 전역 모델 상태 관리 (Context API)
 │   │   └── vocabLoader.ts       # vocab.json 로딩
-│   └── stt/                     # STT 추론
-│       ├── audioPreprocessor.ts # WAV 파싱 + 전처리 (리샘플링, 정규화)
-│       ├── inference.ts         # ONNX 추론 및 CTC 디코딩
-│       └── metrics.ts           # CER/WER 계산 함수
+│   ├── stt/                     # STT 추론
+│   │   ├── audioPreprocessor.ts # WAV 파싱 + 전처리 (리샘플링, 정규화)
+│   │   ├── inference.ts         # ONNX 추론 및 CTC 디코딩
+│   │   └── metrics.ts           # CER/WER 계산 함수
+│   └── storage/                 # 저장소 관리
+│       └── historyManager.ts    # 히스토리 CRUD, 오디오 파일 관리, 내보내기/공유
 │
 ├── plugins/                      # Expo Config Plugins
 │   ├── withOnnxruntime.js       # ONNX Runtime 네이티브 패키지 등록
@@ -120,7 +125,14 @@ STTChecker-1/
 
 ### 5. **히스토리 화면** (`app/(tabs)/history.tsx`)
 
-- 과거 녹음 기록 조회 (구현 예정)
+- 과거 녹음 기록 조회 및 관리
+- AsyncStorage 기반 영구 저장
+- 오디오 파일 재생/일시정지
+- 기록 삭제 (개별/전체)
+- 오디오 파일 내보내기 (MediaLibrary)
+- 오디오 파일 공유 (expo-sharing)
+- 스토리지 사용량 표시
+- 태그별 필터링 지원
 
 ---
 
@@ -172,27 +184,36 @@ STTChecker-1/
 `audioPreprocessor.ts`는 WAV 파일 파싱과 전처리를 모두 처리합니다:
 
 ```typescript
-export async function preprocessAudioFile(uri: string): Promise<Float32Array> {
+export async function preprocessAudioFile(
+  fileUri: string
+): Promise<Float32Array> {
   // 1. WAV 파일 읽기 (새로운 expo-file-system API)
-  const file = new File(uri);
+  const file = new File(fileUri);
   const arrayBuffer = await file.arrayBuffer();
 
   // 2. WAV 파싱 및 전처리
   const audioData = parseWAVFile(arrayBuffer);
   // parseWAVFile 내부에서:
-  //   - Float32 정규화 (16-bit PCM → Float32)
-  //   - 모노 채널 변환 (스테레오 → 모노)
-  //   - 16kHz 리샘플링 (필요시)
+  //   - Float32 정규화 (16-bit/32-bit PCM → Float32)
+  //   - 모노 채널 변환 (스테레오/멀티채널 → 모노)
+  //   - 16kHz 리샘플링 (필요시, 선형 보간)
 
   // 3. Wav2Vec2 정규화
   const processed = wav2vec2Preprocess(audioData);
   // wav2vec2Preprocess:
   //   - Mean 제거 (zero-centering)
-  //   - 표준화 (mean=0, std=1)
+  //   - 표준화 (mean=0, std=1, epsilon=1e-7 추가)
 
   return processed;
 }
 ```
+
+**주요 개선사항**:
+
+- 32-bit PCM 지원 추가
+- 상세한 로깅 (통계 정보 출력)
+- NaN/Infinity 검증
+- Epsilon 추가로 수치 안정성 향상
 
 #### 2. **ONNX 추론** (`inference.ts`)
 
@@ -214,7 +235,7 @@ export async function runSTTInference(
   });
 
   // 3. Logits 추출
-  const logits = results[outputName];
+  const logits = resul ts[outputName];
 
   // 4. CTC 디코딩
   const transcription = decodeLogits(logits.data, vocabInfo);
@@ -225,30 +246,67 @@ export async function runSTTInference(
 #### 3. **CTC 디코딩** (`inference.ts`)
 
 ```typescript
-function decodeLogits(logits: Float32Array, vocabInfo: VocabInfo): string {
-  const timeSteps = logits.length / vocabInfo.vocab_size;
-  let decoded = "";
-  let prevToken = "";
+function decodeLogits(logits: any, vocabInfo: VocabInfo): string {
+  const { idToToken, blankToken, padToken } = vocabInfo;
+  const dims = logits.dims;
+  const timeSteps = dims[1];
+  const vocabSize = dims[2];
+  const tokens: string[] = [];
+  let prevToken = -1;
 
+  // Greedy Decoding
   for (let t = 0; t < timeSteps; t++) {
-    const offset = t * vocabInfo.vocab_size;
-    // Greedy Decoding: 각 시간 스텝에서 가장 높은 확률의 토큰 선택
-    const tokenId = argmax(logits.slice(offset, offset + vocabInfo.vocab_size));
-    const token = vocabInfo.id_to_token[tokenId];
+    let maxProb = -Infinity;
+    let maxIndex = 0;
+
+    // 각 타임스텝에서 가장 높은 확률의 토큰 찾기
+    for (let v = 0; v < vocabSize; v++) {
+      const idx = t * vocabSize + v;
+      const prob = logits.data[idx];
+      if (prob > maxProb) {
+        maxProb = prob;
+        maxIndex = v;
+      }
+    }
 
     // CTC 규칙:
-    // - Blank 토큰 ([PAD]) 무시
-    // - 연속 중복 토큰 제거
-    // - SentencePiece 토큰의 "▁"를 공백으로 변환
-    if (token !== "[PAD]" && token !== prevToken) {
-      decoded += token.replace("▁", " ");
+    // 1. PAD 토큰 건너뛰기
+    if (maxIndex === padToken) {
+      prevToken = maxIndex;
+      continue;
     }
-    prevToken = token;
+
+    // 2. 중복 토큰 제거
+    if (maxIndex === prevToken) {
+      continue;
+    }
+
+    const tokenText = idToToken.get(maxIndex);
+
+    // 3. 토큰 처리
+    if (tokenText && tokenText !== "[PAD]" && tokenText !== "[UNK]") {
+      if (tokenText === "|") {
+        // Blank(공백) 토큰은 공백으로
+        tokens.push(" ");
+      } else {
+        tokens.push(tokenText);
+      }
+    }
+
+    prevToken = maxIndex;
   }
 
-  return decoded.trim();
+  // 토큰 합치고 연속 공백 제거
+  return tokens.join("").replace(/\s+/g, " ").trim() || "[EMPTY]";
 }
 ```
+
+**주요 개선사항**:
+
+- 토큰 분포 분석 및 로깅
+- 빈 결과 처리 (`[EMPTY]` 반환)
+- 연속 공백 정규화
+- 상세한 디버깅 정보 출력
 
 ---
 
@@ -267,6 +325,9 @@ function decodeLogits(logits: Float32Array, vocabInfo: VocabInfo): string {
   "react-native-audio-record": "^0.2.2",
   "expo-file-system": "~19.0.17",
   "expo-document-picker": "~14.0.7",
+  "expo-media-library": "~18.2.0",
+  "expo-sharing": "~14.0.7",
+  "@react-native-async-storage/async-storage": "2.2.0",
   "js-levenshtein": "^1.1.6",
   "react-native-fs": "^2.20.0"
 }
@@ -298,6 +359,15 @@ function decodeLogits(logits: Float32Array, vocabInfo: VocabInfo): string {
           "microphonePermission": "음성 녹음을 위해 마이크 접근 권한이 필요합니다."
         }
       ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "오디오 파일을 저장하기 위해 사진 라이브러리 접근 권한이 필요합니다.",
+          "savePhotosPermission": "오디오 파일을 저장하기 위해 사진 라이브러리 저장 권한이 필요합니다.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      "expo-web-browser",
       "./plugins/withOnnxruntime",
       "./plugins/withOnnxModel"
     ],
@@ -306,7 +376,8 @@ function decodeLogits(logits: Float32Array, vocabInfo: VocabInfo): string {
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
-    }
+    },
+    "newArchEnabled": true
   }
 }
 ```
@@ -436,14 +507,59 @@ export function calculateWER(reference: string, hypothesis: string): number {
 
 ---
 
+## 💾 히스토리 관리 시스템
+
+### 저장소 구조
+
+- **메타데이터**: AsyncStorage (`@pronunciation_history`)
+- **오디오 파일**: `Paths.document/audio/` 디렉토리
+- **최대 저장 개수**: 100개 (초과 시 오래된 항목 자동 삭제)
+
+### 주요 기능 (`utils/storage/historyManager.ts`)
+
+```typescript
+// 히스토리 저장
+await saveHistory({
+  targetText: "목표 문장",
+  recognizedText: "인식된 문장",
+  audioFilePath: "저장된 파일 경로",
+  cerScore: 0.1,
+  werScore: 0.2,
+  tags: ["완벽함", "우수"],
+  recordingDuration: 5,
+  processingTime: 2.5,
+});
+
+// 히스토리 로드
+const histories = await loadHistories();
+
+// 히스토리 삭제
+await deleteHistory(id);
+await clearAllHistories();
+
+// 오디오 파일 내보내기 (MediaLibrary)
+await exportAudioFile(audioFilePath);
+
+// 오디오 파일 공유 (다른 앱으로)
+await shareAudioFile(audioFilePath);
+```
+
+### 히스토리 화면 기능
+
+- ✅ 기록 목록 조회 (최신순)
+- ✅ 오디오 재생/일시정지
+- ✅ 개별/전체 삭제
+- ✅ 오디오 파일 내보내기 (MediaLibrary → "발음연습" 앨범)
+- ✅ 오디오 파일 공유 (expo-sharing)
+- ✅ 스토리지 사용량 표시
+- ✅ 태그별 필터링 (구현됨, UI 미연결)
+- ✅ 날짜 범위 필터링 (구현됨, UI 미연결)
+
+---
+
 ## 🚀 향후 개선 사항
 
-### 1. **히스토리 기능 구현**
-
-- AsyncStorage 또는 SQLite로 녹음 기록 저장
-- 날짜별 필터링, 검색 기능
-
-### 2. **발음 상세 분석**
+### 1. **발음 상세 분석**
 
 - 음소 단위 정확도 분석
 - 억양, 속도 평가
@@ -455,8 +571,10 @@ export function calculateWER(reference: string, hypothesis: string): number {
 
 ### 4. **UI 개선**
 
-- 애니메이션 추가
+- ✅ 애니메이션 추가 (홈 화면)
 - 발음 시각화 (파형, 스펙트로그램)
+- 히스토리 검색 기능
+- 태그 필터링 UI 연결
 
 ---
 
@@ -522,9 +640,11 @@ chore: 빌드 설정 변경
 
 #### 1️⃣ Float32 정규화 (필수)
 
-- **입력**: 16-bit PCM (Int16, -32768 ~ 32767)
+- **입력**: 16-bit PCM (Int16, -32768 ~ 32767) 또는 32-bit PCM (Int32)
 - **출력**: Float32 (-1.0 ~ 1.0)
-- **공식**: `sample / 32768.0`
+- **공식**:
+  - 16-bit: `sample / 32768.0`
+  - 32-bit: `sample / 2147483648.0`
 - **위치**: `audioPreprocessor.ts` - `parseWAVFile()` 함수 내부
 
 #### 2️⃣ 모노 채널 변환 (필수)
@@ -545,6 +665,7 @@ chore: 빌드 설정 변경
 
 - **Mean 제거**: Zero-centering (평균을 0으로)
 - **표준화**: 표준편차로 나누기 (std=1)
+- **Epsilon 추가**: 수치 안정성을 위해 `1e-7` 추가 (Python transformers와 동일)
 - **위치**: `audioPreprocessor.ts` - `wav2vec2Preprocess()` 함수
 
 ### 녹음 설정 (Android)
@@ -586,9 +707,38 @@ const files = cacheDir.list(); // Directory.list()
 - ❌ `FileSystem.cacheDirectory` (문자열)
 - ❌ `FileSystem.getInfoAsync()`
 - ✅ `Paths.cache` (Directory 객체)
+- ✅ `Paths.document` (Directory 객체)
 - ✅ `new File(path)` (File 객체)
+- ✅ `new Directory(path, name)` (Directory 객체)
+
+**히스토리 저장소**:
+
+```typescript
+// 오디오 파일은 영구 저장소에 저장
+const audioDir = new Directory(Paths.document, "audio");
+const file = new File(audioDir, `recording_${id}.wav`);
+```
+
+---
+
+---
+
+## 📦 추가된 의존성
+
+### 히스토리 관리
+
+- `@react-native-async-storage/async-storage`: 히스토리 메타데이터 저장
+- `expo-media-library`: 오디오 파일을 공유 저장소로 내보내기
+- `expo-sharing`: 다른 앱으로 오디오 파일 공유
+
+### 기타
+
+- `react-native-reanimated`: 애니메이션 지원
+- `react-native-worklets`: 워크릿 지원
 
 ---
 
 **마지막 업데이트**: 2025-01-11
-**버전**: 1.1.0
+**버전**: 1.2.0
+#   S T T C h e c k e r  
+ 
