@@ -41,5 +41,4 @@ yarn-error.*
 /android
 
 # Model files (large AI models)
-assets/model/wav2vec2_korean_final.onnx
-assets/model/vocab.json
+assets/model/
