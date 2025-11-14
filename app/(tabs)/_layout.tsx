@@ -68,6 +68,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="flask" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="sing"
+        options={{
+          title: "노래",
+          tabBarIcon: ({ color }) => <TabBarIcon name="music" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

@@ -1,4 +1,4 @@
-# STTChecker-1 프로젝트 코드베이스
+# STTChecker-1 프로젝트 코드베이스 요약
 
 ## 📋 프로젝트 개요
 
@@ -179,135 +179,6 @@ STTChecker-1/
 [결과 텍스트]
 ```
 
-#### 1. **오디오 전처리** (`audioPreprocessor.ts`)
-
-`audioPreprocessor.ts`는 WAV 파일 파싱과 전처리를 모두 처리합니다:
-
-```typescript
-export async function preprocessAudioFile(
-  fileUri: string
-): Promise<Float32Array> {
-  // 1. WAV 파일 읽기 (새로운 expo-file-system API)
-  const file = new File(fileUri);
-  const arrayBuffer = await file.arrayBuffer();
-
-  // 2. WAV 파싱 및 전처리
-  const audioData = parseWAVFile(arrayBuffer);
-  // parseWAVFile 내부에서:
-  //   - Float32 정규화 (16-bit/32-bit PCM → Float32)
-  //   - 모노 채널 변환 (스테레오/멀티채널 → 모노)
-  //   - 16kHz 리샘플링 (필요시, 선형 보간)
-
-  // 3. Wav2Vec2 정규화
-  const processed = wav2vec2Preprocess(audioData);
-  // wav2vec2Preprocess:
-  //   - Mean 제거 (zero-centering)
-  //   - 표준화 (mean=0, std=1, epsilon=1e-7 추가)
-
-  return processed;
-}
-```
-
-**주요 개선사항**:
-
-- 32-bit PCM 지원 추가
-- 상세한 로깅 (통계 정보 출력)
-- NaN/Infinity 검증
-- Epsilon 추가로 수치 안정성 향상
-
-#### 2. **ONNX 추론** (`inference.ts`)
-
-```typescript
-export async function runSTTInference(
-  session: any,
-  audioData: Float32Array,
-  vocabInfo: VocabInfo,
-  inputName: string,
-  outputName: string
-): Promise<string> {
-  // 1. Tensor 생성
-  const shape = [1, audioData.length];
-  const inputTensor = new Tensor("float32", audioData, shape);
-
-  // 2. 모델 추론 실행
-  const results = await session.run({
-    [inputName]: inputTensor,
-  });
-
-  // 3. Logits 추출
-  const logits = resul ts[outputName];
-
-  // 4. CTC 디코딩
-  const transcription = decodeLogits(logits.data, vocabInfo);
-  return transcription;
-}
-```
-
-#### 3. **CTC 디코딩** (`inference.ts`)
-
-```typescript
-function decodeLogits(logits: any, vocabInfo: VocabInfo): string {
-  const { idToToken, blankToken, padToken } = vocabInfo;
-  const dims = logits.dims;
-  const timeSteps = dims[1];
-  const vocabSize = dims[2];
-  const tokens: string[] = [];
-  let prevToken = -1;
-
-  // Greedy Decoding
-  for (let t = 0; t < timeSteps; t++) {
-    let maxProb = -Infinity;
-    let maxIndex = 0;
-
-    // 각 타임스텝에서 가장 높은 확률의 토큰 찾기
-    for (let v = 0; v < vocabSize; v++) {
-      const idx = t * vocabSize + v;
-      const prob = logits.data[idx];
-      if (prob > maxProb) {
-        maxProb = prob;
-        maxIndex = v;
-      }
-    }
-
-    // CTC 규칙:
-    // 1. PAD 토큰 건너뛰기
-    if (maxIndex === padToken) {
-      prevToken = maxIndex;
-      continue;
-    }
-
-    // 2. 중복 토큰 제거
-    if (maxIndex === prevToken) {
-      continue;
-    }
-
-    const tokenText = idToToken.get(maxIndex);
-
-    // 3. 토큰 처리
-    if (tokenText && tokenText !== "[PAD]" && tokenText !== "[UNK]") {
-      if (tokenText === "|") {
-        // Blank(공백) 토큰은 공백으로
-        tokens.push(" ");
-      } else {
-        tokens.push(tokenText);
-      }
-    }
-
-    prevToken = maxIndex;
-  }
-
-  // 토큰 합치고 연속 공백 제거
-  return tokens.join("").replace(/\s+/g, " ").trim() || "[EMPTY]";
-}
-```
-
-**주요 개선사항**:
-
-- 토큰 분포 분석 및 로깅
-- 빈 결과 처리 (`[EMPTY]` 반환)
-- 연속 공백 정규화
-- 상세한 디버깅 정보 출력
-
 ---
 
 ## 📦 주요 의존성
@@ -342,6 +213,8 @@ function decodeLogits(logits: any, vocabInfo: VocabInfo): string {
   - `seekTo()` 메서드로 재생 위치 제어
 
 ---
+
+## ⚙️ 설정 파일
 
 ## ⚙️ 설정 파일
 
@@ -418,24 +291,6 @@ npx expo run:android       # Android 빌드 및 실행
 
 ---
 
-## 🎨 UI/UX 디자인
-
-### 테마 시스템
-
-- **라이브러리**: React Native Paper (Material Design 3)
-- **다크 모드**: 시스템 설정 자동 감지
-- **색상 팔레트**: `constants/theme.ts`에서 관리
-
-### 주요 컴포넌트
-
-- `Card`: 콘텐츠 그룹화
-- `Button`: 주요 액션 (녹음, 재녹음, 홈)
-- `Chip`: 태그 표시 및 관리
-- `ProgressBar`: 모델 로딩 및 처리 진행률
-- `ActivityIndicator`: 로딩 상태
-
----
-
 ## 📊 평가 지표
 
 ### CER (Character Error Rate) - `utils/stt/metrics.ts`
@@ -468,94 +323,8 @@ export function calculateWER(reference: string, hypothesis: string): number {
 }
 ```
 
-### 점수 색상 코딩
-
-- **0-10%**: 초록색 (우수)
-- **10-30%**: 주황색 (보통)
-- **30%+**: 빨간색 (개선 필요)
-
 ---
 
-## 🐛 알려진 이슈 및 해결 방법
-
-### 1. **Android 빌드 오류**
-
-- **문제**: `JAVA_HOME is not set`
-- **해결**: 시스템 환경 변수에 `JAVA_HOME` 설정
-  ```
-  JAVA_HOME=C:\Program Files\Android\Android Studio\jbr
-  ```
-
-### 2. **모델 로딩 느림**
-
-- **원인**: 1.24GB 모델 파일 로딩
-- **해결**: `ModelLoadingScreen.tsx`에서 진행률 표시
-
-### 3. **Android WAV 파일 경로**
-
-- **문제**: `react-native-audio-record`의 파일 경로 불일치
-- **해결**: `expo-file-system`의 새로운 API 사용
-  ```typescript
-  const file = new File(Paths.cache, audioFile);
-  audioUri = file.uri;
-  ```
-
-### 4. **오디오 재생 문제**
-
-- **문제**: 오디오가 끝까지 재생된 후 다시 재생이 안 됨
-- **해결**: `useAudioPlayerStatus`로 실시간 상태 추적, `seekTo(0)`으로 처음부터 재생
-
----
-
-## 💾 히스토리 관리 시스템
-
-### 저장소 구조
-
-- **메타데이터**: AsyncStorage (`@pronunciation_history`)
-- **오디오 파일**: `Paths.document/audio/` 디렉토리
-- **최대 저장 개수**: 100개 (초과 시 오래된 항목 자동 삭제)
-
-### 주요 기능 (`utils/storage/historyManager.ts`)
-
-```typescript
-// 히스토리 저장
-await saveHistory({
-  targetText: "목표 문장",
-  recognizedText: "인식된 문장",
-  audioFilePath: "저장된 파일 경로",
-  cerScore: 0.1,
-  werScore: 0.2,
-  tags: ["완벽함", "우수"],
-  recordingDuration: 5,
-  processingTime: 2.5,
-});
-
-// 히스토리 로드
-const histories = await loadHistories();
-
-// 히스토리 삭제
-await deleteHistory(id);
-await clearAllHistories();
-
-// 오디오 파일 내보내기 (MediaLibrary)
-await exportAudioFile(audioFilePath);
-
-// 오디오 파일 공유 (다른 앱으로)
-await shareAudioFile(audioFilePath);
-```
-
-### 히스토리 화면 기능
-
-- ✅ 기록 목록 조회 (최신순)
-- ✅ 오디오 재생/일시정지
-- ✅ 개별/전체 삭제
-- ✅ 오디오 파일 내보내기 (MediaLibrary → "발음연습" 앨범)
-- ✅ 오디오 파일 공유 (expo-sharing)
-- ✅ 스토리지 사용량 표시
-- ✅ 태그별 필터링 (구현됨, UI 미연결)
-- ✅ 날짜 범위 필터링 (구현됨, UI 미연결)
-
----
 
 ## 🚀 향후 개선 사항
 
@@ -571,7 +340,6 @@ await shareAudioFile(audioFilePath);
 
 ### 4. **UI 개선**
 
-- ✅ 애니메이션 추가 (홈 화면)
 - 발음 시각화 (파형, 스펙트로그램)
 - 히스토리 검색 기능
 - 태그 필터링 UI 연결
@@ -595,28 +363,6 @@ await shareAudioFile(audioFilePath);
 - [Wav2Vec2](https://arxiv.org/abs/2006.11477)
 - [Levenshtein Distance](https://en.wikipedia.org/wiki/Levenshtein_distance)
 
----
-
-## 🤝 기여 가이드
-
-### 코드 스타일
-
-- TypeScript 사용 (strict mode)
-- ESLint + Prettier 설정 준수
-- 컴포넌트는 함수형 컴포넌트 사용
-- 주석은 한국어로 작성
-
-### 커밋 메시지
-
-```
-feat: 새로운 기능 추가
-fix: 버그 수정
-refactor: 코드 리팩토링
-docs: 문서 수정
-style: 코드 포맷팅
-test: 테스트 추가
-chore: 빌드 설정 변경
-```
 
 ---
 
@@ -628,9 +374,7 @@ chore: 빌드 설정 변경
 
 ## 👥 연락처
 
-프로젝트 관련 문의: [GitHub Issues](https://github.com/your-repo/issues)
-
----
+프로젝트 관련 문의: [GitHub Issues](https://github.com/euncherry/STTChecker/issues)
 
 ---
 
@@ -719,27 +463,10 @@ const audioDir = new Directory(Paths.document, "audio");
 const file = new File(audioDir, `recording_${id}.wav`);
 ```
 
----
 
 ---
 
-## 📦 추가된 의존성
+**마지막 업데이트**: 2025-11-13
+**버전**: 1.1.0
 
-### 히스토리 관리
 
-- `@react-native-async-storage/async-storage`: 히스토리 메타데이터 저장
-- `expo-media-library`: 오디오 파일을 공유 저장소로 내보내기
-- `expo-sharing`: 다른 앱으로 오디오 파일 공유
-
-### 기타
-
-- `react-native-reanimated`: 애니메이션 지원
-- `react-native-worklets`: 워크릿 지원
-
----
-
-**마지막 업데이트**: 2025-01-11
-**버전**: 1.2.0
-#   S T T C h e c k e r 
- 
- 
