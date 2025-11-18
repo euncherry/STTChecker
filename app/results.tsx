@@ -13,6 +13,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import WaveSurferWebView from "../components/WaveSurferWebView";
 import { useONNX } from "../utils/onnx/onnxContext";
 import { saveHistory } from "../utils/storage/historyManager";
 import { preprocessAudioFile } from "../utils/stt/audioPreprocessor";
@@ -49,6 +50,7 @@ export default function ResultsScreen() {
   const [werScore, setWerScore] = useState<number | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+  const [showGraphs, setShowGraphs] = useState(false); // 그래프 표시 여부
 
   // 컴포넌트 마운트 시 STT 처리
   useEffect(() => {
@@ -349,6 +351,47 @@ export default function ResultsScreen() {
           </Card.Content>
         </Card>
 
+        {/* 음성 분석 그래프 카드 */}
+        <Card style={styles.card} mode="elevated">
+          <Card.Title
+            title="📊 음성 분석 그래프"
+            subtitle="파형, 음정, 주파수 스펙트럼 분석"
+          />
+          <Card.Content>
+            <Button
+              mode={showGraphs ? "outlined" : "contained"}
+              onPress={() => setShowGraphs(!showGraphs)}
+              icon={showGraphs ? "chevron-up" : "chart-line"}
+              style={styles.graphToggleButton}
+            >
+              {showGraphs ? "그래프 숨기기" : "그래프 보기"}
+            </Button>
+
+            {showGraphs && audioUri && (
+              <View style={styles.graphContainer}>
+                <WaveSurferWebView
+                  userAudioPath={audioUri}
+                  onReady={() => {
+                    console.log("[ResultsScreen] ✅ WaveSurfer 그래프 준비 완료");
+                  }}
+                  onError={(error) => {
+                    console.error("[ResultsScreen] ❌ WaveSurfer 에러:", error);
+                    Alert.alert("그래프 오류", error);
+                  }}
+                />
+              </View>
+            )}
+
+            {showGraphs && !audioUri && (
+              <View style={styles.graphPlaceholder}>
+                <Text variant="bodyMedium" style={styles.placeholderText}>
+                  ⚠️ 오디오 파일이 없습니다
+                </Text>
+              </View>
+            )}
+          </Card.Content>
+        </Card>
+
         {/* 태그 카드 */}
         <Card style={styles.card} mode="outlined">
           <Card.Content>
@@ -544,5 +587,24 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 10,
+  },
+  graphToggleButton: {
+    marginBottom: 12,
+  },
+  graphContainer: {
+    height: 500,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "#f8f9fa",
+  },
+  graphPlaceholder: {
+    height: 200,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+  },
+  placeholderText: {
+    opacity: 0.7,
   },
 });
