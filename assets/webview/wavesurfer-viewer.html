@@ -557,17 +557,27 @@
 
     async function processPitch(wavesurfer, canvasId, infoId) {
       try {
+        console.log('[WaveSurfer HTML] 🎵 Processing pitch for canvas:', canvasId);
         const audioBuffer = wavesurfer.getDecodedData();
         const sampleRate = audioBuffer.sampleRate;
 
+        console.log('[WaveSurfer HTML] 📊 Audio buffer:', { sampleRate, duration: audioBuffer.duration });
         const pitchResult = detectPitchSimple(audioBuffer, sampleRate);
 
+        console.log('[WaveSurfer HTML] 🎼 Pitch detected:', {
+          baseFreq: pitchResult.baseFrequency,
+          avgPitch: pitchResult.averagePitch,
+          freqCount: pitchResult.frequencies.length
+        });
+
         drawPitchContour(canvasId, pitchResult.frequencies, pitchResult.baseFrequency);
+        console.log('[WaveSurfer HTML] ✅ Pitch contour drawn for', canvasId);
+
         displayPitchInfo(infoId, pitchResult);
 
         return pitchResult;
       } catch (error) {
-        console.error('Pitch processing failed:', error);
+        console.error('[WaveSurfer HTML] ❌ Pitch processing failed:', error);
         return null;
       }
     }
