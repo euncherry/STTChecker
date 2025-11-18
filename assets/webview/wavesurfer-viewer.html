@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WaveSurfer Analysis</title>
+
+  <!-- WaveSurfer.js 7.x CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@7"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      overflow-x: hidden;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 100%;
+      padding: 12px;
+    }
+
+    /* Tab Navigation */
+    .tabs {
+      display: flex;
+      background: white;
+      border-radius: 8px;
+      padding: 4px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      gap: 4px;
+    }
+
+    .tab-button {
+      flex: 1;
+      padding: 10px 12px;
+      border: none;
+      background: transparent;
+      color: #666;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab-button.active {
+      background: #6750A4;
+      color: white;
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Section Headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .play-button {
+      padding: 6px 12px;
+      background: #6750A4;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .play-button:active {
+      background: #5842a0;
+    }
+
+    /* Waveform Containers */
+    .wave-section {
+      margin-bottom: 20px;
+    }
+
+    .wave-section.hidden {
+      display: none;
+    }
+
+    .wave-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #555;
+    }
+
+    .wave-legend {
+      width: 20px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    .waveform-container {
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fafafa;
+    }
+
+    /* Pitch Contour */
+    .pitch-container {
+      position: relative;
+    }
+
+    .pitch-canvas-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .pitch-info {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+      font-size: 11px;
+      color: #666;
+      flex-wrap: wrap;
+    }
+
+    .pitch-info span {
+      background: #f0f0f0;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #f0f0f0;
+      border-top: 3px solid #6750A4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Error State */
+    .error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+
+    /* Info Box */
+    .info-box {
+      background: #e3f2fd;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #1565c0;
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Loading State -->
+    <div id="loading" class="loading">
+      <div class="loading-spinner"></div>
+      <div>오디오 데이터를 기다리는 중...</div>
+    </div>
+
+    <!-- Main Content (hidden initially) -->
+    <div id="main-content" style="display: none;">
+      <!-- Tab Navigation -->
+      <div class="tabs">
+        <button class="tab-button active" data-tab="waveform">파형</button>
+        <button class="tab-button" data-tab="pitch">음정</button>
+        <button class="tab-button" data-tab="spectrogram">스펙트럼</button>
+      </div>
+
+      <!-- Waveform Tab -->
+      <div id="waveform-tab" class="tab-content active">
+        <!-- Reference (hidden if not available) -->
+        <div id="ref-wave-section" class="wave-section">
+          <div class="section-header">
+            <div class="wave-label">
+              <div class="wave-legend" style="background: linear-gradient(135deg, #ff8fab, #ffc3d0);"></div>
+              <span class="section-title">표준 발음</span>
+            </div>
+            <button class="play-button" id="play-ref-wave">▶️ 재생</button>
+          </div>
+          <div id="waveform-ref" class="waveform-container"></div>
+        </div>
+
+        <!-- User -->
+        <div class="wave-section">
+          <div class="section-header">
+            <div class="wave-label">
+              <div class="wave-legend" style="background: linear-gradient(135deg, #8ca3c4, #b5c6dc);"></div>
+              <span class="section-title">내 발음</span>
+            </div>
+            <button class="play-button" id="play-user-wave">▶️ 재생</button>
+          </div>
+          <div id="waveform-user" class="waveform-container"></div>
+        </div>
+
+        <div class="info-box">
+          파형의 모양과 강약 패턴을 분석합니다. 세로축은 소리의 크기(진폭)를 나타냅니다.
+        </div>
+      </div>
+
+      <!-- Pitch Contour Tab -->
+      <div id="pitch-tab" class="tab-content">
+        <!-- Reference -->
+        <div id="ref-pitch-section" class="wave-section">
+          <div class="section-header">
+            <div class="wave-label">
+              <div class="wave-legend" style="background: linear-gradient(135deg, #faabca, #c8ffd8);"></div>
+              <span class="section-title">표준 발음 Pitch</span>
+            </div>
+            <button class="play-button" id="play-ref-pitch">▶️ 재생</button>
+          </div>
+          <div class="pitch-container">
+            <div id="pitch-ref" class="waveform-container"></div>
+            <canvas id="pitch-ref-canvas" class="pitch-canvas-overlay"></canvas>
+          </div>
+          <div class="pitch-info" id="pitch-ref-info"></div>
+        </div>
+
+        <!-- User -->
+        <div class="wave-section">
+          <div class="section-header">
+            <div class="wave-label">
+              <div class="wave-legend" style="background: linear-gradient(135deg, #8ca3c4, #b5c6dc);"></div>
+              <span class="section-title">내 발음 Pitch</span>
+            </div>
+            <button class="play-button" id="play-user-pitch">▶️ 재생</button>
+          </div>
+          <div class="pitch-container">
+            <div id="pitch-user" class="waveform-container"></div>
+            <canvas id="pitch-user-canvas" class="pitch-canvas-overlay"></canvas>
+          </div>
+          <div class="pitch-info" id="pitch-user-info"></div>
+        </div>
+
+        <div class="info-box">
+          음성의 높낮이(음정) 변화를 시각화합니다. 파란 점은 상승, 빨간 점은 하강을 의미합니다.
+        </div>
+      </div>
+
+      <!-- Spectrogram Tab -->
+      <div id="spectrogram-tab" class="tab-content">
+        <!-- Reference -->
+        <div id="ref-spec-section" class="wave-section">
+          <div class="section-header">
+            <span class="section-title">표준 발음 스펙트럼</span>
+            <button class="play-button" id="play-ref-spec">▶️ 재생</button>
+          </div>
+          <div id="spectrogram-ref" class="waveform-container"></div>
+        </div>
+
+        <!-- User -->
+        <div class="wave-section">
+          <div class="section-header">
+            <span class="section-title">내 발음 스펙트럼</span>
+            <button class="play-button" id="play-user-spec">▶️ 재생</button>
+          </div>
+          <div id="spectrogram-user" class="waveform-container"></div>
+        </div>
+
+        <div class="info-box">
+          주파수 패턴을 시각화합니다. 가로축은 시간, 세로축은 주파수, 색상 강도는 에너지를 나타냅니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Display -->
+    <div id="error-container" style="display: none;"></div>
+  </div>
+
+  <script>
+    // Global state
+    let wavesurfers = {
+      refWave: null,
+      userWave: null,
+      refPitch: null,
+      userPitch: null,
+      refSpec: null,
+      userSpec: null
+    };
+
+    let isSingleMode = false; // 표준 발음 없이 사용자 녹음만 있는 모드
+
+    // Tab switching
+    document.querySelectorAll('.tab-button').forEach(button => {
+      button.addEventListener('click', () => {
+        const targetTab = button.dataset.tab;
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.getElementById(`${targetTab}-tab`).classList.add('active');
+      });
+    });
+
+    // Initialize WaveSurfer instances
+    function initWaveform(containerId, waveColor, progressColor) {
+      return WaveSurfer.create({
+        container: `#${containerId}`,
+        height: 100,
+        waveColor: waveColor,
+        progressColor: progressColor,
+        cursorColor: progressColor,
+        barWidth: 2,
+        barGap: 1,
+        barRadius: 2,
+        interact: true,
+        normalize: true
+      });
+    }
+
+    function initPitchWaveform(containerId) {
+      return WaveSurfer.create({
+        container: `#${containerId}`,
+        height: 150,
+        waveColor: 'rgba(250, 171, 200, 0.3)',
+        progressColor: 'rgba(200, 255, 220, 0.5)',
+        cursorColor: 'rgba(0, 0, 0, 0)',
+        interact: false,
+        normalize: true
+      });
+    }
+
+    function initSpectrogramWaveform(containerId) {
+      return WaveSurfer.create({
+        container: `#${containerId}`,
+        height: 120,
+        waveColor: 'rgb(140, 163, 196)',
+        progressColor: 'rgb(51, 89, 143)',
+        cursorColor: 'rgb(51, 89, 143)',
+        interact: true
+      });
+    }
+
+    // Draw pitch contour
+    function drawPitchContour(canvasId, frequencies, baseFrequency) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      const container = canvas.parentElement;
+
+      canvas.width = container.offsetWidth;
+      canvas.height = 150;
+      canvas.style.width = '100%';
+      canvas.style.height = '150px';
+
+      const height = canvas.height;
+      const width = canvas.width;
+      const pointsPerPixel = frequencies.length / width;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const pitchUpColor = '#385587';
+      const pitchDownColor = '#C26351';
+      const pointSize = 2;
+
+      let prevY = 0;
+
+      for (let x = 0; x < width; x++) {
+        const index = Math.floor(x * pointsPerPixel);
+        const frequency = frequencies[index];
+
+        if (!frequency || frequency <= 0) continue;
+
+        const y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
+        ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
+        ctx.fillRect(x, y, pointSize, pointSize);
+
+        prevY = y;
+      }
+    }
+
+    // Detect pitch using autocorrelation
+    function detectPitchSimple(audioBuffer, sampleRate = 16000) {
+      const audioData = audioBuffer.getChannelData(0);
+      const frameSize = 2048;
+      const hopSize = 512;
+      const frequencies = [];
+
+      for (let i = 0; i < audioData.length - frameSize; i += hopSize) {
+        const frame = audioData.slice(i, i + frameSize);
+        const pitch = autoCorrelation(frame, sampleRate);
+        frequencies.push(pitch);
+      }
+
+      const validFreqs = frequencies.filter(f => f > 0);
+      const baseFrequency = validFreqs.length > 0
+        ? validFreqs.reduce((a, b) => a + b, 0) / validFreqs.length
+        : 0;
+
+      const minFreq = validFreqs.length > 0 ? Math.min(...validFreqs) : 0;
+      const maxFreq = validFreqs.length > 0 ? Math.max(...validFreqs) : 0;
+
+      return {
+        frequencies,
+        baseFrequency,
+        averagePitch: baseFrequency,
+        minPitch: minFreq,
+        maxPitch: maxFreq
+      };
+    }
+
+    function autoCorrelation(buffer, sampleRate) {
+      const SIZE = buffer.length;
+      const MAX_SAMPLES = Math.floor(SIZE / 2);
+      let best_offset = -1;
+      let best_correlation = 0;
+      let rms = 0;
+
+      for (let i = 0; i < SIZE; i++) {
+        const val = buffer[i];
+        rms += val * val;
+      }
+      rms = Math.sqrt(rms / SIZE);
+
+      if (rms < 0.01) return 0;
+
+      let lastCorrelation = 1;
+      for (let offset = 1; offset < MAX_SAMPLES; offset++) {
+        let correlation = 0;
+
+        for (let i = 0; i < MAX_SAMPLES; i++) {
+          correlation += Math.abs((buffer[i]) - (buffer[i + offset]));
+        }
+
+        correlation = 1 - (correlation / MAX_SAMPLES);
+
+        if (correlation > 0.9 && correlation > lastCorrelation) {
+          const foundGoodCorrelation = correlation > best_correlation;
+          if (foundGoodCorrelation) {
+            best_correlation = correlation;
+            best_offset = offset;
+          }
+        }
+        lastCorrelation = correlation;
+      }
+
+      if (best_offset === -1) return 0;
+      const fundamental = sampleRate / best_offset;
+      return fundamental;
+    }
+
+    function displayPitchInfo(containerId, pitchResult) {
+      const container = document.getElementById(containerId);
+      if (!container || !pitchResult) return;
+
+      container.innerHTML = `
+        <span>Base: ${Math.round(pitchResult.baseFrequency)}Hz</span>
+        <span>Avg: ${Math.round(pitchResult.averagePitch)}Hz</span>
+        <span>Range: ${Math.round(pitchResult.minPitch)}-${Math.round(pitchResult.maxPitch)}Hz</span>
+      `;
+    }
+
+    async function loadAudio(wavesurfer, audioData) {
+      try {
+        if (audioData.startsWith('data:')) {
+          await wavesurfer.load(audioData);
+        } else if (audioData.startsWith('blob:') || audioData.startsWith('http')) {
+          await wavesurfer.load(audioData);
+        } else {
+          await wavesurfer.load(`data:audio/wav;base64,${audioData}`);
+        }
+      } catch (error) {
+        console.error('Failed to load audio:', error);
+        throw error;
+      }
+    }
+
+    async function processPitch(wavesurfer, canvasId, infoId) {
+      try {
+        const audioBuffer = wavesurfer.getDecodedData();
+        const sampleRate = audioBuffer.sampleRate;
+
+        const pitchResult = detectPitchSimple(audioBuffer, sampleRate);
+
+        drawPitchContour(canvasId, pitchResult.frequencies, pitchResult.baseFrequency);
+        displayPitchInfo(infoId, pitchResult);
+
+        return pitchResult;
+      } catch (error) {
+        console.error('Pitch processing failed:', error);
+        return null;
+      }
+    }
+
+    function setupPlayButton(buttonId, wavesurfer) {
+      const button = document.getElementById(buttonId);
+      button.addEventListener('click', () => {
+        wavesurfer.playPause();
+      });
+
+      wavesurfer.on('play', () => {
+        button.textContent = '⏸️ 일시정지';
+      });
+
+      wavesurfer.on('pause', () => {
+        button.textContent = '▶️ 재생';
+      });
+    }
+
+    function showError(message) {
+      const errorContainer = document.getElementById('error-container');
+      errorContainer.innerHTML = `<div class="error">❌ ${message}</div>`;
+      errorContainer.style.display = 'block';
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    function hideSections(prefix) {
+      document.getElementById(`${prefix}-wave-section`).classList.add('hidden');
+      document.getElementById(`${prefix}-pitch-section`).classList.add('hidden');
+      document.getElementById(`${prefix}-spec-section`).classList.add('hidden');
+    }
+
+    async function initializeVisualization(data) {
+      try {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('main-content').style.display = 'none';
+        document.getElementById('error-container').style.display = 'none';
+
+        const { referenceAudio, userAudio } = data;
+
+        if (!userAudio) {
+          throw new Error('사용자 오디오 데이터가 없습니다.');
+        }
+
+        isSingleMode = !referenceAudio;
+
+        if (isSingleMode) {
+          hideSections('ref');
+        }
+
+        // Initialize user waveforms (always)
+        wavesurfers.userWave = initWaveform('waveform-user', 'rgb(140, 163, 196)', 'rgb(51, 89, 143)');
+        wavesurfers.userPitch = initPitchWaveform('pitch-user');
+        wavesurfers.userSpec = initSpectrogramWaveform('spectrogram-user');
+
+        await loadAudio(wavesurfers.userWave, userAudio);
+        await loadAudio(wavesurfers.userPitch, userAudio);
+        await loadAudio(wavesurfers.userSpec, userAudio);
+
+        // Initialize reference waveforms (if available)
+        if (!isSingleMode) {
+          wavesurfers.refWave = initWaveform('waveform-ref', 'rgb(252, 134, 177)', 'rgb(167, 216, 185)');
+          wavesurfers.refPitch = initPitchWaveform('pitch-ref');
+          wavesurfers.refSpec = initSpectrogramWaveform('spectrogram-ref');
+
+          await loadAudio(wavesurfers.refWave, referenceAudio);
+          await loadAudio(wavesurfers.refPitch, referenceAudio);
+          await loadAudio(wavesurfers.refSpec, referenceAudio);
+
+          wavesurfers.refPitch.on('ready', async () => {
+            await processPitch(wavesurfers.refPitch, 'pitch-ref-canvas', 'pitch-ref-info');
+          });
+
+          setupPlayButton('play-ref-wave', wavesurfers.refWave);
+          setupPlayButton('play-ref-pitch', wavesurfers.refPitch);
+          setupPlayButton('play-ref-spec', wavesurfers.refSpec);
+        }
+
+        // Process user pitch
+        wavesurfers.userPitch.on('ready', async () => {
+          await processPitch(wavesurfers.userPitch, 'pitch-user-canvas', 'pitch-user-info');
+        });
+
+        // Setup play buttons
+        setupPlayButton('play-user-wave', wavesurfers.userWave);
+        setupPlayButton('play-user-pitch', wavesurfers.userPitch);
+        setupPlayButton('play-user-spec', wavesurfers.userSpec);
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'VISUALIZATION_READY'
+          }));
+        }
+
+      } catch (error) {
+        console.error('Initialization failed:', error);
+        showError(error.message);
+      }
+    }
+
+    // Listen for messages from React Native
+    window.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'LOAD_AUDIO') {
+          initializeVisualization(data);
+        }
+      } catch (error) {
+        console.error('Message handling error:', error);
+        showError('메시지 처리 중 오류가 발생했습니다.');
+      }
+    });
+
+    document.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'LOAD_AUDIO') {
+          initializeVisualization(data);
+        }
+      } catch (error) {
+        console.error('Message handling error:', error);
+      }
+    });
+
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'WEBVIEW_READY'
+      }));
+    }
+  </script>
+</body>
+</html>

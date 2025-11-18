@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 **Last Updated**: 2025-11-18
-**Project Version**: 1.1.0
+**Project Version**: 1.2.0
 **Target Audience**: AI Assistants (Claude, etc.)
 
 ---
@@ -66,6 +66,7 @@ STTChecker/
 │   ├── CustomHeader.tsx           # Custom header component
 │   ├── ModelLoadingScreen.tsx     # Loading screen with progress indicator
 │   ├── KaraokeText.tsx            # Karaoke-style text animation component
+│   ├── WaveSurferWebView.tsx      # 🆕 WebView-based audio visualization
 │   ├── useColorScheme.ts          # Dark/light mode hook
 │   ├── useClientOnlyValue.ts      # Client-only rendering hook
 │   └── __tests__/                 # Component tests
@@ -94,9 +95,11 @@ STTChecker/
 │
 ├── assets/                        # Static resources
 │   ├── images/                    # Icons, splash screens
-│   └── model/                     # AI model files (gitignored)
-│       ├── wav2vec2_korean_final.onnx  (~305MB)
-│       └── vocab.json             # Korean token vocabulary
+│   ├── model/                     # AI model files (gitignored)
+│   │   ├── wav2vec2_korean_final.onnx  (~305MB)
+│   │   └── vocab.json             # Korean token vocabulary
+│   └── webview/                   # 🆕 WebView HTML files
+│       └── wavesurfer-viewer.html # WaveSurfer.js visualization
 │
 ├── app.json                       # Expo configuration
 ├── package.json                   # Dependencies
@@ -135,6 +138,11 @@ STTChecker/
 ### Audio
 - **Recording**: `react-native-audio-record` `^0.2.2` (Android, 16kHz WAV)
 - **Playback**: `expo-audio` `~1.0.14` (useAudioPlayer hooks)
+
+### 🆕 Audio Visualization
+- **WebView**: `react-native-webview` `^13.12.2` - Embedded browser for HTML/JS
+- **WaveSurfer.js**: `7.x` (CDN) - Waveform, pitch contour, spectrogram visualization
+- **Base64 Audio Transfer**: RN → WebView communication via postMessage
 
 ### Storage & File System
 - **File System**: `expo-file-system` `~19.0.17` (New File/Directory API)
@@ -279,6 +287,10 @@ Display Results + Audio Playback
 - Target vs recognized text comparison
 - CER/WER accuracy scores
 - Tag management (auto + custom)
+- 🆕 **Audio visualization graphs** (WaveSurfer WebView)
+  - Waveform comparison
+  - Pitch contour analysis
+  - Spectrogram visualization
 - Save to history or re-record
 
 **Audio Playback**:
@@ -1277,7 +1289,18 @@ When making changes, verify:
 
 ## Changelog
 
-### v1.1.0 (Current)
+### v1.2.0 (Current)
+- **🆕 New Feature**: Audio visualization with WaveSurfer.js WebView
+  - Waveform comparison graphs
+  - Pitch contour analysis (autocorrelation-based)
+  - Spectrogram visualization
+- **New Component**: `WaveSurferWebView.tsx` - WebView wrapper for audio graphs
+- **New Asset**: `wavesurfer-viewer.html` - Self-contained HTML with WaveSurfer.js
+- **Enhancement**: Results screen now includes toggle-able graph section
+- **Architecture**: React Native ↔ WebView communication via Base64 + postMessage
+- **Offline Support**: All visualization works offline (HTML bundled in assets)
+
+### v1.1.0
 - **New Feature**: Karaoke-style text animation (`KaraokeText` component)
 - **New Screen**: Sing tab for karaoke demo
 - **Enhancement**: 3-second countdown before recording
