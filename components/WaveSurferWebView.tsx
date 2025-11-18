@@ -3,7 +3,7 @@ import { View, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 
 interface WaveSurferWebViewProps {
   /** 표준 발음 오디오 파일 경로 (assets/audio/references/*.wav) - Optional */
@@ -91,10 +91,9 @@ export default function WaveSurferWebView({
 
       if (referenceAudioPath) {
         if (referenceAudioPath.startsWith('file://') || referenceAudioPath.startsWith('/')) {
-          // 로컬 파일
-          referenceBase64 = await FileSystem.readAsStringAsync(referenceAudioPath, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
+          // 로컬 파일 - 새 File API 사용
+          const referenceFile = new File(referenceAudioPath);
+          referenceBase64 = await referenceFile.base64();
         } else {
           // Asset 경로 처리
           const [asset] = await Asset.loadAsync(
@@ -103,19 +102,17 @@ export default function WaveSurferWebView({
           );
 
           if (asset.localUri) {
-            referenceBase64 = await FileSystem.readAsStringAsync(asset.localUri, {
-              encoding: FileSystem.EncodingType.Base64,
-            });
+            const referenceFile = new File(asset.localUri);
+            referenceBase64 = await referenceFile.base64();
           } else {
             throw new Error('Reference audio asset URI not found');
           }
         }
       }
 
-      // 사용자 녹음 오디오 인코딩
-      const userBase64 = await FileSystem.readAsStringAsync(userAudioPath, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      // 사용자 녹음 오디오 인코딩 - 새 File API 사용
+      const userFile = new File(userAudioPath);
+      const userBase64 = await userFile.base64();
 
       console.log('[WaveSurferWebView] ✅ Audio encoding complete');
       if (referenceBase64) {
