@@ -423,7 +423,10 @@
     // Draw pitch contour
     function drawPitchContour(canvasId, frequencies, baseFrequency) {
       const canvas = document.getElementById(canvasId);
-      if (!canvas) return;
+      if (!canvas) {
+        console.log('[WaveSurfer HTML] ❌ Canvas not found:', canvasId);
+        return;
+      }
 
       const ctx = canvas.getContext('2d');
       const container = canvas.parentElement;
@@ -437,6 +440,8 @@
       const width = canvas.width;
       const pointsPerPixel = frequencies.length / width;
 
+      console.log('[WaveSurfer HTML] 🎨 Canvas info: id=' + canvasId + ', width=' + width + ', height=' + height + ', containerWidth=' + container.offsetWidth + ', freqCount=' + frequencies.length + ', baseFreq=' + baseFrequency + 'Hz');
+
       ctx.clearRect(0, 0, width, height);
 
       const pitchUpColor = '#385587';
@@ -444,6 +449,7 @@
       const pointSize = 2;
 
       let prevY = 0;
+      let pointsDrawn = 0;
 
       for (let x = 0; x < width; x++) {
         const index = Math.floor(x * pointsPerPixel);
@@ -455,8 +461,11 @@
         ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
         ctx.fillRect(x, y, pointSize, pointSize);
 
+        pointsDrawn++;
         prevY = y;
       }
+
+      console.log('[WaveSurfer HTML] 🎨 Drew', pointsDrawn, 'pitch points on canvas');
     }
 
     // Detect pitch using autocorrelation
@@ -561,14 +570,10 @@
         const audioBuffer = wavesurfer.getDecodedData();
         const sampleRate = audioBuffer.sampleRate;
 
-        console.log('[WaveSurfer HTML] 📊 Audio buffer:', { sampleRate, duration: audioBuffer.duration });
+        console.log('[WaveSurfer HTML] 📊 Audio buffer: sampleRate=' + sampleRate + ', duration=' + audioBuffer.duration);
         const pitchResult = detectPitchSimple(audioBuffer, sampleRate);
 
-        console.log('[WaveSurfer HTML] 🎼 Pitch detected:', {
-          baseFreq: pitchResult.baseFrequency,
-          avgPitch: pitchResult.averagePitch,
-          freqCount: pitchResult.frequencies.length
-        });
+        console.log('[WaveSurfer HTML] 🎼 Pitch detected: baseFreq=' + pitchResult.baseFrequency + 'Hz, avgPitch=' + pitchResult.averagePitch + 'Hz, freqCount=' + pitchResult.frequencies.length);
 
         drawPitchContour(canvasId, pitchResult.frequencies, pitchResult.baseFrequency);
         console.log('[WaveSurfer HTML] ✅ Pitch contour drawn for', canvasId);
