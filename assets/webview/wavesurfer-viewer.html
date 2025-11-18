@@ -308,23 +308,31 @@
         <!-- Reference -->
         <div id="ref-spec-section" class="wave-section">
           <div class="section-header">
-            <span class="section-title">표준 발음 스펙트럼</span>
-            <button class="play-button" id="play-ref-spec">▶️ 재생</button>
+            <div class="wave-label">
+              <div class="wave-legend" style="background: linear-gradient(135deg, #faabca, #c8ffd8);"></div>
+              <span class="section-title">표준 발음 스펙트럼</span>
+            </div>
           </div>
-          <div id="spectrogram-ref" class="waveform-container"></div>
+          <div style="position: relative; background: #000; border-radius: 8px; overflow: hidden;">
+            <canvas id="spectrogram-ref-canvas" style="width: 100%; height: 120px; display: block;"></canvas>
+          </div>
         </div>
 
         <!-- User -->
         <div class="wave-section">
           <div class="section-header">
-            <span class="section-title">내 발음 스펙트럼</span>
-            <button class="play-button" id="play-user-spec">▶️ 재생</button>
+            <div class="wave-label">
+              <div class="wave-legend" style="background: linear-gradient(135deg, #8ca3c4, #b5c6dc);"></div>
+              <span class="section-title">내 발음 스펙트럼</span>
+            </div>
           </div>
-          <div id="spectrogram-user" class="waveform-container"></div>
+          <div style="position: relative; background: #000; border-radius: 8px; overflow: hidden;">
+            <canvas id="spectrogram-user-canvas" style="width: 100%; height: 120px; display: block;"></canvas>
+          </div>
         </div>
 
         <div class="info-box">
-          주파수 패턴을 시각화합니다. 가로축은 시간, 세로축은 주파수, 색상 강도는 에너지를 나타냅니다.
+          주파수 패턴을 시각화합니다. 가로축은 시간, 세로축은 주파수, 색상 강도(파란색→빨간색)는 에너지를 나타냅니다.
         </div>
       </div>
     </div>
@@ -397,6 +405,19 @@
             }
           }, 100); // Small delay to ensure tab is visible
         }
+
+        // Redraw spectrogram canvases when spectrogram tab is activated
+        if (targetTab === 'spectrogram') {
+          console.log('[WaveSurfer HTML] 🎨 Spectrogram tab activated, redrawing canvases...');
+          setTimeout(() => {
+            if (spectrogramResults.user) {
+              drawSpectrogram('spectrogram-user-canvas', spectrogramResults.user);
+            }
+            if (spectrogramResults.ref) {
+              drawSpectrogram('spectrogram-ref-canvas', spectrogramResults.ref);
+            }
+          }, 100); // Small delay to ensure tab is visible
+        }
       });
     });
 
@@ -425,17 +446,6 @@
         cursorColor: 'rgba(0, 0, 0, 0)',
         interact: false,
         normalize: true
-      });
-    }
-
-    function initSpectrogramWaveform(containerId) {
-      return WaveSurfer.create({
-        container: `#${containerId}`,
-        height: 120,
-        waveColor: 'rgb(140, 163, 196)',
-        progressColor: 'rgb(51, 89, 143)',
-        cursorColor: 'rgb(51, 89, 143)',
-        interact: true
       });
     }
 
@@ -566,6 +576,148 @@
       `;
     }
 
+    // ==================== Spectrogram Functions ====================
+
+    // Simple DFT (Discrete Fourier Transform) for spectrogram
+    function computeDFT(frame, fftSize) {
+      const magnitudes = new Array(fftSize / 2);
+
+      for (let k = 0; k < fftSize / 2; k++) {
+        let real = 0;
+        let imag = 0;
+
+        for (let n = 0; n < frame.length; n++) {
+          const angle = -2 * Math.PI * k * n / fftSize;
+          real += frame[n] * Math.cos(angle);
+          imag += frame[n] * Math.sin(angle);
+        }
+
+        magnitudes[k] = Math.sqrt(real * real + imag * imag);
+      }
+
+      return magnitudes;
+    }
+
+    // Generate spectrogram data from audio buffer
+    function generateSpectrogramData(audioBuffer, fftSize = 512) {
+      const audioData = audioBuffer.getChannelData(0);
+      const sampleRate = audioBuffer.sampleRate;
+      const hopSize = fftSize / 4; // 75% overlap
+
+      const spectrogramData = [];
+
+      for (let i = 0; i < audioData.length - fftSize; i += hopSize) {
+        const frame = audioData.slice(i, i + fftSize);
+
+        // Apply Hamming window
+        const windowedFrame = frame.map((val, idx) => {
+          const hamming = 0.54 - 0.46 * Math.cos(2 * Math.PI * idx / (fftSize - 1));
+          return val * hamming;
+        });
+
+        const magnitudes = computeDFT(windowedFrame, fftSize);
+        spectrogramData.push(magnitudes);
+      }
+
+      return {
+        data: spectrogramData,
+        freqResolution: sampleRate / fftSize,
+        timeResolution: hopSize / sampleRate
+      };
+    }
+
+    // Draw spectrogram on canvas
+    function drawSpectrogram(canvasId, audioBuffer) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) {
+        console.log('[WaveSurfer HTML] ❌ Spectrogram canvas not found:', canvasId);
+        return;
+      }
+
+      const container = canvas.parentElement;
+
+      console.log('[WaveSurfer HTML] 🎨 Generating spectrogram for:', canvasId);
+
+      const fftSize = 512;
+      const spectrogramResult = generateSpectrogramData(audioBuffer, fftSize);
+      const { data: spectrogramData, freqResolution } = spectrogramResult;
+
+      if (spectrogramData.length === 0) {
+        console.log('[WaveSurfer HTML] ❌ No spectrogram data generated');
+        return;
+      }
+
+      // Canvas dimensions
+      canvas.width = spectrogramData.length;
+      canvas.height = fftSize / 2; // Half of FFT size (Nyquist)
+      canvas.style.width = '100%';
+      canvas.style.height = '120px';
+
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+
+      console.log('[WaveSurfer HTML] 🎨 Spectrogram canvas: width=' + width + ', height=' + height + ', frames=' + spectrogramData.length);
+
+      // Find max magnitude for normalization
+      let maxMagnitude = 0;
+      spectrogramData.forEach(frame => {
+        frame.forEach(mag => {
+          if (mag > maxMagnitude) maxMagnitude = mag;
+        });
+      });
+
+      // Draw spectrogram
+      for (let x = 0; x < width; x++) {
+        const frame = spectrogramData[x];
+        if (!frame) continue;
+
+        for (let y = 0; y < height; y++) {
+          const magnitude = frame[y] || 0;
+          const normalizedMag = magnitude / maxMagnitude;
+
+          // Color mapping: blue (low) -> yellow -> red (high)
+          const intensity = Math.pow(normalizedMag, 0.5); // Gamma correction
+          const hue = (1 - intensity) * 240; // Blue to red
+          const saturation = intensity * 100;
+          const lightness = 20 + intensity * 60;
+
+          ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+          ctx.fillRect(x, height - y - 1, 1, 1); // Flip Y axis
+        }
+      }
+
+      console.log('[WaveSurfer HTML] ✅ Spectrogram drawn successfully');
+    }
+
+    // Store spectrogram results for redrawing
+    let spectrogramResults = {
+      user: null,
+      ref: null
+    };
+
+    // Process spectrogram
+    async function processSpectrogram(wavesurfer, canvasId) {
+      try {
+        console.log('[WaveSurfer HTML] 🎵 Processing spectrogram for canvas:', canvasId);
+        const audioBuffer = wavesurfer.getDecodedData();
+
+        // Store audio buffer for redrawing
+        if (canvasId === 'spectrogram-user') {
+          spectrogramResults.user = audioBuffer;
+        } else if (canvasId === 'spectrogram-ref') {
+          spectrogramResults.ref = audioBuffer;
+        }
+
+        drawSpectrogram(canvasId, audioBuffer);
+        console.log('[WaveSurfer HTML] ✅ Spectrogram processing complete for', canvasId);
+      } catch (error) {
+        console.error('[WaveSurfer HTML] ❌ Spectrogram processing failed:', error);
+      }
+    }
+
+    // ==================== End Spectrogram Functions ====================
+
     async function loadAudio(wavesurfer, audioData) {
       try {
         if (audioData.startsWith('data:')) {
@@ -672,7 +824,6 @@
         // Initialize user waveforms (always)
         wavesurfers.userWave = initWaveform('waveform-user', 'rgb(140, 163, 196)', 'rgb(51, 89, 143)');
         wavesurfers.userPitch = initPitchWaveform('pitch-user');
-        wavesurfers.userSpec = initSpectrogramWaveform('spectrogram-user');
 
         // Register pitch event listener BEFORE loading audio
         wavesurfers.userPitch.on('ready', async () => {
@@ -680,19 +831,23 @@
           await processPitch(wavesurfers.userPitch, 'pitch-user-canvas', 'pitch-user-info');
         });
 
+        // Register spectrogram processing
+        wavesurfers.userPitch.on('ready', async () => {
+          console.log('[WaveSurfer HTML] 🎵 User spectrogram ready event fired!');
+          await processSpectrogram(wavesurfers.userPitch, 'spectrogram-user-canvas');
+        });
+
         console.log('[WaveSurfer HTML] 📖 Loading user audio...');
         await loadAudio(wavesurfers.userWave, userAudio);
         console.log('[WaveSurfer HTML] ✅ User waveform loaded');
         await loadAudio(wavesurfers.userPitch, userAudio);
         console.log('[WaveSurfer HTML] ✅ User pitch loaded');
-        await loadAudio(wavesurfers.userSpec, userAudio);
-        console.log('[WaveSurfer HTML] ✅ User spectrogram loaded');
+        console.log('[WaveSurfer HTML] ✅ User spectrogram processed');
 
         // Initialize reference waveforms (if available)
         if (!isSingleMode) {
           wavesurfers.refWave = initWaveform('waveform-ref', 'rgb(252, 134, 177)', 'rgb(167, 216, 185)');
           wavesurfers.refPitch = initPitchWaveform('pitch-ref');
-          wavesurfers.refSpec = initSpectrogramWaveform('spectrogram-ref');
 
           // Register pitch event listener BEFORE loading audio
           wavesurfers.refPitch.on('ready', async () => {
@@ -700,20 +855,23 @@
             await processPitch(wavesurfers.refPitch, 'pitch-ref-canvas', 'pitch-ref-info');
           });
 
+          // Register spectrogram processing
+          wavesurfers.refPitch.on('ready', async () => {
+            console.log('[WaveSurfer HTML] 🎵 Reference spectrogram ready event fired!');
+            await processSpectrogram(wavesurfers.refPitch, 'spectrogram-ref-canvas');
+          });
+
           await loadAudio(wavesurfers.refWave, referenceAudio);
           await loadAudio(wavesurfers.refPitch, referenceAudio);
-          await loadAudio(wavesurfers.refSpec, referenceAudio);
 
           setupPlayButton('play-ref-wave', wavesurfers.refWave);
           setupPlayButton('play-ref-pitch', wavesurfers.refPitch);
-          setupPlayButton('play-ref-spec', wavesurfers.refSpec);
         }
 
         // Setup play buttons
         console.log('[WaveSurfer HTML] 🎮 Setting up play buttons...');
         setupPlayButton('play-user-wave', wavesurfers.userWave);
         setupPlayButton('play-user-pitch', wavesurfers.userPitch);
-        setupPlayButton('play-user-spec', wavesurfers.userSpec);
 
         console.log('[WaveSurfer HTML] ✅ All initialization complete!');
         document.getElementById('loading').style.display = 'none';
