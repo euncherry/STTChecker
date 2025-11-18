@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
 import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import { Asset } from 'expo-asset';
@@ -87,27 +87,12 @@ export default function WaveSurferWebView({
       console.log('[WaveSurferWebView] 🔄 Encoding audio files to Base64');
 
       // 표준 발음 오디오 인코딩 (Optional)
+      // 현재는 로컬 파일 경로만 지원 (file:// 또는 절대 경로)
       let referenceBase64: string | undefined;
 
       if (referenceAudioPath) {
-        if (referenceAudioPath.startsWith('file://') || referenceAudioPath.startsWith('/')) {
-          // 로컬 파일 - 새 File API 사용
-          const referenceFile = new File(referenceAudioPath);
-          referenceBase64 = await referenceFile.base64();
-        } else {
-          // Asset 경로 처리
-          const [asset] = await Asset.loadAsync(
-            // @ts-ignore - Asset path resolution
-            require(`@/${referenceAudioPath}`)
-          );
-
-          if (asset.localUri) {
-            const referenceFile = new File(asset.localUri);
-            referenceBase64 = await referenceFile.base64();
-          } else {
-            throw new Error('Reference audio asset URI not found');
-          }
-        }
+        const referenceFile = new File(referenceAudioPath);
+        referenceBase64 = await referenceFile.base64();
       }
 
       // 사용자 녹음 오디오 인코딩 - 새 File API 사용
