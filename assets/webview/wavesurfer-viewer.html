@@ -331,6 +331,30 @@
   </div>
 
   <script>
+    // Override console to send logs to React Native
+    const originalLog = console.log;
+    const originalError = console.error;
+
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'LOG',
+          message: args.join(' ')
+        }));
+      }
+    };
+
+    console.error = function(...args) {
+      originalError.apply(console, args);
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'LOG',
+          message: '❌ ERROR: ' + args.join(' ')
+        }));
+      }
+    };
+
     // Global state
     let wavesurfers = {
       refWave: null,

@@ -130,9 +130,13 @@ export default function WaveSurferWebView({
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      console.log('[WaveSurferWebView] 📥 Message from WebView:', data.type);
 
       switch (data.type) {
+        case 'LOG':
+          // Forward WebView console logs to RN console
+          console.log('[WebView HTML]', data.message);
+          break;
+
         case 'WEBVIEW_READY':
           console.log('[WaveSurferWebView] ✅ WebView initialized');
           break;
@@ -202,9 +206,6 @@ export default function WaveSurferWebView({
         style={styles.webview}
         onMessage={handleMessage}
         onError={handleError}
-        onConsoleMessage={(event) => {
-          console.log('[WebView Console]', event.nativeEvent.message);
-        }}
         javaScriptEnabled={true}
         domStorageEnabled={true}
         originWhitelist={['*']}
