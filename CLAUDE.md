@@ -1,7 +1,9 @@
-# CLAUDE.md - STTChecker AI Assistant Guide
+# CLAUDE.md
 
-**Last Updated**: 2025-11-14
-**Project Version**: 1.0.0
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+**Last Updated**: 2025-11-18
+**Project Version**: 1.1.0
 **Target Audience**: AI Assistants (Claude, etc.)
 
 ---
@@ -48,8 +50,9 @@
 STTChecker/
 ├── app/                           # Screens (Expo Router file-based routing)
 │   ├── (tabs)/                    # Tab navigation group
-│   │   ├── _layout.tsx            # Tab layout (Home, Test, History tabs)
+│   │   ├── _layout.tsx            # Tab layout (4 tabs: Home, Sing, Test, History)
 │   │   ├── index.tsx              # Home screen (sentence input)
+│   │   ├── sing.tsx               # Sing screen (karaoke demo)
 │   │   ├── test.tsx               # Test screen (file upload)
 │   │   └── history.tsx            # History screen (saved recordings)
 │   ├── _layout.tsx                # Root layout (model loading, theming)
@@ -62,6 +65,7 @@ STTChecker/
 ├── components/                    # Reusable React components
 │   ├── CustomHeader.tsx           # Custom header component
 │   ├── ModelLoadingScreen.tsx     # Loading screen with progress indicator
+│   ├── KaraokeText.tsx            # Karaoke-style text animation component
 │   ├── useColorScheme.ts          # Dark/light mode hook
 │   ├── useClientOnlyValue.ts      # Client-only rendering hook
 │   └── __tests__/                 # Component tests
@@ -75,8 +79,10 @@ STTChecker/
 │   │   ├── audioPreprocessor.ts   # WAV parsing, resampling, normalization
 │   │   ├── inference.ts           # ONNX inference & CTC decoding
 │   │   └── metrics.ts             # CER/WER calculation
-│   └── storage/                   # Data persistence
-│       └── historyManager.ts      # History CRUD, file management, sharing
+│   ├── storage/                   # Data persistence
+│   │   └── historyManager.ts      # History CRUD, file management, sharing
+│   └── karaoke/                   # Karaoke animation utilities
+│       └── timingPresets.ts       # Syllable timing presets
 │
 ├── plugins/                       # Expo Config Plugins (build-time)
 │   ├── withOnnxruntime.js         # Registers ONNX Runtime native package
@@ -220,9 +226,11 @@ const theme = { ...MD3LightTheme, colors: customColors };
 
 **User Flow**:
 1. Request microphone permission (Android)
-2. Display target text
-3. Start/stop recording (WAV 16kHz)
-4. Navigate to `/results` with audio file path
+2. Display target text with karaoke animation
+3. **3-second countdown** before recording starts
+4. Auto-stop after estimated duration + 1 second
+5. Manual stop option
+6. Navigate to `/results` with audio file path
 
 **Audio Recording (Android)**:
 ```typescript
@@ -321,6 +329,45 @@ File System: Paths.document/audio/
 1. Select WAV file using `expo-document-picker`
 2. Process through same STT pipeline
 3. Display results immediately (no saving)
+
+### 6. **Sing Screen** (`app/(tabs)/sing.tsx`)
+
+**Purpose**: Demonstrate karaoke-style text animation
+
+**Features**:
+- Interactive demo of karaoke text highlighting
+- Play/pause/resume controls
+- Syllable-by-syllable animation
+- Manual timing configuration for testing
+- Uses `KaraokeText` component
+
+**KaraokeText Component** (`components/KaraokeText.tsx`):
+- Reusable component for karaoke-style text animation
+- Supports preset timings or auto-generated timings
+- Configurable duration per character (default: 0.3s)
+- Uses `react-native-reanimated` for smooth animations
+- Can be controlled externally or use internal timer
+
+**Usage**:
+```typescript
+import KaraokeText from '@/components/KaraokeText';
+
+<KaraokeText
+  text="안녕하세요"
+  isPlaying={isPlaying}
+  currentTime={audioCurrentTime}  // Optional: sync with audio
+  durationPerCharacter={0.3}       // Optional: custom speed
+  referenceTimings={presetTimings} // Optional: precise timings
+  textColor="#374151"
+  fillColor="#3B82F6"
+  fontSize={24}
+/>
+```
+
+**Timing Presets** (`utils/karaoke/timingPresets.ts`):
+- Predefined timings for common Korean phrases
+- Auto-generation fallback for unlisted sentences
+- `getTimingPreset(text)` helper function
 
 ---
 
@@ -976,6 +1023,67 @@ const saveRecording = async (tempFilePath: string, data: any) => {
    }
    ```
 
+### Using Karaoke Animation
+
+**Basic usage (auto-generated timings)**:
+```typescript
+import KaraokeText from '@/components/KaraokeText';
+
+const [isPlaying, setIsPlaying] = useState(false);
+
+<KaraokeText
+  text="안녕하세요"
+  isPlaying={isPlaying}
+  durationPerCharacter={0.3}  // 300ms per character
+/>
+```
+
+**With audio synchronization**:
+```typescript
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import KaraokeText from '@/components/KaraokeText';
+
+const player = useAudioPlayer(audioFile);
+const status = useAudioPlayerStatus(player);
+
+<KaraokeText
+  text="안녕하세요"
+  isPlaying={status.playing}
+  currentTime={status.currentTime}  // Sync with audio
+/>
+```
+
+**With preset timings**:
+```typescript
+import { getTimingPreset } from '@/utils/karaoke/timingPresets';
+
+const text = "감사합니다";
+const timings = getTimingPreset(text);  // Returns preset or undefined
+
+<KaraokeText
+  text={text}
+  referenceTimings={timings}  // Will auto-generate if undefined
+  isPlaying={isPlaying}
+/>
+```
+
+**Adding new preset timing**:
+```typescript
+// In utils/karaoke/timingPresets.ts
+export const KARAOKE_TIMING_PRESETS: Record<string, SyllableTiming[]> = {
+  // ... existing presets ...
+
+  "새로운 문장": [
+    { syllable: "새", start: 0.0, end: 0.3 },
+    { syllable: "로", start: 0.3, end: 0.6 },
+    { syllable: "운", start: 0.6, end: 0.9 },
+    { syllable: " ", start: 0.9, end: 1.0 },
+    { syllable: "문", start: 1.0, end: 1.3 },
+    { syllable: "장", start: 1.3, end: 1.6 },
+  ],
+};
+```
+
 ### Debugging Model Issues
 
 **Check model loading**:
@@ -1026,6 +1134,7 @@ console.log('[Debug] Value range:', {
 3. **Test model-related changes carefully** - ONNX issues can be subtle
 4. **File system API**: Use new `File`/`Directory` API, not legacy strings
 5. **Expo Router**: File-based routing, don't create manual route configs
+6. **Karaoke animations**: Use `KaraokeText` component for text highlighting, supports auto-generation and custom timings
 
 ### Platform-Specific Considerations
 
@@ -1167,6 +1276,15 @@ When making changes, verify:
 ---
 
 ## Changelog
+
+### v1.1.0 (Current)
+- **New Feature**: Karaoke-style text animation (`KaraokeText` component)
+- **New Screen**: Sing tab for karaoke demo
+- **Enhancement**: 3-second countdown before recording
+- **Enhancement**: Auto-stop recording after estimated duration
+- **Enhancement**: Karaoke animation during recording
+- **New Utility**: Timing presets for karaoke animations
+- **Improvement**: Better user experience in recording flow
 
 ### v1.0.0 (Initial Release)
 - Korean pronunciation evaluation with Wav2Vec2

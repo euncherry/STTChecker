@@ -204,7 +204,7 @@ export default function ResultsScreen() {
       const savedItem = await saveHistory({
         targetText: targetText || "",
         recognizedText,
-        audioFilePath: "", // 오디오 파일 저장 비활성화
+        audioFilePath: audioUri,
         cerScore,
         werScore,
         tags,

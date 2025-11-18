@@ -17,7 +17,7 @@ export async function loadONNXModel(
   onProgress?: ProgressCallback
 ): Promise<ModelInfo> {
   console.log("[ModelLoader] 🤖 ONNX 모델 로딩 시작...");
-  console.log("[ModelLoader] 📊 예상 모델 크기: 305MB");
+  console.log("[ModelLoader] 📊 예상 모델 크기: 607MB");
 
   if (Platform.OS === "web") {
     throw new Error("ONNX Runtime은 웹 환경에서 지원되지 않습니다");
@@ -42,7 +42,7 @@ export async function loadONNXModel(
         console.log(`[ModelLoader] 📦 파일 크기: ${sizeMB}MB`);
       } else {
         console.log(
-          "[ModelLoader] 📥 APK assets에서 모델 복사 중... (305MB, 30초~1분 소요)"
+          "[ModelLoader] 📥 APK assets에서 모델 복사 중... (607MB, 30초~1분 소요)"
         );
         onProgress?.(10);
 

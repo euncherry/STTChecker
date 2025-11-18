@@ -1,10 +1,10 @@
 // app/(tabs)/history.tsx
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
-  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -39,6 +39,11 @@ export default function HistoryScreen() {
     totalSizeMB: "0",
     audioDir: "",
   });
+  const [playingId, setPlayingId] = useState<string | null>(null);
+
+  // ✅ 오디오 플레이어 추가
+  const audioPlayer = useAudioPlayer(null);
+  const playerStatus = useAudioPlayerStatus(audioPlayer);
 
   // ✅ 화면 포커스 시 자동 새로고침
   useFocusEffect(
@@ -75,12 +80,93 @@ export default function HistoryScreen() {
     setRefreshing(false);
   };
 
-  // ✅ 오디오 재생 비활성화
-  const togglePlayback = useCallback(async (item: HistoryItem) => {
-    Alert.alert("알림", "오디오 재생 기능이 비활성화되었습니다.");
-  }, []);
+  // ✅ 개선된 오디오 재생/정지 로직
+  const togglePlayback = useCallback(
+    async (item: HistoryItem) => {
+      if (!item.audioFilePath) {
+        Alert.alert("알림", "오디오 파일을 찾을 수 없습니다.");
+        return;
+      }
 
-  // ✅ 공유/저장
+      try {
+        console.log("[HistoryScreen] 🎵 재생 토글:", item.id);
+
+        if (playingId === item.id) {
+          // 같은 파일 - 재생/일시정지 토글
+          if (playerStatus.playing) {
+            console.log("[HistoryScreen] ⏸️ 일시정지");
+            audioPlayer.pause();
+          } else {
+            console.log("[HistoryScreen] ▶️ 재생 재개");
+            // 끝까지 재생된 경우 처음부터
+            if (
+              playerStatus.currentTime >= playerStatus.duration - 0.1 &&
+              playerStatus.duration > 0
+            ) {
+              audioPlayer.seekTo(0);
+            }
+            audioPlayer.play();
+          }
+        } else {
+          // 다른 파일 - 소스 교체 후 재생
+          console.log("[HistoryScreen] 📁 새 파일 로드:", item.audioFilePath);
+
+          // 기존 재생 중이면 일시정지
+          if (playerStatus.playing) {
+            audioPlayer.pause();
+          }
+
+          // 새 소스로 교체
+          audioPlayer.replace({ uri: item.audioFilePath });
+          setPlayingId(item.id);
+        }
+      } catch (error) {
+        console.error("[HistoryScreen] ❌ 재생 실패:", error);
+        Alert.alert("오류", "오디오 재생 중 문제가 발생했습니다.");
+        setPlayingId(null);
+      }
+    },
+    [playingId, playerStatus, audioPlayer]
+  );
+
+  // ✅ 로드 완료 시 자동 재생
+  useEffect(() => {
+    if (
+      playingId !== null &&
+      playerStatus.isLoaded &&
+      !playerStatus.playing &&
+      playerStatus.currentTime === 0
+    ) {
+      console.log("[HistoryScreen] ✅ 로드 완료 - 자동 재생 시작");
+      audioPlayer.play();
+    }
+  }, [
+    playingId,
+    playerStatus.isLoaded,
+    playerStatus.playing,
+    playerStatus.currentTime,
+    audioPlayer,
+  ]);
+
+  // ✅ 재생 완료 감지
+  useEffect(() => {
+    if (
+      playerStatus.currentTime >= playerStatus.duration - 0.1 &&
+      playerStatus.duration > 0 &&
+      playingId !== null &&
+      playerStatus.playing
+    ) {
+      console.log("[HistoryScreen] ✅ 재생 완료");
+      setPlayingId(null);
+    }
+  }, [
+    playerStatus.currentTime,
+    playerStatus.duration,
+    playingId,
+    playerStatus.playing,
+  ]);
+
+  // ✅ 공유/저장 (알림 제거)
   const handleShare = useCallback(async (item: HistoryItem) => {
     if (!item.audioFilePath) {
       Alert.alert("알림", "오디오 파일을 찾을 수 없습니다.");
@@ -90,24 +176,15 @@ export default function HistoryScreen() {
     try {
       console.log("[HistoryScreen] 📤 공유 시작:", item.id);
       await shareAudioFile(item.audioFilePath);
-
-      // ✅ 도움말 알림 추가
-      Alert.alert(
-        "파일 공유",
-        Platform.OS === "android"
-          ? "공유 메뉴에서 '내 파일' 앱을 선택하면 기기에 저장할 수 있습니다."
-          : "공유 메뉴에서 '파일에 저장'을 선택하면 기기에 저장할 수 있습니다.",
-        [{ text: "확인" }]
-      );
-
       console.log("[HistoryScreen] ✅ 공유 완료");
+      // ✅ 알림 제거 - 공유 메뉴가 자체 설명이므로 불필요
     } catch (error) {
       console.error("[HistoryScreen] ❌ 공유 실패:", error);
       Alert.alert("오류", "파일 공유에 실패했습니다.");
     }
   }, []);
 
-  // ✅ 삭제 (개선된 에러 핸들링)
+  // ✅ 삭제
   const handleDelete = useCallback(
     (id: string) => {
       Alert.alert(
@@ -122,6 +199,12 @@ export default function HistoryScreen() {
               try {
                 console.log("[HistoryScreen] 🗑️ 삭제 시작:", id);
 
+                // 재생 중인 파일이면 정지
+                if (playingId === id) {
+                  audioPlayer.pause();
+                  setPlayingId(null);
+                }
+
                 await deleteHistory(id);
                 await loadData();
                 console.log("[HistoryScreen] ✅ 삭제 완료");
@@ -134,10 +217,10 @@ export default function HistoryScreen() {
         ]
       );
     },
-    [loadData]
+    [loadData, playingId, audioPlayer]
   );
 
-  // ✅ 전체 삭제 (개선된 확인 메시지)
+  // ✅ 전체 삭제
   const handleClearAll = useCallback(() => {
     Alert.alert(
       "전체 삭제",
@@ -151,6 +234,12 @@ export default function HistoryScreen() {
             try {
               console.log("[HistoryScreen] 🗑️ 전체 삭제 시작");
 
+              // 재생 정지
+              if (playingId !== null) {
+                audioPlayer.pause();
+                setPlayingId(null);
+              }
+
               await clearAllHistories();
               await loadData();
               console.log("[HistoryScreen] ✅ 전체 삭제 완료");
@@ -162,14 +251,14 @@ export default function HistoryScreen() {
         },
       ]
     );
-  }, [histories.length, loadData]);
+  }, [histories.length, loadData, playingId, audioPlayer]);
 
   // ✅ 점수에 따른 색상
   const getScoreColor = (score: number): string => {
-    if (score >= 90) return "#C8E6C9"; // 초록
-    if (score >= 80) return "#FFF9C4"; // 노랑
-    if (score >= 70) return "#FFE0B2"; // 주황
-    return "#FFCDD2"; // 빨강
+    if (score >= 90) return "#C8E6C9";
+    if (score >= 80) return "#FFF9C4";
+    if (score >= 70) return "#FFE0B2";
+    return "#FFCDD2";
   };
 
   // ✅ 날짜 포맷팅
@@ -202,11 +291,13 @@ export default function HistoryScreen() {
     }
   };
 
-  // ✅ 히스토리 아이템 렌더링 (CER, WER 모두 표시)
+  // ✅ 히스토리 아이템 렌더링
   const renderItem = useCallback(
     ({ item }: { item: HistoryItem }) => {
       const cerAccuracy = ((1 - item.cerScore) * 100).toFixed(0);
       const werAccuracy = ((1 - item.werScore) * 100).toFixed(0);
+      const isPlaying = playingId === item.id && playerStatus.playing;
+      const isLoadingAudio = playingId === item.id && !playerStatus.isLoaded;
 
       return (
         <Card style={styles.card} mode="outlined">
@@ -218,7 +309,7 @@ export default function HistoryScreen() {
                 numberOfLines={1}
                 style={styles.targetText}
               >
-                {item.recognizedText}
+                {item.targetText}
               </Text>
               <Text variant="bodySmall" style={styles.date}>
                 {formatDate(item.createdAt)}
@@ -231,10 +322,10 @@ export default function HistoryScreen() {
               style={styles.recognizedText}
               numberOfLines={2}
             >
-              🎤 {item.targetText}
+              🎤 {item.recognizedText}
             </Text>
 
-            {/* ✅ CER/WER 점수 모두 표시 */}
+            {/* CER/WER 점수 */}
             <View style={styles.scoreRow}>
               <Chip
                 mode="flat"
@@ -286,17 +377,20 @@ export default function HistoryScreen() {
               </View>
             )}
 
-            {/* 액션 버튼 */}
+            {/* ✅ 액션 버튼 */}
             <View style={styles.actions}>
-              <IconButton
-                icon="play-circle"
-                mode="contained-tonal"
-                onPress={() => togglePlayback(item)}
-                disabled={true}
-                size={28}
-              />
+              {isLoadingAudio ? (
+                <ActivityIndicator size={28} color={theme.colors.primary} />
+              ) : (
+                <IconButton
+                  icon={isPlaying ? "pause-circle" : "play-circle"}
+                  mode="contained-tonal"
+                  onPress={() => togglePlayback(item)}
+                  disabled={!item.audioFilePath}
+                  size={28}
+                />
+              )}
 
-              {/* ✅ 공유/저장 버튼 */}
               <IconButton
                 icon="export-variant"
                 onPress={() => handleShare(item)}
@@ -314,7 +408,14 @@ export default function HistoryScreen() {
         </Card>
       );
     },
-    [togglePlayback, handleShare, handleDelete, theme.colors.primary]
+    [
+      playingId,
+      playerStatus,
+      togglePlayback,
+      handleShare,
+      handleDelete,
+      theme.colors.primary,
+    ]
   );
 
   // ✅ 로딩 화면
@@ -345,7 +446,7 @@ export default function HistoryScreen() {
           { backgroundColor: theme.colors.background },
         ]}
       >
-        {/* ✅ 스토리지 정보 카드 */}
+        {/* 스토리지 정보 카드 */}
         <Card style={styles.infoCard} mode="outlined">
           <Card.Content>
             <View style={styles.infoRow}>
@@ -380,7 +481,7 @@ export default function HistoryScreen() {
           </Card.Content>
         </Card>
 
-        {/* ✅ 리스트 or 빈 화면 */}
+        {/* 리스트 or 빈 화면 */}
         {histories.length === 0 ? (
           <ScrollView
             contentContainerStyle={styles.emptyContainer}
@@ -415,7 +516,6 @@ export default function HistoryScreen() {
   );
 }
 
-// 스타일은 동일
 const styles = StyleSheet.create({
   flex: {
     flex: 1,

@@ -9,8 +9,8 @@ import Animated, {
 
 const referenceTimings = [
   { syllable: "안", start: 0.0, end: 0.3 },
-  { syllable: "녕", start: 0.3, end: 0.8 },
-  { syllable: "하", start: 0.8, end: 1.2 },
+  { syllable: "녕", start: 0.3, end: 0.4 },
+  { syllable: "하", start: 0.4, end: 1.2 },
   { syllable: "세", start: 1.2, end: 1.8 },
   { syllable: "요", start: 1.8, end: 2.5 },
 ];

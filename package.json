@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@babel/core": "^7.26.0",
     "@expo/cli": "^54.0.15",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -29,6 +30,7 @@
     "expo-status-bar": "~3.0.8",
     "expo-web-browser": "~15.0.9",
     "js-levenshtein": "^1.1.6",
+    "metro-react-native-babel-preset": "^0.77.0",
     "onnxruntime-common": "^1.23.2",
     "onnxruntime-react-native": "^1.23.2",
     "react": "19.1.0",

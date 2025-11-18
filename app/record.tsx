@@ -9,6 +9,11 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import KaraokeText from "../components/KaraokeText";
+import {
+  DEFAULT_DURATION_PER_CHARACTER,
+  getTimingPreset,
+} from "../utils/karaoke/timingPresets";
 
 export default function RecordScreen() {
   const insets = useSafeAreaInsets();
@@ -18,32 +23,48 @@ export default function RecordScreen() {
   const targetText = Array.isArray(params.text) ? params.text[0] : params.text;
 
   const [isRecording, setIsRecording] = useState(false);
+  const [isCountingDown, setIsCountingDown] = useState(false); // ✅ 카운트다운 상태
+  const [countdown, setCountdown] = useState(3); // ✅ 3초 카운트다운
   const [timer, setTimer] = useState(0);
   const timerRef = useRef<number | null>(null);
+  const autoStopTimerRef = useRef<number | null>(null);
+  const recordingStartTime = useRef<number>(0);
 
-  // 1. 녹음 설정 초기화
+  const referenceTimings = targetText ? getTimingPreset(targetText) : undefined;
+
+  const estimatedTotalDuration = React.useMemo(() => {
+    if (!targetText) return 5;
+
+    if (referenceTimings && referenceTimings.length > 0) {
+      return Math.max(...referenceTimings.map((t) => t.end));
+    } else {
+      return targetText.length * DEFAULT_DURATION_PER_CHARACTER;
+    }
+  }, [targetText, referenceTimings]);
+
+  const autoStopDuration = estimatedTotalDuration + 1;
+
   useEffect(() => {
     initializeRecording();
     return () => {
       stopTimer();
+      clearAutoStopTimer();
     };
   }, []);
 
   const initializeRecording = async () => {
     try {
-      // ✅ react-native-audio-record 설정
       const options = {
-        sampleRate: 16000, // ✅ 16kHz (모델 요구사항)
-        channels: 1, // ✅ 모노
-        bitsPerSample: 16, // ✅ 16bit
-        audioSource: 6, // VOICE_RECOGNITION (Android)
-        wavFile: `recording_${Date.now()}.wav`, // 고유한 파일명
+        sampleRate: 16000,
+        channels: 1,
+        bitsPerSample: 16,
+        audioSource: 6,
+        wavFile: `recording_${Date.now()}.wav`,
       };
 
       console.log("[RecordScreen] 🎤 녹음 설정:", options);
       AudioRecord.init(options);
 
-      // 권한 요청 (Platform별 처리)
       if (Platform.OS === "android") {
         const { PermissionsAndroid } = require("react-native");
         const granted = await PermissionsAndroid.request(
@@ -67,11 +88,15 @@ export default function RecordScreen() {
     }
   };
 
-  // 타이머 로직
   const startTimer = () => {
     setTimer(0);
+    recordingStartTime.current = Date.now();
+
     timerRef.current = setInterval(() => {
-      setTimer((prev) => prev + 1);
+      const elapsed = Math.floor(
+        (Date.now() - recordingStartTime.current) / 1000
+      );
+      setTimer(elapsed);
     }, 1000);
   };
 
@@ -79,6 +104,24 @@ export default function RecordScreen() {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+  };
+
+  const startAutoStopTimer = () => {
+    console.log(
+      `[RecordScreen] ⏰ 자동 종료 타이머 설정: ${autoStopDuration}초 후`
+    );
+
+    autoStopTimerRef.current = setTimeout(() => {
+      console.log("[RecordScreen] ⏰ 자동 녹음 종료!");
+      stopRecording(true);
+    }, autoStopDuration * 1000);
+  };
+
+  const clearAutoStopTimer = () => {
+    if (autoStopTimerRef.current) {
+      clearTimeout(autoStopTimerRef.current);
+      autoStopTimerRef.current = null;
     }
   };
 
@@ -90,63 +133,71 @@ export default function RecordScreen() {
       .padStart(2, "0")}`;
   };
 
-  // 2. 녹음 시작
-  const startRecording = async () => {
+  // ✅ 카운트다운 시작
+  const startCountdown = () => {
+    setIsCountingDown(true);
+    setCountdown(3);
+
+    const countdownInterval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          // 카운트다운 종료 후 녹음 시작
+          setTimeout(() => {
+            setIsCountingDown(false);
+            startRecordingAfterCountdown();
+          }, 1000); // "시작!" 표시 후 녹음 시작
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // ✅ 카운트다운 후 실제 녹음 시작
+  const startRecordingAfterCountdown = async () => {
     try {
       console.log("[RecordScreen] 🎙️ 녹음 시작...");
-
-      // react-native-audio-record 녹음 시작
       AudioRecord.start();
-
       setIsRecording(true);
       startTimer();
-
+      startAutoStopTimer();
       console.log("[RecordScreen] ✅ 녹음 시작됨");
     } catch (error) {
       console.error("[RecordScreen] ❌ 녹음 시작 실패:", error);
       Alert.alert("오류", "녹음을 시작하는 데 실패했습니다.");
       stopTimer();
+      clearAutoStopTimer();
     }
   };
 
-  // 3. 녹음 중지 및 결과 페이지로 이동
-  const stopRecording = async () => {
+  const stopRecording = async (isAutoStop = false) => {
     try {
+      const exactTime = (Date.now() - recordingStartTime.current) / 1000;
       stopTimer();
-      console.log("[RecordScreen] 🛑 녹음 중지 중...");
+      clearAutoStopTimer();
 
-      // ✅ WAV 파일 경로 받기
+      console.log(
+        `[RecordScreen] 🛑 녹음 중지 중... (${isAutoStop ? "자동" : "수동"})`
+      );
+
       const audioFile = await AudioRecord.stop();
-
       setIsRecording(false);
 
       console.log("[RecordScreen] 📁 WAV 파일 저장됨:", audioFile);
-      console.log("[RecordScreen] ⏱️ 녹음 시간:", formatTime(timer));
+      console.log("[RecordScreen] ⏱️ 녹음 시간:", exactTime);
 
-      // Platform별 파일 경로 처리
       let fileUri = audioFile;
       if (Platform.OS === "android" && !audioFile.startsWith("file://")) {
         fileUri = `file://${audioFile}`;
       }
 
-      console.log("[RecordScreen] 📍 최종 파일 URI:", fileUri);
-      console.log("[RecordScreen] ✅ 녹음 설정 확인:");
-      console.log("  - 샘플레이트: 16000Hz (모델 요구사항)");
-      console.log("  - 채널: 1 (모노)");
-      console.log("  - 비트 깊이: 16-bit PCM");
-      console.log("  - 포맷: WAV");
-      console.log("[RecordScreen] ℹ️ STT 전처리에서 다음 검증이 수행됩니다:");
-      console.log("  1️⃣ 16kHz 리샘플링 (필요시)");
-      console.log("  2️⃣ 모노 채널 변환 (필요시)");
-      console.log("  3️⃣ Float32 정규화 (PCM → [-1.0, 1.0])");
-
-      // 4. 결과 페이지로 이동
       router.replace({
         pathname: "/results",
         params: {
           audioUri: fileUri,
           targetText: targetText || "입력 문장 없음",
-          recordingDuration: timer.toString(),
+          recordingDuration: Math.floor(exactTime).toString(),
         },
       });
     } catch (error) {
@@ -156,7 +207,6 @@ export default function RecordScreen() {
     }
   };
 
-  // UI 렌더링
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -165,15 +215,48 @@ export default function RecordScreen() {
         <Text variant="headlineSmall" style={styles.title}>
           목표 문장
         </Text>
-        <Text variant="titleMedium" style={styles.sentence}>
-          {targetText || "문장을 가져오는 중..."}
+
+        <View style={styles.karaokeWrapper}>
+          <KaraokeText
+            text={targetText || "문장을 가져오는 중..."}
+            referenceTimings={referenceTimings}
+            isPlaying={isRecording} // ✅ 카운트다운 중에는 false
+            durationPerCharacter={DEFAULT_DURATION_PER_CHARACTER}
+            textColor="#374151"
+            fillColor={theme.colors.primary}
+            fontSize={24}
+          />
+        </View>
+
+        <Text variant="bodySmall" style={styles.autoStopInfo}>
+          ⏰ {autoStopDuration.toFixed(1)}초 후 자동 종료
         </Text>
+
+        {__DEV__ && (
+          <Text variant="bodySmall" style={styles.debugInfo}>
+            {referenceTimings
+              ? `🎯 정밀 타이밍 (${estimatedTotalDuration.toFixed(1)}초)`
+              : `⚡ 자동 타이밍 (${estimatedTotalDuration.toFixed(1)}초)`}
+          </Text>
+        )}
       </View>
 
       <View style={styles.feedbackContainer}>
-        {isRecording ? (
+        {/* ✅ 카운트다운 중 */}
+        {isCountingDown ? (
           <>
-            {/* 녹음 중 피드백 */}
+            <Text
+              variant="displayLarge"
+              style={[styles.countdownText, { color: theme.colors.primary }]}
+            >
+              {countdown > 0 ? countdown : "시작!"}
+            </Text>
+            <Text variant="bodyLarge" style={styles.countdownHint}>
+              준비하세요...
+            </Text>
+          </>
+        ) : isRecording ? (
+          <>
             <ActivityIndicator
               animating={true}
               color={theme.colors.error}
@@ -186,13 +269,15 @@ export default function RecordScreen() {
             >
               {formatTime(timer)}
             </Text>
+            <Text variant="bodyMedium" style={styles.remainingTime}>
+              {Math.max(0, autoStopDuration - timer).toFixed(0)}초 후 자동 종료
+            </Text>
             <Text variant="bodyLarge" style={styles.recordingHint}>
-              발음을 시작하세요...
+              문장을 따라 읽으세요...
             </Text>
           </>
         ) : (
           <>
-            {/* 녹음 대기 상태 */}
             <MaterialCommunityIcons
               name="microphone-outline"
               size={120}
@@ -214,18 +299,19 @@ export default function RecordScreen() {
 
       <Button
         mode="contained"
-        onPress={isRecording ? stopRecording : startRecording}
+        onPress={
+          isRecording ? () => stopRecording(false) : startCountdown // ✅ 카운트다운 시작
+        }
         style={styles.button}
         buttonColor={isRecording ? theme.colors.error : theme.colors.primary}
         icon={isRecording ? "stop" : "microphone"}
         labelStyle={styles.buttonLabel}
         contentStyle={styles.buttonContent}
-        disabled={!targetText}
+        disabled={!targetText || isCountingDown} // ✅ 카운트다운 중 비활성화
       >
         {isRecording ? "녹음 중지 및 분석" : "녹음 시작"}
       </Button>
 
-      {/* 디버깅용 플랫폼 표시 */}
       <Text
         variant="bodySmall"
         style={[styles.debugText, { paddingBottom: insets.bottom + 5 }]}
@@ -249,18 +335,31 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   title: {
-    marginBottom: 8,
+    marginBottom: 16,
     color: "#374151",
+    fontWeight: "600",
   },
-  sentence: {
-    padding: 16,
+  karaokeWrapper: {
     width: "100%",
     backgroundColor: "#fff",
-    borderRadius: 12,
-    textAlign: "center",
-    fontWeight: "bold",
-    elevation: 2,
-    lineHeight: 25,
+    borderRadius: 16,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    minHeight: 80,
+    justifyContent: "center",
+  },
+  autoStopInfo: {
+    marginTop: 12,
+    color: "#F59E0B",
+    fontWeight: "500",
+  },
+  debugInfo: {
+    marginTop: 4,
+    opacity: 0.6,
+    fontStyle: "italic",
   },
   feedbackContainer: {
     flex: 1,
@@ -274,7 +373,22 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontVariant: ["tabular-nums"],
   },
+  remainingTime: {
+    marginTop: 8,
+    color: "#F59E0B",
+    fontWeight: "500",
+  },
   recordingHint: {
+    marginTop: 10,
+    color: "#6B7280",
+  },
+  // ✅ 카운트다운 스타일
+  countdownText: {
+    fontSize: 40,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+  countdownHint: {
     marginTop: 10,
     color: "#6B7280",
   },
