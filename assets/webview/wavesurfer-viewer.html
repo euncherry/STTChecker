@@ -370,6 +370,12 @@
 
     let isSingleMode = false; // 표준 발음 없이 사용자 녹음만 있는 모드
 
+    // Store pitch results for redrawing
+    let pitchResults = {
+      user: null,
+      ref: null
+    };
+
     // Tab switching
     document.querySelectorAll('.tab-button').forEach(button => {
       button.addEventListener('click', () => {
@@ -378,6 +384,19 @@
         button.classList.add('active');
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         document.getElementById(`${targetTab}-tab`).classList.add('active');
+
+        // Redraw pitch canvases when pitch tab is activated
+        if (targetTab === 'pitch') {
+          console.log('[WaveSurfer HTML] 🎨 Pitch tab activated, redrawing canvases...');
+          setTimeout(() => {
+            if (pitchResults.user) {
+              drawPitchContour('pitch-user-canvas', pitchResults.user.frequencies, pitchResults.user.baseFrequency);
+            }
+            if (pitchResults.ref) {
+              drawPitchContour('pitch-ref-canvas', pitchResults.ref.frequencies, pitchResults.ref.baseFrequency);
+            }
+          }, 100); // Small delay to ensure tab is visible
+        }
       });
     });
 
@@ -574,6 +593,13 @@
         const pitchResult = detectPitchSimple(audioBuffer, sampleRate);
 
         console.log('[WaveSurfer HTML] 🎼 Pitch detected: baseFreq=' + pitchResult.baseFrequency + 'Hz, avgPitch=' + pitchResult.averagePitch + 'Hz, freqCount=' + pitchResult.frequencies.length);
+
+        // Store pitch result for redrawing when tab is activated
+        if (canvasId === 'pitch-user-canvas') {
+          pitchResults.user = pitchResult;
+        } else if (canvasId === 'pitch-ref-canvas') {
+          pitchResults.ref = pitchResult;
+        }
 
         drawPitchContour(canvasId, pitchResult.frequencies, pitchResult.baseFrequency);
         console.log('[WaveSurfer HTML] ✅ Pitch contour drawn for', canvasId);
