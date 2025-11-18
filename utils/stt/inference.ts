@@ -17,11 +17,16 @@ export async function runSTTInference(
 
   try {
     // 1. Tensor 생성
+    // ⚠️ IMPORTANT: 항상 float32를 사용해야 합니다!
+    // Float16으로 양자화된 모델이더라도, ONNX Runtime React Native는
+    // float16 텐서 생성을 지원하지 않습니다. float32로 입력하면
+    // 런타임이 자동으로 모델의 입력 타입(float16)으로 변환합니다.
     const shape = [1, audioData.length];
-    const inputTensor = new Tensor("float32", audioData, shape);
+    const tensorType = "float32"; // ✅ 절대 변경하지 마세요!
+    const inputTensor = new Tensor(tensorType, audioData, shape);
 
     console.log("[STT Inference] 📊 Tensor 생성 완료");
-    console.log(`  - Type: float32`);
+    console.log(`  - Type: ${tensorType} (모델 타입과 무관하게 항상 float32)`);
     console.log(`  - Shape: [${shape.join(", ")}]`);
     console.log(`  - 데이터 길이: ${audioData.length}`);
 
