@@ -645,6 +645,12 @@
         wavesurfers.userPitch = initPitchWaveform('pitch-user');
         wavesurfers.userSpec = initSpectrogramWaveform('spectrogram-user');
 
+        // Register pitch event listener BEFORE loading audio
+        wavesurfers.userPitch.on('ready', async () => {
+          console.log('[WaveSurfer HTML] 🎵 User pitch ready event fired!');
+          await processPitch(wavesurfers.userPitch, 'pitch-user-canvas', 'pitch-user-info');
+        });
+
         console.log('[WaveSurfer HTML] 📖 Loading user audio...');
         await loadAudio(wavesurfers.userWave, userAudio);
         console.log('[WaveSurfer HTML] ✅ User waveform loaded');
@@ -659,23 +665,20 @@
           wavesurfers.refPitch = initPitchWaveform('pitch-ref');
           wavesurfers.refSpec = initSpectrogramWaveform('spectrogram-ref');
 
+          // Register pitch event listener BEFORE loading audio
+          wavesurfers.refPitch.on('ready', async () => {
+            console.log('[WaveSurfer HTML] 🎵 Reference pitch ready event fired!');
+            await processPitch(wavesurfers.refPitch, 'pitch-ref-canvas', 'pitch-ref-info');
+          });
+
           await loadAudio(wavesurfers.refWave, referenceAudio);
           await loadAudio(wavesurfers.refPitch, referenceAudio);
           await loadAudio(wavesurfers.refSpec, referenceAudio);
-
-          wavesurfers.refPitch.on('ready', async () => {
-            await processPitch(wavesurfers.refPitch, 'pitch-ref-canvas', 'pitch-ref-info');
-          });
 
           setupPlayButton('play-ref-wave', wavesurfers.refWave);
           setupPlayButton('play-ref-pitch', wavesurfers.refPitch);
           setupPlayButton('play-ref-spec', wavesurfers.refSpec);
         }
-
-        // Process user pitch
-        wavesurfers.userPitch.on('ready', async () => {
-          await processPitch(wavesurfers.userPitch, 'pitch-user-canvas', 'pitch-user-info');
-        });
 
         // Setup play buttons
         console.log('[WaveSurfer HTML] 🎮 Setting up play buttons...');
