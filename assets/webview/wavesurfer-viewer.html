@@ -450,14 +450,14 @@
       const ctx = canvas.getContext('2d');
       const container = canvas.parentElement;
 
-      canvas.width = container.offsetWidth;
+      // React 방식: Canvas width = frequencies 길이 (1:1 매핑)
+      canvas.width = frequencies.length;
       canvas.height = 150;
-      canvas.style.width = '100%';
+      canvas.style.width = '100%';  // CSS로 늘림
       canvas.style.height = '150px';
 
       const height = canvas.height;
       const width = canvas.width;
-      const pointsPerPixel = frequencies.length / width;
 
       console.log('[WaveSurfer HTML] 🎨 Canvas info: id=' + canvasId + ', width=' + width + ', height=' + height + ', containerWidth=' + container.offsetWidth + ', freqCount=' + frequencies.length + ', baseFreq=' + baseFrequency + 'Hz');
 
@@ -465,26 +465,24 @@
 
       const pitchUpColor = '#385587';
       const pitchDownColor = '#C26351';
-      const pointSize = 2;
+      const pointSize = 3;  // React와 동일하게 3으로 증가
 
       let prevY = 0;
       let pointsDrawn = 0;
 
-      for (let x = 0; x < width; x++) {
-        const index = Math.floor(x * pointsPerPixel);
-        const frequency = frequencies[index];
-
-        if (!frequency || frequency <= 0) continue;
+      // React 방식: frequencies 배열을 직접 순회
+      frequencies.forEach((frequency, index) => {
+        if (!frequency || frequency <= 0) return;
 
         const y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
         ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
-        ctx.fillRect(x, y, pointSize, pointSize);
+        ctx.fillRect(index, y, pointSize, pointSize);  // index가 x 좌표
 
         pointsDrawn++;
         prevY = y;
-      }
+      });
 
-      console.log('[WaveSurfer HTML] 🎨 Drew', pointsDrawn, 'pitch points on canvas');
+      console.log('[WaveSurfer HTML] 🎨 Drew', pointsDrawn, 'pitch points on canvas (out of', frequencies.length, 'frequencies)');
     }
 
     // Detect pitch using autocorrelation
