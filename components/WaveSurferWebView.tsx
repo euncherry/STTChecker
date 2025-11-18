@@ -202,6 +202,9 @@ export default function WaveSurferWebView({
         style={styles.webview}
         onMessage={handleMessage}
         onError={handleError}
+        onConsoleMessage={(event) => {
+          console.log('[WebView Console]', event.nativeEvent.message);
+        }}
         javaScriptEnabled={true}
         domStorageEnabled={true}
         originWhitelist={['*']}

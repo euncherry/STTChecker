@@ -561,10 +561,19 @@
     }
 
     function showError(message) {
+      console.error('[WaveSurfer HTML] ❌ Error:', message);
       const errorContainer = document.getElementById('error-container');
       errorContainer.innerHTML = `<div class="error">❌ ${message}</div>`;
       errorContainer.style.display = 'block';
       document.getElementById('loading').style.display = 'none';
+
+      // Send error to React Native
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'ERROR',
+          message: message
+        }));
+      }
     }
 
     function hideSections(prefix) {
@@ -575,6 +584,7 @@
 
     async function initializeVisualization(data) {
       try {
+        console.log('[WaveSurfer HTML] 🚀 Starting initialization');
         document.getElementById('loading').style.display = 'block';
         document.getElementById('main-content').style.display = 'none';
         document.getElementById('error-container').style.display = 'none';
@@ -585,20 +595,26 @@
           throw new Error('사용자 오디오 데이터가 없습니다.');
         }
 
+        console.log('[WaveSurfer HTML] 📊 Mode:', referenceAudio ? 'Comparison' : 'Single');
         isSingleMode = !referenceAudio;
 
         if (isSingleMode) {
           hideSections('ref');
         }
 
+        console.log('[WaveSurfer HTML] 🔧 Initializing user waveforms...');
         // Initialize user waveforms (always)
         wavesurfers.userWave = initWaveform('waveform-user', 'rgb(140, 163, 196)', 'rgb(51, 89, 143)');
         wavesurfers.userPitch = initPitchWaveform('pitch-user');
         wavesurfers.userSpec = initSpectrogramWaveform('spectrogram-user');
 
+        console.log('[WaveSurfer HTML] 📖 Loading user audio...');
         await loadAudio(wavesurfers.userWave, userAudio);
+        console.log('[WaveSurfer HTML] ✅ User waveform loaded');
         await loadAudio(wavesurfers.userPitch, userAudio);
+        console.log('[WaveSurfer HTML] ✅ User pitch loaded');
         await loadAudio(wavesurfers.userSpec, userAudio);
+        console.log('[WaveSurfer HTML] ✅ User spectrogram loaded');
 
         // Initialize reference waveforms (if available)
         if (!isSingleMode) {
@@ -625,22 +641,25 @@
         });
 
         // Setup play buttons
+        console.log('[WaveSurfer HTML] 🎮 Setting up play buttons...');
         setupPlayButton('play-user-wave', wavesurfers.userWave);
         setupPlayButton('play-user-pitch', wavesurfers.userPitch);
         setupPlayButton('play-user-spec', wavesurfers.userSpec);
 
+        console.log('[WaveSurfer HTML] ✅ All initialization complete!');
         document.getElementById('loading').style.display = 'none';
         document.getElementById('main-content').style.display = 'block';
 
         if (window.ReactNativeWebView) {
+          console.log('[WaveSurfer HTML] 📤 Sending VISUALIZATION_READY to RN');
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'VISUALIZATION_READY'
           }));
         }
 
       } catch (error) {
-        console.error('Initialization failed:', error);
-        showError(error.message);
+        console.error('[WaveSurfer HTML] ❌ Initialization failed:', error);
+        showError(error.message || 'Unknown error');
       }
     }
 
@@ -668,7 +687,16 @@
       }
     });
 
+    // Check WaveSurfer loaded
+    if (typeof WaveSurfer === 'undefined') {
+      console.error('[WaveSurfer HTML] ❌ WaveSurfer.js not loaded! CDN might have failed.');
+      showError('WaveSurfer.js 라이브러리 로드 실패 (인터넷 연결을 확인하세요)');
+    } else {
+      console.log('[WaveSurfer HTML] ✅ WaveSurfer.js loaded successfully');
+    }
+
     if (window.ReactNativeWebView) {
+      console.log('[WaveSurfer HTML] 📤 Sending WEBVIEW_READY to RN');
       window.ReactNativeWebView.postMessage(JSON.stringify({
         type: 'WEBVIEW_READY'
       }));
