@@ -477,22 +477,42 @@
       const pitchDownColor = '#C26351'; // Red (falling)
       const lineColor = '#4A90E2'; // Line color
 
-      // Step 1: Extract valid points with canvas boundary clamping
-      const validPoints = [];
-      frequencies.forEach((frequency, index) => {
-        if (frequency && frequency > 0) {
-          // Y 좌표 계산
-          let y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
-          // Canvas 밖으로 나가지 않도록 clamp (1px 여유)
-          y = Math.max(1, Math.min(height - 2, y));
-          validPoints.push({ x: index, y: y, freq: frequency });
-        }
-      });
+      // Step 1: 실제 음정 범위(min/max) 계산
+      const validFrequencies = frequencies.filter(f => f && f > 0);
 
-      if (validPoints.length === 0) {
+      if (validFrequencies.length === 0) {
         console.log('[WaveSurfer HTML] ⚠️ No valid pitch points to draw');
         return;
       }
+
+      const minFreq = Math.min(...validFrequencies);
+      const maxFreq = Math.max(...validFrequencies);
+      const freqRange = maxFreq - minFreq;
+
+      console.log('[WaveSurfer HTML] 🎼 Frequency range: min=' + minFreq.toFixed(1) + 'Hz, max=' + maxFreq.toFixed(1) + 'Hz, range=' + freqRange.toFixed(1) + 'Hz');
+
+      // Step 2: Canvas 여유 공간 설정 (상하 10px margin)
+      const margin = 10;
+      const drawableHeight = height - (2 * margin);
+
+      // Step 3: 음정 데이터를 Canvas 높이에 정규화하여 validPoints 생성
+      const validPoints = [];
+      frequencies.forEach((frequency, index) => {
+        if (frequency && frequency > 0) {
+          // 주파수 범위를 0~1로 정규화
+          let normalized = 0;
+          if (freqRange > 0) {
+            normalized = (frequency - minFreq) / freqRange;
+          }
+
+          // Canvas 좌표로 변환 (높은 주파수 = 위쪽 = 작은 y값)
+          // normalized 0 (최소 주파수) → y = height - margin (아래쪽)
+          // normalized 1 (최대 주파수) → y = margin (위쪽)
+          const y = Math.round(margin + (1 - normalized) * drawableHeight);
+
+          validPoints.push({ x: index, y: y, freq: frequency });
+        }
+      });
 
       // Step 2: Draw connecting line
       ctx.beginPath();
