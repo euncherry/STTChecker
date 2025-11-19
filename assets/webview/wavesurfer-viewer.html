@@ -473,33 +473,73 @@
 
       ctx.clearRect(0, 0, width, height);
 
-      const pitchUpColor = '#385587';
-      const pitchDownColor = '#C26351';
-      const pointSize = 3;
+      const pitchUpColor = '#385587'; // Blue (rising)
+      const pitchDownColor = '#C26351'; // Red (falling)
+      const lineColor = '#4A90E2'; // Line color
 
-      let prevY = 0;
-      let pointsDrawn = 0;
-
-      // frequencies 배열을 직접 순회
+      // Step 1: Extract valid points with canvas boundary clamping
+      const validPoints = [];
       frequencies.forEach((frequency, index) => {
-        if (!frequency || frequency <= 0) return;
-
-        const y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
-        ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
-        ctx.fillRect(index, y, pointSize, pointSize);
-
-        pointsDrawn++;
-        prevY = y;
+        if (frequency && frequency > 0) {
+          // Y 좌표 계산
+          let y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
+          // Canvas 밖으로 나가지 않도록 clamp (1px 여유)
+          y = Math.max(1, Math.min(height - 2, y));
+          validPoints.push({ x: index, y: y, freq: frequency });
+        }
       });
 
-      console.log('[WaveSurfer HTML] 🎨 Drew', pointsDrawn, 'pitch points on canvas (out of', frequencies.length, 'frequencies)');
+      if (validPoints.length === 0) {
+        console.log('[WaveSurfer HTML] ⚠️ No valid pitch points to draw');
+        return;
+      }
+
+      // Step 2: Draw connecting line
+      ctx.beginPath();
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 1;
+
+      validPoints.forEach((point, idx) => {
+        if (idx === 0) {
+          ctx.moveTo(point.x, point.y);
+        } else {
+          const prevPoint = validPoints[idx - 1];
+          // If gap is too large (>5px), start new line segment
+          if (point.x - prevPoint.x > 5) {
+            ctx.moveTo(point.x, point.y);
+          } else {
+            ctx.lineTo(point.x, point.y);
+          }
+        }
+      });
+      ctx.stroke();
+
+      // Step 3: Draw circular points with color coding
+      let prevY = validPoints[0].y;
+      validPoints.forEach((point, idx) => {
+        // Determine color based on pitch direction
+        const isRising = idx > 0 && point.y < prevY;
+        const color = isRising ? pitchUpColor : pitchDownColor;
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 1, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0, 0, 0, 0)"; // Transparent stroke
+        ctx.lineWidth = 0.3;
+        ctx.stroke();
+
+        prevY = point.y;
+      });
+
+      console.log('[WaveSurfer HTML] 🎨 Drew', validPoints.length, 'pitch points with lines on canvas (out of', frequencies.length, 'frequencies)');
     }
 
     // Detect pitch using autocorrelation
     function detectPitchSimple(audioBuffer, sampleRate = 16000) {
       const audioData = audioBuffer.getChannelData(0);
       const frameSize = 2048;
-      const hopSize = 512;
+      const hopSize = 256;
       const frequencies = [];
 
       for (let i = 0; i < audioData.length - frameSize; i += hopSize) {
