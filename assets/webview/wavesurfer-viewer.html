@@ -449,7 +449,7 @@
       });
     }
 
-    // Draw pitch contour
+    // Draw pitch contour (개선된 버전: 선 + 점)
     function drawPitchContour(canvasId, frequencies, baseFrequency) {
       const canvas = document.getElementById(canvasId);
       if (!canvas) {
@@ -460,10 +460,10 @@
       const ctx = canvas.getContext('2d');
       const container = canvas.parentElement;
 
-      // React 방식: Canvas width = frequencies 길이 (1:1 매핑)
+      // Canvas width = frequencies 길이 (1:1 매핑)
       canvas.width = frequencies.length;
       canvas.height = 150;
-      canvas.style.width = '100%';  // CSS로 늘림
+      canvas.style.width = '100%';
       canvas.style.height = '150px';
 
       const height = canvas.height;
@@ -473,26 +473,68 @@
 
       ctx.clearRect(0, 0, width, height);
 
-      const pitchUpColor = '#385587';
-      const pitchDownColor = '#C26351';
-      const pointSize = 3;  // React와 동일하게 3으로 증가
+      // 색상 정의
+      const pitchUpColor = '#385587';     // 파란색 (상승)
+      const pitchDownColor = '#C26351';   // 빨간색 (하강)
+      const lineColor = '#4A90E2';        // 선 색상 (중간 파란색)
 
-      let prevY = 0;
-      let pointsDrawn = 0;
-
-      // React 방식: frequencies 배열을 직접 순회
+      // 유효한 데이터 포인트 수집
+      const validPoints = [];
       frequencies.forEach((frequency, index) => {
-        if (!frequency || frequency <= 0) return;
-
-        const y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
-        ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
-        ctx.fillRect(index, y, pointSize, pointSize);  // index가 x 좌표
-
-        pointsDrawn++;
-        prevY = y;
+        if (frequency && frequency > 0) {
+          const y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
+          validPoints.push({ x: index, y: y, freq: frequency });
+        }
       });
 
-      console.log('[WaveSurfer HTML] 🎨 Drew', pointsDrawn, 'pitch points on canvas (out of', frequencies.length, 'frequencies)');
+      if (validPoints.length === 0) {
+        console.log('[WaveSurfer HTML] ⚠️ No valid pitch data to draw');
+        return;
+      }
+
+      // Step 1: 선 그리기 (부드러운 연결)
+      ctx.beginPath();
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+
+      validPoints.forEach((point, idx) => {
+        if (idx === 0) {
+          ctx.moveTo(point.x, point.y);
+        } else {
+          // 이전 점과 현재 점 사이가 너무 멀면 (5개 이상 떨어져 있으면) 선 끊기
+          const prevPoint = validPoints[idx - 1];
+          if (point.x - prevPoint.x > 5) {
+            ctx.moveTo(point.x, point.y);
+          } else {
+            ctx.lineTo(point.x, point.y);
+          }
+        }
+      });
+      ctx.stroke();
+
+      // Step 2: 점 그리기 (상승/하강 색상)
+      let prevY = validPoints[0].y;
+      validPoints.forEach((point, idx) => {
+        const isRising = idx > 0 && point.y < prevY; // Y축은 반대
+        const color = isRising ? pitchUpColor : pitchDownColor;
+
+        // 점 그리기
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // 테두리 추가 (가시성)
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        prevY = point.y;
+      });
+
+      console.log('[WaveSurfer HTML] 🎨 Drew', validPoints.length, 'pitch points with connecting lines (out of', frequencies.length, 'frequencies)');
     }
 
     // Detect pitch using autocorrelation
