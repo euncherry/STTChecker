@@ -1,9 +1,9 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { Text } from 'react-native-paper';
-import WebView, { WebViewMessageEvent } from 'react-native-webview';
-import { Asset } from 'expo-asset';
-import { File } from 'expo-file-system';
+import { Asset } from "expo-asset";
+import { File } from "expo-file-system";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { Text } from "react-native-paper";
+import WebView, { WebViewMessageEvent } from "react-native-webview";
 
 interface WaveSurferWebViewProps {
   /** 표준 발음 오디오 파일 경로 (assets/audio/references/*.wav) - Optional */
@@ -42,6 +42,7 @@ export default function WaveSurferWebView({
   const webViewRef = useRef<WebView>(null);
   const [htmlUri, setHtmlUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isWebViewReady, setIsWebViewReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // HTML 파일 로드
@@ -51,28 +52,29 @@ export default function WaveSurferWebView({
 
   // 오디오 데이터 전송
   useEffect(() => {
-    if (htmlUri && userAudioPath) {
+    if (htmlUri && userAudioPath && isWebViewReady) {
       sendAudioData();
     }
-  }, [htmlUri, referenceAudioPath, userAudioPath]);
+  }, [htmlUri, referenceAudioPath, userAudioPath, isWebViewReady]);
 
   /**
    * HTML Asset 로드
    */
   const loadHtmlAsset = async () => {
     try {
-      console.log('[WaveSurferWebView] 🚀 Loading HTML asset');
+      console.log("[WaveSurferWebView] 🚀 Loading HTML asset");
 
       // Asset 로드 (wavesurfer-viewer.html)
       const [asset] = await Asset.loadAsync(
-        require('@/assets/webview/wavesurfer-viewer.html')
+        require("@/assets/webview/wavesurfer-viewer.html")
       );
 
-      console.log('[WaveSurferWebView] ✅ HTML asset loaded:', asset.localUri);
+      console.log("[WaveSurferWebView] ✅ HTML asset loaded:", asset.localUri);
+      setIsWebViewReady(false);
       setHtmlUri(asset.localUri || null);
     } catch (err) {
-      const errorMsg = `HTML 로드 실패: ${err instanceof Error ? err.message : 'Unknown error'}`;
-      console.error('[WaveSurferWebView] ❌', errorMsg);
+      const errorMsg = `HTML 로드 실패: ${err instanceof Error ? err.message : "Unknown error"}`;
+      console.error("[WaveSurferWebView] ❌", errorMsg);
       setError(errorMsg);
       onError?.(errorMsg);
     }
@@ -84,7 +86,7 @@ export default function WaveSurferWebView({
   const sendAudioData = async () => {
     try {
       setIsLoading(true);
-      console.log('[WaveSurferWebView] 🔄 Encoding audio files to Base64');
+      console.log("[WaveSurferWebView] 🔄 Encoding audio files to Base64");
 
       // 표준 발음 오디오 인코딩 (Optional)
       // 현재는 로컬 파일 경로만 지원 (file:// 또는 절대 경로)
@@ -99,25 +101,29 @@ export default function WaveSurferWebView({
       const userFile = new File(userAudioPath);
       const userBase64 = await userFile.base64();
 
-      console.log('[WaveSurferWebView] ✅ Audio encoding complete');
+      console.log("[WaveSurferWebView] ✅ Audio encoding complete");
       if (referenceBase64) {
-        console.log('[WaveSurferWebView] 📊 Reference size:', referenceBase64.length);
+        console.log(
+          "[WaveSurferWebView] 📊 Reference size:",
+          referenceBase64.length
+        );
       }
-      console.log('[WaveSurferWebView] 📊 User size:', userBase64.length);
+      console.log("[WaveSurferWebView] 📊 User size:", userBase64.length);
 
       // WebView로 데이터 전송
       const message = JSON.stringify({
-        type: 'LOAD_AUDIO',
-        referenceAudio: referenceBase64 ? `data:audio/wav;base64,${referenceBase64}` : undefined,
+        type: "LOAD_AUDIO",
+        referenceAudio: referenceBase64
+          ? `data:audio/wav;base64,${referenceBase64}`
+          : undefined,
         userAudio: `data:audio/wav;base64,${userBase64}`,
       });
 
       webViewRef.current?.postMessage(message);
-      console.log('[WaveSurferWebView] 📤 Audio data sent to WebView');
-
+      console.log("[WaveSurferWebView] 📤 Audio data sent to WebView");
     } catch (err) {
-      const errorMsg = `오디오 로드 실패: ${err instanceof Error ? err.message : 'Unknown error'}`;
-      console.error('[WaveSurferWebView] ❌', errorMsg);
+      const errorMsg = `오디오 로드 실패: ${err instanceof Error ? err.message : "Unknown error"}`;
+      console.error("[WaveSurferWebView] ❌", errorMsg);
       setError(errorMsg);
       setIsLoading(false);
       onError?.(errorMsg);
@@ -132,33 +138,37 @@ export default function WaveSurferWebView({
       const data = JSON.parse(event.nativeEvent.data);
 
       switch (data.type) {
-        case 'LOG':
+        case "LOG":
           // Forward WebView console logs to RN console
-          console.log('[WebView HTML]', data.message);
+          console.log("[WebView HTML]", data.message);
           break;
 
-        case 'WEBVIEW_READY':
-          console.log('[WaveSurferWebView] ✅ WebView initialized');
+        case "WEBVIEW_READY":
+          console.log("[WaveSurferWebView] ✅ WebView initialized");
+          setIsWebViewReady(true);
           break;
 
-        case 'VISUALIZATION_READY':
-          console.log('[WaveSurferWebView] ✅ Visualization complete');
+        case "VISUALIZATION_READY":
+          console.log("[WaveSurferWebView] ✅ Visualization complete");
           setIsLoading(false);
           onReady?.();
           break;
 
-        case 'ERROR':
-          console.error('[WaveSurferWebView] ❌ WebView error:', data.message);
+        case "ERROR":
+          console.error("[WaveSurferWebView] ❌ WebView error:", data.message);
           setError(data.message);
           setIsLoading(false);
           onError?.(data.message);
           break;
 
         default:
-          console.log('[WaveSurferWebView] ℹ️ Unknown message type:', data.type);
+          console.log(
+            "[WaveSurferWebView] ℹ️ Unknown message type:",
+            data.type
+          );
       }
     } catch (err) {
-      console.error('[WaveSurferWebView] ❌ Message parsing error:', err);
+      console.error("[WaveSurferWebView] ❌ Message parsing error:", err);
     }
   };
 
@@ -167,8 +177,8 @@ export default function WaveSurferWebView({
    */
   const handleError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
-    const errorMsg = `WebView 에러: ${nativeEvent.description || 'Unknown'}`;
-    console.error('[WaveSurferWebView] ❌', errorMsg);
+    const errorMsg = `WebView 에러: ${nativeEvent.description || "Unknown"}`;
+    console.error("[WaveSurferWebView] ❌", errorMsg);
     setError(errorMsg);
     setIsLoading(false);
     onError?.(errorMsg);
@@ -208,14 +218,14 @@ export default function WaveSurferWebView({
         onError={handleError}
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        originWhitelist={['*']}
+        originWhitelist={["*"]}
         allowFileAccess={true}
         allowUniversalAccessFromFileURLs={true}
         mixedContentMode="always"
         mediaPlaybackRequiresUserAction={false}
         androidLayerType="hardware"
         onLoadEnd={() => {
-          console.log('[WaveSurferWebView] ✅ WebView loaded');
+          console.log("[WaveSurferWebView] ✅ WebView loaded");
         }}
       />
     </View>
@@ -225,44 +235,44 @@ export default function WaveSurferWebView({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
   },
   webview: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
   },
   loadingOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(248, 249, 250, 0.95)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(248, 249, 250, 0.95)",
     zIndex: 1000,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ffebee',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#ffebee",
     padding: 20,
   },
   errorText: {
     fontSize: 14,
-    color: '#c62828',
-    textAlign: 'center',
+    color: "#c62828",
+    textAlign: "center",
   },
 });
