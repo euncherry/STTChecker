@@ -520,15 +520,15 @@
         const isRising = idx > 0 && point.y < prevY; // Y축은 반대
         const color = isRising ? pitchUpColor : pitchDownColor;
 
-        // 점 그리기
+        // 점 그리기 (크기 2로 감소)
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
+        ctx.arc(point.x, point.y, 2, 0, 2 * Math.PI);
         ctx.fill();
 
         // 테두리 추가 (가시성)
         ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 0.5;
         ctx.stroke();
 
         prevY = point.y;
@@ -541,7 +541,7 @@
     function detectPitchSimple(audioBuffer, sampleRate = 16000) {
       const audioData = audioBuffer.getChannelData(0);
       const frameSize = 2048;
-      const hopSize = 512;
+      const hopSize = 256; // 512 → 256으로 감소 (더 많은 포인트)
       const frequencies = [];
 
       for (let i = 0; i < audioData.length - frameSize; i += hopSize) {
