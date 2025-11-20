@@ -1,27 +1,18 @@
 /**
  * @file features/audio/hooks/useAudioRecording.ts
- * @description Custom hook for audio recording using expo-audio
+ * @description Custom hook for audio recording using react-native-audio-record
  *
  * 🎯 Why this hook exists:
- * - Replaces react-native-audio-record with modern expo-audio API
- * - Provides a clean, reusable interface for recording functionality
+ * - Provides a clean, reusable interface for WAV recording
  * - Handles permissions, lifecycle, and error states automatically
- * - Encapsulates recording logic away from UI components
+ * - Encapsulates react-native-audio-record logic away from UI components
+ * - Maintains feature-based architecture while using the right library
  *
- * 🔄 Migration from react-native-audio-record:
- * BEFORE (old API):
- * ```tsx
- * AudioRecord.init(options);
- * AudioRecord.start();
- * const uri = await AudioRecord.stop();
- * ```
- *
- * AFTER (new hook):
- * ```tsx
- * const { startRecording, stopRecording, state } = useAudioRecording();
- * startRecording();
- * const result = await stopRecording();
- * ```
+ * ⚠️ IMPORTANT: Why react-native-audio-record (not expo-audio)?
+ * - Wav2Vec2 model REQUIRES WAV format input
+ * - expo-audio can only record m4a/aac format (not WAV)
+ * - react-native-audio-record provides native WAV recording
+ * - Audio preprocessor (parseWAVFile) expects WAV format
  *
  * 📚 Usage example:
  * ```tsx
@@ -36,17 +27,12 @@
  * ```
  */
 
-import { useEffect, useState, useCallback } from 'react';
-import {
-  useAudioRecorder,
-  useAudioRecorderState,
-  setAudioModeAsync,
-  AudioModule,
-} from 'expo-audio';
-import { Alert } from 'react-native';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import AudioRecord from 'react-native-audio-record';
+import { PermissionsAndroid, Platform, Alert } from 'react-native';
+import { Paths } from 'expo-file-system';
 import {
   KOREAN_STT_RECORDING_CONFIG,
-  DEFAULT_AUDIO_MODE,
   generateRecordingFileName,
 } from '../utils/config';
 import type { RecordingState, RecordingResult, AudioPermissions } from '../types';
@@ -63,10 +49,6 @@ interface UseAudioRecordingReturn {
   startRecording: () => Promise<void>;
   /** Stop the current recording and return the file URI */
   stopRecording: () => Promise<RecordingResult | null>;
-  /** Pause the current recording */
-  pauseRecording: () => void;
-  /** Resume a paused recording */
-  resumeRecording: () => void;
   /** Request microphone permissions */
   requestPermissions: () => Promise<boolean>;
   /** Error message if something went wrong */
@@ -74,77 +56,84 @@ interface UseAudioRecordingReturn {
 }
 
 /**
- * Custom hook for managing audio recordings using expo-audio
+ * Custom hook for managing audio recordings using react-native-audio-record
  *
  * 🏗️ Architecture:
- * 1. useAudioRecorder: Creates the recorder instance (from expo-audio)
- * 2. useAudioRecorderState: Monitors recording state in real-time
- * 3. Wraps everything in a clean API with error handling
+ * 1. Initializes AudioRecord with WAV config on mount
+ * 2. Manages permission state
+ * 3. Tracks recording state with manual timer
+ * 4. Provides clean API for start/stop operations
  *
- * ⚙️ Key differences from react-native-audio-record:
- * - Declarative hooks instead of imperative API
- * - Automatic state management
- * - Built-in permission handling
+ * ⚙️ Key features:
+ * - WAV format recording (required by Wav2Vec2 model)
+ * - 16kHz sample rate (model requirement)
+ * - Automatic permission handling
  * - TypeScript-first design
- * - Cross-platform consistency (iOS, Android, Web)
+ * - Feature-based architecture
+ *
+ * 🔍 Differences from expo-audio approach:
+ * - Imperative API (AudioRecord.start/stop) instead of declarative hooks
+ * - Manual state management instead of useAudioRecorderState
+ * - Platform-specific permission handling
+ * - Generates WAV files instead of m4a/aac
  *
  * @returns Recording controls and state
  */
 export function useAudioRecording(): UseAudioRecordingReturn {
-  // ✅ Create recorder instance with our STT-optimized config
-  // This replaces: AudioRecord.init(options)
-  const recorder = useAudioRecorder(KOREAN_STT_RECORDING_CONFIG);
-
-  // ✅ Get real-time recording state (polls every 500ms by default)
-  // This replaces: manual timer management with setInterval
-  const recorderState = useAudioRecorderState(recorder);
-
-  // Local state for permissions and errors
+  // Recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<AudioPermissions | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
+
+  // Timer for tracking recording duration
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingStartTimeRef = useRef<number>(0);
 
   /**
-   * Initialize audio subsystem and check permissions on mount
+   * Initialize AudioRecord on mount
    *
    * 🔍 Why useEffect here:
-   * - Sets up audio mode when component mounts
+   * - Sets up AudioRecord configuration when component mounts
    * - Checks permission status automatically
    * - Cleans up when component unmounts
    */
   useEffect(() => {
-    initializeAudio();
+    initializeRecorder();
+
+    return () => {
+      // Cleanup: stop timer if running
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
   }, []);
 
   /**
-   * Initialize audio mode and check permissions
+   * Initialize AudioRecord with WAV configuration
    *
    * 🎯 What this does:
-   * 1. Configures global audio mode (silent mode behavior, etc.)
+   * 1. Configures AudioRecord with model-compatible settings
    * 2. Checks current microphone permissions
    * 3. Prepares the recorder for use
    */
-  const initializeAudio = async (): Promise<void> => {
+  const initializeRecorder = async (): Promise<void> => {
     try {
-      console.log('[useAudioRecording] 🚀 Initializing audio subsystem...');
+      console.log('[useAudioRecording] 🚀 Initializing AudioRecord...');
 
-      // 1. Set audio mode for recording
-      // This tells iOS/Android how to handle audio in this app
-      await setAudioModeAsync(DEFAULT_AUDIO_MODE);
-      console.log('[useAudioRecording] ✅ Audio mode configured');
+      // 1. Initialize AudioRecord with WAV config
+      const options = {
+        ...KOREAN_STT_RECORDING_CONFIG,
+        wavFile: generateRecordingFileName(),  // Generate unique filename
+      };
 
-      // 2. Check current permission status (doesn't show dialog)
-      const permissionStatus = await AudioModule.getRecordingPermissionsAsync();
-      setPermissions({
-        granted: permissionStatus.granted,
-        canAskAgain: permissionStatus.canAskAgain,
-        status: permissionStatus.status as AudioPermissions['status'],
-      });
-      console.log('[useAudioRecording] 📋 Permission status:', permissionStatus.status);
+      AudioRecord.init(options);
+      console.log('[useAudioRecording] ✅ AudioRecord initialized with WAV config');
+      console.log('[useAudioRecording] 📋 Config:', options);
 
-      // 3. Prepare the recorder (creates internal state, allocates resources)
-      await recorder.prepareToRecordAsync();
-      console.log('[useAudioRecording] ✅ Recorder prepared and ready');
+      // 2. Check current permission status
+      await checkPermissions();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown initialization error';
       console.error('[useAudioRecording] ❌ Initialization failed:', errorMessage);
@@ -153,9 +142,43 @@ export function useAudioRecording(): UseAudioRecordingReturn {
   };
 
   /**
+   * Check microphone permission status
+   *
+   * 🔍 Platform-specific:
+   * - Android: Uses PermissionsAndroid API
+   * - iOS: Assumes permission will be requested on first use
+   */
+  const checkPermissions = async (): Promise<void> => {
+    try {
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
+        );
+
+        setPermissions({
+          granted,
+          canAskAgain: true,  // Android always allows asking
+          status: granted ? 'granted' : 'undetermined',
+        });
+
+        console.log('[useAudioRecording] 📋 Permission status:', granted ? 'granted' : 'not granted');
+      } else {
+        // iOS: Permission will be requested on first AudioRecord.start()
+        setPermissions({
+          granted: true,  // Assume granted for iOS (will fail at runtime if not)
+          canAskAgain: true,
+          status: 'undetermined',
+        });
+      }
+    } catch (err) {
+      console.error('[useAudioRecording] ❌ Permission check failed:', err);
+    }
+  };
+
+  /**
    * Request microphone permissions from the user
    *
-   * 🔍 This shows the system permission dialog
+   * 🔍 This shows the system permission dialog on Android
    * Should be called before startRecording() if permissions not granted
    *
    * @returns True if permission was granted
@@ -164,27 +187,42 @@ export function useAudioRecording(): UseAudioRecordingReturn {
     try {
       console.log('[useAudioRecording] 🔐 Requesting microphone permissions...');
 
-      const permissionResponse = await AudioModule.requestRecordingPermissionsAsync();
-      const newPermissions: AudioPermissions = {
-        granted: permissionResponse.granted,
-        canAskAgain: permissionResponse.canAskAgain,
-        status: permissionResponse.status as AudioPermissions['status'],
-      };
-
-      setPermissions(newPermissions);
-
-      if (!permissionResponse.granted) {
-        console.warn('[useAudioRecording] ⚠️ Microphone permission denied');
-        Alert.alert(
-          '마이크 권한 필요',
-          '발음 연습을 위해 마이크 권한이 필요합니다. 설정에서 권한을 허용해주세요.',
-          [{ text: '확인' }]
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: '마이크 권한 필요',
+            message: '발음 연습을 위해 마이크 권한이 필요합니다.',
+            buttonNeutral: '나중에',
+            buttonNegative: '거부',
+            buttonPositive: '허용',
+          }
         );
-        return false;
-      }
 
-      console.log('[useAudioRecording] ✅ Microphone permission granted');
-      return true;
+        const isGranted = granted === PermissionsAndroid.RESULTS.GRANTED;
+
+        setPermissions({
+          granted: isGranted,
+          canAskAgain: granted !== PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN,
+          status: isGranted ? 'granted' : 'denied',
+        });
+
+        if (!isGranted) {
+          console.warn('[useAudioRecording] ⚠️ Microphone permission denied');
+          Alert.alert(
+            '마이크 권한 필요',
+            '발음 연습을 위해 마이크 권한이 필요합니다. 설정에서 권한을 허용해주세요.',
+            [{ text: '확인' }]
+          );
+        } else {
+          console.log('[useAudioRecording] ✅ Microphone permission granted');
+        }
+
+        return isGranted;
+      } else {
+        // iOS: Permission is requested automatically by AudioRecord
+        return true;
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Permission request failed';
       console.error('[useAudioRecording] ❌ Permission request error:', errorMessage);
@@ -194,21 +232,44 @@ export function useAudioRecording(): UseAudioRecordingReturn {
   }, []);
 
   /**
-   * Start recording audio
+   * Start the recording timer
    *
-   * 🔄 Replaces: AudioRecord.start()
+   * 🔍 Tracks elapsed time during recording
+   */
+  const startTimer = (): void => {
+    recordingStartTimeRef.current = Date.now();
+    setCurrentTime(0);
+
+    timerRef.current = setInterval(() => {
+      const elapsed = (Date.now() - recordingStartTimeRef.current) / 1000;
+      setCurrentTime(elapsed);
+    }, 100);  // Update every 100ms for smooth display
+  };
+
+  /**
+   * Stop the recording timer
+   */
+  const stopTimer = (): void => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  /**
+   * Start recording audio
    *
    * 🎯 What happens:
    * 1. Checks permissions
-   * 2. Starts recording
-   * 3. Tracks start time for duration calculation
+   * 2. Starts AudioRecord
+   * 3. Starts timer for duration tracking
    */
   const startRecording = useCallback(async (): Promise<void> => {
     try {
       setError(null);
 
       // 1. Verify permissions
-      if (!permissions?.granted) {
+      if (Platform.OS === 'android' && !permissions?.granted) {
         console.log('[useAudioRecording] ⚠️ No permission, requesting...');
         const granted = await requestPermissions();
         if (!granted) {
@@ -216,29 +277,30 @@ export function useAudioRecording(): UseAudioRecordingReturn {
         }
       }
 
-      // 2. Ensure recorder is prepared
-      if (!recorderState.canRecord) {
-        console.log('[useAudioRecording] 🔄 Recorder not ready, preparing...');
-        await recorder.prepareToRecordAsync();
-      }
-
-      // 3. Start recording
+      // 2. Start AudioRecord
       console.log('[useAudioRecording] 🎤 Starting recording...');
-      recorder.record();
-      setRecordingStartTime(Date.now());
+      AudioRecord.start();
+      setIsRecording(true);
+      startTimer();
       console.log('[useAudioRecording] ✅ Recording started');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to start recording';
       console.error('[useAudioRecording] ❌ Start recording error:', errorMessage);
       setError(errorMessage);
+      setIsRecording(false);
+      stopTimer();
       Alert.alert('녹음 시작 실패', errorMessage);
     }
-  }, [permissions, recorderState.canRecord, recorder, requestPermissions]);
+  }, [permissions, requestPermissions]);
 
   /**
    * Stop recording and return the file URI
    *
-   * 🔄 Replaces: const uri = await AudioRecord.stop()
+   * 🎯 What happens:
+   * 1. Stops AudioRecord
+   * 2. Gets the file path
+   * 3. Formats URI properly (Android needs file:// prefix)
+   * 4. Returns result with URI and duration
    *
    * @returns Recording result with URI and metadata, or null if failed
    */
@@ -246,75 +308,49 @@ export function useAudioRecording(): UseAudioRecordingReturn {
     try {
       console.log('[useAudioRecording] 🛑 Stopping recording...');
 
-      // 1. Stop the recorder
-      await recorder.stop();
+      // 1. Stop the timer first to get accurate duration
+      const finalDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
+      stopTimer();
 
-      // 2. Get the file URI
-      const uri = recorder.uri;
-      if (!uri) {
-        throw new Error('No recording URI available');
+      // 2. Stop AudioRecord
+      const audioFile = await AudioRecord.stop();
+
+      // 3. Format file URI
+      // Android returns absolute path without file:// prefix
+      let fileUri = audioFile;
+      if (Platform.OS === 'android' && !audioFile.startsWith('file://')) {
+        fileUri = `file://${audioFile}`;
       }
 
-      // 3. Calculate duration
-      const duration = (Date.now() - recordingStartTime) / 1000;
+      setIsRecording(false);
+      setRecordingUri(fileUri);
+      setCurrentTime(0);
 
       console.log('[useAudioRecording] ✅ Recording stopped');
-      console.log(`[useAudioRecording] 📁 File: ${uri}`);
-      console.log(`[useAudioRecording] ⏱️ Duration: ${duration.toFixed(2)}s`);
+      console.log(`[useAudioRecording] 📁 File: ${fileUri}`);
+      console.log(`[useAudioRecording] ⏱️ Duration: ${finalDuration.toFixed(2)}s`);
 
       return {
-        uri,
-        duration,
+        uri: fileUri,
+        duration: finalDuration,
       };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to stop recording';
       console.error('[useAudioRecording] ❌ Stop recording error:', errorMessage);
       setError(errorMessage);
+      setIsRecording(false);
+      stopTimer();
+      setCurrentTime(0);
       return null;
     }
-  }, [recorder, recordingStartTime]);
+  }, []);
 
-  /**
-   * Pause the current recording
-   *
-   * ✨ New capability (not available in react-native-audio-record)
-   */
-  const pauseRecording = useCallback((): void => {
-    try {
-      console.log('[useAudioRecording] ⏸️ Pausing recording...');
-      recorder.pause();
-      console.log('[useAudioRecording] ✅ Recording paused');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to pause recording';
-      console.error('[useAudioRecording] ❌ Pause error:', errorMessage);
-      setError(errorMessage);
-    }
-  }, [recorder]);
-
-  /**
-   * Resume a paused recording
-   *
-   * ✨ New capability (not available in react-native-audio-record)
-   */
-  const resumeRecording = useCallback((): void => {
-    try {
-      console.log('[useAudioRecording] ▶️ Resuming recording...');
-      recorder.record();
-      console.log('[useAudioRecording] ✅ Recording resumed');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to resume recording';
-      console.error('[useAudioRecording] ❌ Resume error:', errorMessage);
-      setError(errorMessage);
-    }
-  }, [recorder]);
-
-  // Transform expo-audio's RecorderState into our app's RecordingState
+  // Construct RecordingState object
   const state: RecordingState = {
-    isRecording: recorderState.isRecording,
-    currentTime: recorderState.durationMillis / 1000,  // Convert ms to seconds
-    uri: recorderState.url,
-    canRecord: recorderState.canRecord,
-    metering: recorderState.metering,
+    isRecording,
+    currentTime,
+    uri: recordingUri,
+    canRecord: permissions?.granted ?? false,
   };
 
   return {
@@ -322,8 +358,6 @@ export function useAudioRecording(): UseAudioRecordingReturn {
     permissions,
     startRecording,
     stopRecording,
-    pauseRecording,
-    resumeRecording,
     requestPermissions,
     error,
   };

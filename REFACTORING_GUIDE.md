@@ -13,9 +13,9 @@
 ## 🎯 달성한 리팩토링 목표
 
 ✅ **기능 기반 아키텍처**: 기술적 계층 대신 기능/도메인별로 코드 구성
-✅ **최신 expo-audio**: `react-native-audio-record`에서 expo-audio 훅으로 마이그레이션
+✅ **WAV 녹음 훅**: `react-native-audio-record`를 깔끔한 훅 API로 래핑 (WAV 형식 필수)
 ✅ **엄격한 TypeScript**: 기능별 및 전역 타입 정의, `any` 타입 제거
-✅ **최신 Expo SDK**: expo-file-system v19 (File/Directory 클래스) 및 expo-audio v1.0 사용
+✅ **최신 Expo SDK**: expo-file-system v19 (File/Directory 클래스) 및 expo-audio v1.0 (재생 전용) 사용
 ✅ **교육적 주석**: 아키텍처 결정 이유를 설명하는 광범위한 문서화
 
 ---
@@ -82,9 +82,11 @@ STTChecker/
 
 ---
 
-## 🔄 핵심 마이그레이션: 오디오 녹음
+## 🔄 핵심 리팩토링: 오디오 녹음
 
-### 이전 (react-native-audio-record)
+⚠️ **중요**: Wav2Vec2 모델이 WAV 형식을 요구하기 때문에 react-native-audio-record를 계속 사용합니다. expo-audio는 WAV 녹음을 지원하지 않습니다 (m4a/aac만 가능).
+
+### 이전 (직접 react-native-audio-record 사용)
 
 ```tsx
 import AudioRecord from "react-native-audio-record";
@@ -122,12 +124,12 @@ if (Platform.OS === "android" && !audioFile.startsWith("file://")) {
 }
 ```
 
-### 이후 (커스텀 훅을 사용한 expo-audio)
+### 이후 (커스텀 훅으로 react-native-audio-record 래핑)
 
 ```tsx
 import { useAudioRecording } from "@/features/audio";
 
-// 선언형 훅 API - 자동 설정
+// 선언형 훅 API - react-native-audio-record를 깔끔하게 래핑
 const {
   state,                 // { isRecording, currentTime, uri, canRecord }
   permissions,           // { granted, canAskAgain, status }
@@ -144,25 +146,25 @@ useEffect(() => {
   }
 }, [permissions]);
 
-// 녹음 시작
+// 녹음 시작 (내부적으로 AudioRecord.start() 호출)
 await startRecording();
 
-// 녹음 중지 (구조화된 결과 반환)
+// 녹음 중지 (구조화된 결과 반환, URI는 자동으로 포맷팅됨)
 const result = await stopRecording();
 // result = { uri: string, duration: number }
 // ✅ URI가 모든 플랫폼에서 자동으로 올바르게 포맷됨
 ```
 
-### 🎯 새로운 접근 방식의 장점
+### 🎯 훅 기반 접근 방식의 장점
 
-1. **선언형 훅**: react-native-audio-record는 명령형 API 사용, expo-audio는 선언형 훅 사용
-2. **크로스 플랫폼**: 플랫폼별 코드 불필요
-3. **권한 관리**: 훅에 내장됨
-4. **타입 안정성**: 적절한 타입으로 완전한 TypeScript 지원
-5. **에러 처리**: 중앙집중식 에러 상태
-6. **실시간 상태**: 훅을 통한 자동 상태 업데이트
-7. **URI 포맷팅**: 자동 처리
-8. **최신 Expo SDK**: 공식 Expo SDK의 일부로 더 나은 지원
+1. **선언형 훅**: 명령형 AudioRecord API를 선언형 React 훅으로 래핑
+2. **기능 기반 구조**: 관련 코드가 `features/audio/`에 함께 유지됨
+3. **권한 관리**: 훅에 내장된 자동 권한 처리
+4. **타입 안정성**: 완전한 TypeScript 지원 및 타입 정의
+5. **에러 처리**: 중앙집중식 에러 상태 관리
+6. **실시간 상태**: 훅을 통한 자동 상태 업데이트 (타이머 등)
+7. **URI 포맷팅**: 플랫폼별 URI 포맷팅 자동 처리
+8. **WAV 형식 유지**: 모델 요구사항을 충족하면서 깔끔한 API 제공
 
 ---
 

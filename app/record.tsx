@@ -1,16 +1,20 @@
 /**
  * @file app/record.tsx
- * @description Recording screen with expo-audio integration
+ * @description Recording screen with react-native-audio-record (WAV format)
  *
  * 🔄 REFACTORED:
- * - Migrated from react-native-audio-record to expo-audio
  * - Uses feature-based imports (@/features/audio, @/features/karaoke)
  * - Improved type safety with navigation types
- * - Cleaner separation of concerns
+ * - Cleaner separation of concerns with custom hook
+ *
+ * ⚠️ IMPORTANT: WAV format recording
+ * - Uses react-native-audio-record (not expo-audio)
+ * - Wav2Vec2 model requires WAV format input
+ * - expo-audio cannot record WAV (only m4a/aac)
  *
  * 📚 Key changes:
- * BEFORE: AudioRecord.init() / AudioRecord.start() / AudioRecord.stop()
- * AFTER: useAudioRecording() hook with declarative API
+ * BEFORE: Direct AudioRecord.init() / AudioRecord.start() / AudioRecord.stop()
+ * AFTER: useAudioRecording() hook with clean API (wraps AudioRecord)
  */
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -38,7 +42,7 @@ export default function RecordScreen() {
   const params = useLocalSearchParams<RecordScreenParams>();
   const targetText = Array.isArray(params.text) ? params.text[0] : params.text;
 
-  // ✅ NEW: Use modern audio recording hook (replaces react-native-audio-record)
+  // ✅ REFACTORED: Use custom audio recording hook (wraps react-native-audio-record)
   // This provides: state, permissions, startRecording, stopRecording
   const {
     state: recordingState,
@@ -167,14 +171,14 @@ export default function RecordScreen() {
   };
 
   /**
-   * ✅ REFACTORED: Start recording with new hook
+   * ✅ REFACTORED: Start recording with custom hook
    *
-   * 🔄 Before (react-native-audio-record):
+   * 🔄 Before (direct react-native-audio-record):
    * ```tsx
    * AudioRecord.start();
    * ```
    *
-   * 🆕 After (expo-audio hook):
+   * 🆕 After (custom hook wrapping AudioRecord):
    * ```tsx
    * await startRecording();
    * ```
@@ -184,6 +188,7 @@ export default function RecordScreen() {
    * - Better error handling
    * - Type-safe API
    * - Automatic state management
+   * - Feature-based architecture
    */
   const handleStartRecording = async () => {
     try {
@@ -205,9 +210,9 @@ export default function RecordScreen() {
   };
 
   /**
-   * ✅ REFACTORED: Stop recording with new hook
+   * ✅ REFACTORED: Stop recording with custom hook
    *
-   * 🔄 Before (react-native-audio-record):
+   * 🔄 Before (direct react-native-audio-record):
    * ```tsx
    * const audioFile = await AudioRecord.stop();
    * let fileUri = audioFile;
@@ -216,16 +221,17 @@ export default function RecordScreen() {
    * }
    * ```
    *
-   * 🆕 After (expo-audio hook):
+   * 🆕 After (custom hook wrapping AudioRecord):
    * ```tsx
    * const result = await stopRecording();
-   * const fileUri = result.uri;  // Already properly formatted
+   * const fileUri = result.uri;  // Already properly formatted by hook
    * ```
    *
    * 🎯 Benefits:
-   * - No need for platform-specific URI formatting
+   * - Platform-specific URI formatting handled in hook
    * - Returns structured result with metadata
    * - Automatic error handling
+   * - Feature-based architecture
    */
   const handleStopRecording = async (isAutoStop = false) => {
     try {
@@ -373,7 +379,7 @@ export default function RecordScreen() {
         variant="bodySmall"
         style={[styles.debugText, { paddingBottom: insets.bottom + 5 }]}
       >
-        {Platform.OS === "android" ? "🤖 Android (expo-audio)" : "🍎 iOS (expo-audio)"}
+        {Platform.OS === "android" ? "🤖 Android (WAV)" : "🍎 iOS (WAV)"}
       </Text>
     </SafeAreaView>
   );

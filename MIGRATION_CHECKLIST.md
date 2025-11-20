@@ -6,7 +6,7 @@
 
 - [x] 기능 기반 폴더 구조 생성 (`features/`)
 - [x] 전역 타입 정의 생성 (`types/`)
-- [x] 오디오 녹음을 `expo-audio`로 마이그레이션 (`useAudioRecording` 훅)
+- [x] 오디오 녹음 훅 생성 (`useAudioRecording` - react-native-audio-record 래핑, WAV 형식)
 - [x] 오디오 재생 훅 생성 (`useAudioPlayback`)
 - [x] 새 훅으로 `app/record.tsx` 리팩토링
 - [x] 기능 임포트로 `app/results.tsx` 업데이트

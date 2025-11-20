@@ -11,28 +11,33 @@
 import type { AudioSource } from '@/types/global';
 
 /**
- * Audio recording configuration
+ * Audio recording configuration for react-native-audio-record
  *
  * 🔍 These settings match the requirements of the Wav2Vec2 model:
  * - 16kHz sample rate (model requirement)
  * - Mono channel (model processes single channel)
- * - High quality AAC encoding
+ * - 16-bit PCM in WAV format
+ *
+ * ⚠️ IMPORTANT: Uses react-native-audio-record (not expo-audio)
+ * - expo-audio cannot record WAV format
+ * - Wav2Vec2 model requires WAV input
+ * - react-native-audio-record provides native WAV recording
  */
 export interface AudioRecordingConfig {
   /** Sample rate in Hz (must be 16000 for Wav2Vec2) */
-  sampleRate: 16000;
+  sampleRate: number;
   /** Number of audio channels (1 = mono, 2 = stereo) */
-  numberOfChannels: 1 | 2;
-  /** Bit rate for encoding (higher = better quality) */
-  bitRate: number;
-  /** File extension for the output file */
-  extension: '.m4a' | '.wav';
+  channels: number;
+  /** Bits per sample (8 or 16) */
+  bitsPerSample: number;
+  /** Audio source (Android-specific, 6 = VOICE_RECOGNITION) */
+  audioSource: number;
 }
 
 /**
- * Audio recording state (from useAudioRecorder)
+ * Audio recording state
  *
- * 🔍 This wraps expo-audio's RecorderState with app-specific info
+ * 🔍 Managed by useAudioRecording hook (wraps react-native-audio-record)
  */
 export interface RecordingState {
   /** Whether recording is currently in progress */
@@ -41,10 +46,8 @@ export interface RecordingState {
   currentTime: number;
   /** URI of the recorded file (available after stopping) */
   uri: string | null;
-  /** Whether the recorder can record (permissions + ready state) */
+  /** Whether the recorder can record (permissions granted) */
   canRecord: boolean;
-  /** Current audio level/volume (if metering enabled) */
-  metering?: number;
 }
 
 /**
