@@ -1,20 +1,20 @@
-# ✅ Migration Checklist
+# ✅ 마이그레이션 체크리스트
 
-Complete this checklist to fully migrate to the new architecture:
+새로운 아키텍처로 완전히 마이그레이션하려면 이 체크리스트를 완료하세요:
 
-## 🔄 Completed Automatically
+## 🔄 자동으로 완료됨
 
-- [x] Created feature-based folder structure (`features/`)
-- [x] Created global type definitions (`types/`)
-- [x] Migrated audio recording to `expo-audio` (`useAudioRecording` hook)
-- [x] Created audio playback hook (`useAudioPlayback`)
-- [x] Refactored `app/record.tsx` with new hooks
-- [x] Updated `app/results.tsx` with feature imports
-- [x] Created comprehensive documentation (REFACTORING_GUIDE.md, ARCHITECTURE.md)
+- [x] 기능 기반 폴더 구조 생성 (`features/`)
+- [x] 전역 타입 정의 생성 (`types/`)
+- [x] 오디오 녹음을 `expo-audio`로 마이그레이션 (`useAudioRecording` 훅)
+- [x] 오디오 재생 훅 생성 (`useAudioPlayback`)
+- [x] 새 훅으로 `app/record.tsx` 리팩토링
+- [x] 기능 임포트로 `app/results.tsx` 업데이트
+- [x] 포괄적인 문서 생성 (REFACTORING_GUIDE.md, ARCHITECTURE.md)
 
-## 📝 Manual Steps Required
+## 📝 수동으로 해야 할 단계
 
-### 1. Update Remaining Import Statements
+### 1. 나머지 임포트 문 업데이트
 
 #### app/_layout.tsx
 ```diff
@@ -47,23 +47,23 @@ Complete this checklist to fully migrate to the new architecture:
 + import { generateAutoTimings } from "@/features/karaoke";
 ```
 
-### 2. Remove Old Dependencies (Optional)
+### 2. 이전 의존성 제거 (선택사항)
 
-If you're no longer using `react-native-audio-record`, you can remove it:
+더 이상 `react-native-audio-record`를 사용하지 않는다면 제거할 수 있습니다:
 
 ```bash
 npm uninstall react-native-audio-record
 ```
 
-Then rebuild:
+그런 다음 다시 빌드:
 ```bash
 npx expo prebuild --clean
 npx expo run:android
 ```
 
-### 3. Update tsconfig.json Path Aliases (If Not Already Done)
+### 3. tsconfig.json 경로 별칭 업데이트 (아직 안 했다면)
 
-Ensure `tsconfig.json` has:
+`tsconfig.json`에 다음이 있는지 확인:
 
 ```json
 {
@@ -75,157 +75,157 @@ Ensure `tsconfig.json` has:
 }
 ```
 
-### 4. Test the Application
+### 4. 애플리케이션 테스트
 
-Run through these test scenarios:
+다음 테스트 시나리오를 실행하세요:
 
-#### Recording Flow
-- [ ] Open app and navigate to recording screen
-- [ ] Verify microphone permission request
-- [ ] Start recording and see countdown (3, 2, 1, 시작!)
-- [ ] Record audio for a few seconds
-- [ ] Stop recording manually or wait for auto-stop
-- [ ] Verify navigation to results screen
+#### 녹음 흐름
+- [ ] 앱을 열고 녹음 화면으로 이동
+- [ ] 마이크 권한 요청 확인
+- [ ] 녹음을 시작하고 카운트다운 확인 (3, 2, 1, 시작!)
+- [ ] 몇 초간 오디오 녹음
+- [ ] 수동으로 녹음 중지 또는 자동 중지 대기
+- [ ] 결과 화면으로 이동 확인
 
-#### Results Flow
-- [ ] See STT transcription result
-- [ ] View CER/WER scores
-- [ ] Play back recorded audio
-- [ ] View audio visualization graphs (toggle on/off)
-- [ ] Add custom tags
-- [ ] Save to history
+#### 결과 흐름
+- [ ] STT 전사 결과 확인
+- [ ] CER/WER 점수 확인
+- [ ] 녹음된 오디오 재생
+- [ ] 오디오 시각화 그래프 확인 (토글 켜기/끄기)
+- [ ] 커스텀 태그 추가
+- [ ] 히스토리에 저장
 
-#### History Flow
-- [ ] Navigate to history tab
-- [ ] See saved recordings list
-- [ ] Play/pause recordings
-- [ ] Delete individual recording
-- [ ] Share recording to other apps
-- [ ] View storage usage
+#### 히스토리 흐름
+- [ ] 히스토리 탭으로 이동
+- [ ] 저장된 녹음 목록 확인
+- [ ] 녹음 재생/일시정지
+- [ ] 개별 녹음 삭제
+- [ ] 다른 앱으로 녹음 공유
+- [ ] 저장소 사용량 확인
 
-#### Test Upload Flow
-- [ ] Navigate to test tab
-- [ ] Upload a WAV file
-- [ ] See processing and results
+#### 테스트 업로드 흐름
+- [ ] 테스트 탭으로 이동
+- [ ] WAV 파일 업로드
+- [ ] 처리 및 결과 확인
 
-#### Karaoke Demo Flow
-- [ ] Navigate to sing tab
-- [ ] Start karaoke animation
-- [ ] Pause/resume controls work
+#### 가라오케 데모 흐름
+- [ ] 노래 탭으로 이동
+- [ ] 가라오케 애니메이션 시작
+- [ ] 일시정지/재개 컨트롤 작동 확인
 
-### 5. Verify Build Process
+### 5. 빌드 프로세스 확인
 
 ```bash
-# Clean build
+# 클린 빌드
 npx expo prebuild --clean
 
-# Android build
+# Android 빌드
 npx expo run:android
 
-# Check for any TypeScript errors
+# TypeScript 에러 확인
 npx tsc --noEmit
 
-# Check for any linting issues (if using ESLint)
+# 린팅 문제 확인 (ESLint 사용 시)
 npx eslint .
 ```
 
-### 6. Update Documentation (If Customized)
+### 6. 문서 업데이트 (커스터마이징한 경우)
 
-If you've customized CLAUDE.md or README.md with old import paths, update them to use the new feature-based imports.
+이전 임포트 경로로 CLAUDE.md 또는 README.md를 커스터마이징했다면, 새로운 기능 기반 임포트를 사용하도록 업데이트하세요.
 
 ---
 
-## 🐛 Common Issues & Solutions
+## 🐛 일반적인 문제 및 해결책
 
-### Issue: "Cannot find module '@/features/audio'"
+### 문제: "Cannot find module '@/features/audio'"
 
-**Solution**: Ensure tsconfig.json has the `@/*` path alias configured and restart your TypeScript server (in VS Code: Cmd+Shift+P → "TypeScript: Restart TS Server")
+**해결책**: tsconfig.json에 `@/*` 경로 별칭이 설정되어 있는지 확인하고 TypeScript 서버를 재시작하세요 (VS Code에서: Cmd+Shift+P → "TypeScript: Restart TS Server")
 
-### Issue: "useAudioRecording is not a function"
+### 문제: "useAudioRecording is not a function"
 
-**Solution**: Check that you've imported it correctly:
+**해결책**: 올바르게 임포트했는지 확인:
 ```typescript
 import { useAudioRecording } from '@/features/audio';
 ```
 
-Not:
+다음은 안 됨:
 ```typescript
-import useAudioRecording from '@/features/audio';  // ❌ Wrong
+import useAudioRecording from '@/features/audio';  // ❌ 틀림
 ```
 
-### Issue: Recording doesn't start / permission denied
+### 문제: 녹음이 시작되지 않음 / 권한 거부됨
 
-**Solution**:
-1. Check that permissions are granted in device settings
-2. Verify `useEffect` for permission request is running
-3. Check console logs for permission-related errors
+**해결책**:
+1. 기기 설정에서 권한이 부여되었는지 확인
+2. 권한 요청을 위한 `useEffect`가 실행되는지 확인
+3. 권한 관련 에러가 있는지 콘솔 로그 확인
 
-### Issue: TypeScript errors in refactored files
+### 문제: 리팩토링된 파일에서 TypeScript 에러
 
-**Solution**:
-1. Run `npx tsc --noEmit` to see all errors
-2. Most likely missing import updates or type definitions
-3. Check that all feature modules have proper `index.ts` exports
+**해결책**:
+1. 모든 에러를 보려면 `npx tsc --noEmit` 실행
+2. 대부분 임포트 업데이트 누락 또는 타입 정의 문제
+3. 모든 기능 모듈에 적절한 `index.ts` 익스포트가 있는지 확인
 
-### Issue: "Module not found: Error: Can't resolve '@/features/...'"
+### 문제: "Module not found: Error: Can't resolve '@/features/...'"
 
-**Solution**: Metro bundler cache issue. Clear it:
+**해결책**: Metro 번들러 캐시 문제. 캐시를 지우세요:
 ```bash
 npx expo start --clear
 ```
 
 ---
 
-## 📊 Progress Tracking
+## 📊 진행 상황 추적
 
-### Core Refactoring
-- [x] Feature modules created
-- [x] Types organized
-- [x] Audio migration complete
-- [x] Critical screens updated
+### 핵심 리팩토링
+- [x] 기능 모듈 생성
+- [x] 타입 정리
+- [x] 오디오 마이그레이션 완료
+- [x] 주요 화면 업데이트
 
-### Import Updates (Do These Manually)
+### 임포트 업데이트 (수동으로 수행)
 - [ ] app/_layout.tsx
 - [ ] app/(tabs)/history.tsx
 - [ ] app/(tabs)/test.tsx
-- [ ] app/(tabs)/sing.tsx (if uses karaoke utils)
+- [ ] app/(tabs)/sing.tsx (가라오케 유틸 사용 시)
 - [ ] components/KaraokeText.tsx
 
-### Testing
-- [ ] Recording flow tested
-- [ ] Results flow tested
-- [ ] History flow tested
-- [ ] Test upload flow tested
-- [ ] Karaoke demo tested
-- [ ] Build succeeds without errors
+### 테스팅
+- [ ] 녹음 흐름 테스트
+- [ ] 결과 흐름 테스트
+- [ ] 히스토리 흐름 테스트
+- [ ] 테스트 업로드 흐름 테스트
+- [ ] 가라오케 데모 테스트
+- [ ] 에러 없이 빌드 성공
 
-### Cleanup (Optional)
-- [ ] Remove old `utils/` folders (after verifying imports)
-- [ ] Remove `react-native-audio-record` dependency
-- [ ] Update any custom documentation
-
----
-
-## 🎉 When Complete
-
-Once all checklist items are done:
-
-1. ✅ Commit your changes
-2. ✅ Push to your feature branch
-3. ✅ Test on a physical device (if possible)
-4. ✅ Create a pull request with summary of changes
+### 정리 (선택사항)
+- [ ] 이전 `utils/` 폴더 제거 (임포트 확인 후)
+- [ ] `react-native-audio-record` 의존성 제거
+- [ ] 커스텀 문서 업데이트
 
 ---
 
-## 📚 Reference Documentation
+## 🎉 완료 시
 
-- **REFACTORING_GUIDE.md**: Detailed explanation of changes
-- **ARCHITECTURE.md**: Complete architecture overview
-- **features/audio/hooks/useAudioRecording.ts**: Example of modern hook pattern
-- **app/record.tsx**: Example of refactored screen
+모든 체크리스트 항목이 완료되면:
+
+1. ✅ 변경사항 커밋
+2. ✅ 기능 브랜치에 푸시
+3. ✅ 실제 기기에서 테스트 (가능하면)
+4. ✅ 변경사항 요약과 함께 Pull Request 생성
 
 ---
 
-**Happy Migrating! 🚀**
+## 📚 참고 문서
 
-Need help? Check the extensive inline comments in the refactored code!
+- **REFACTORING_GUIDE.md**: 변경사항의 상세 설명
+- **ARCHITECTURE.md**: 완전한 아키텍처 개요
+- **features/audio/hooks/useAudioRecording.ts**: 최신 훅 패턴 예시
+- **app/record.tsx**: 리팩토링된 화면 예시
+
+---
+
+**즐거운 마이그레이션 되세요! 🚀**
+
+도움이 필요하신가요? 리팩토링된 코드의 광범위한 인라인 주석을 확인하세요!

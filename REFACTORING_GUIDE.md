@@ -1,32 +1,33 @@
-# 🏗️ STTChecker Refactoring Guide
+# 🏗️ STTChecker 리팩토링 가이드
 
-## 📋 Overview
+## 📋 개요
 
-This document explains the architectural refactoring of STTChecker from a **utils-based** to a **feature-based** architecture, with modern Expo SDK patterns and strict TypeScript.
+이 문서는 STTChecker 앱을 **유틸리티 기반 아키텍처**에서 최신 Expo SDK 패턴과 엄격한 TypeScript를 사용하는 현대적인 **기능 기반 아키텍처**로 리팩토링한 내용을 설명합니다.
 
-**Completed**: 2025-11-20
-**Version**: 2.0.0
-
----
-
-## 🎯 Refactoring Goals Achieved
-
-✅ **Feature-Based Architecture**: Organized code by feature/domain instead of technical function
-✅ **Modern expo-audio**: Migrated from `react-native-audio-record` to expo-audio hooks
-✅ **Strict TypeScript**: Feature-specific and global types with no `any`
-✅ **Latest Expo SDK**: Using expo-file-system v19 (File/Directory classes) and expo-audio v1.0
-✅ **Educational Comments**: Extensive documentation explaining architectural decisions
+**완료일**: 2025-11-20
+**버전**: 2.0.0
+**대상**: 개발자 (Claude AI 어시스턴트 포함)
 
 ---
 
-## 📁 New Architecture
+## 🎯 달성한 리팩토링 목표
 
-### Before (Utils-Based)
+✅ **기능 기반 아키텍처**: 기술적 계층 대신 기능/도메인별로 코드 구성
+✅ **최신 expo-audio**: `react-native-audio-record`에서 expo-audio 훅으로 마이그레이션
+✅ **엄격한 TypeScript**: 기능별 및 전역 타입 정의, `any` 타입 제거
+✅ **최신 Expo SDK**: expo-file-system v19 (File/Directory 클래스) 및 expo-audio v1.0 사용
+✅ **교육적 주석**: 아키텍처 결정 이유를 설명하는 광범위한 문서화
+
+---
+
+## 📁 새로운 아키텍처
+
+### 이전 (유틸리티 기반)
 ```
 STTChecker/
-├── app/                    # Screens
-├── components/             # Global components
-├── utils/                  # ❌ Everything mixed together
+├── app/                    # 화면
+├── components/             # 전역 컴포넌트
+├── utils/                  # ❌ 모든 것이 섞여있음
 │   ├── onnx/
 │   ├── stt/
 │   ├── storage/
@@ -35,45 +36,45 @@ STTChecker/
 └── assets/
 ```
 
-### After (Feature-Based)
+### 이후 (기능 기반)
 ```
 STTChecker/
-├── app/                    # Expo Router screens (unchanged)
-├── components/             # Global reusable UI components
-├── hooks/                  # ✨ NEW: Global custom hooks
-├── utils/                  # ✨ NEW: Global utility functions
-├── stores/                 # ✨ NEW: Global state management
-├── types/                  # ✨ NEW: Global type definitions
-│   ├── global.ts           # Shared types across features
-│   └── navigation.ts       # Route parameter types
+├── app/                    # Expo Router 화면 (변경 없음)
+├── components/             # 전역 재사용 가능한 UI 컴포넌트
+├── hooks/                  # ✨ 새로 추가: 전역 커스텀 훅
+├── utils/                  # ✨ 새로 추가: 전역 유틸리티 함수
+├── stores/                 # ✨ 새로 추가: 전역 상태 관리
+├── types/                  # ✨ 새로 추가: 전역 타입 정의
+│   ├── global.ts           # 기능 간 공유 타입
+│   └── navigation.ts       # 라우트 파라미터 타입
 │
-├── features/               # ✨ NEW: Feature modules
-│   ├── audio/              # 🎤 Audio recording & playback
+├── features/               # ✨ 새로 추가: 기능 모듈
+│   ├── audio/              # 🎤 오디오 녹음 및 재생
 │   │   ├── hooks/          # useAudioRecording, useAudioPlayback
-│   │   ├── utils/          # config.ts (recording presets)
-│   │   ├── types.ts        # Audio-specific types
-│   │   └── index.ts        # Public API
+│   │   ├── utils/          # config.ts (녹음 프리셋)
+│   │   ├── types.ts        # 오디오 전용 타입
+│   │   └── index.ts        # 공개 API
 │   │
-│   ├── stt/                # 🗣️ Speech-to-Text pipeline
-│   │   ├── utils/          # preprocessing, inference, metrics
-│   │   ├── types.ts        # STT-specific types
-│   │   └── index.ts        # Public API
+│   ├── stt/                # 🗣️ 음성-텍스트 변환 파이프라인
+│   │   ├── utils/          # 전처리, 추론, 메트릭
+│   │   ├── types.ts        # STT 전용 타입
+│   │   └── index.ts        # 공개 API
 │   │
-│   ├── history/            # 💾 Recording history & storage
+│   ├── history/            # 💾 녹음 히스토리 및 저장소
 │   │   ├── utils/          # historyManager.ts
 │   │   ├── types.ts        # HistoryItem, StorageInfo
-│   │   └── index.ts        # Public API
+│   │   └── index.ts        # 공개 API
 │   │
-│   ├── onnx/               # 🤖 Model loading & management
+│   ├── onnx/               # 🤖 모델 로딩 및 관리
 │   │   ├── utils/          # modelLoader.ts, vocabLoader.ts
-│   │   ├── onnxContext.tsx # React Context provider
-│   │   ├── types.ts        # Model/Vocab types
-│   │   └── index.ts        # Public API
+│   │   ├── onnxContext.tsx # React Context 프로바이더
+│   │   ├── types.ts        # 모델/어휘 타입
+│   │   └── index.ts        # 공개 API
 │   │
-│   └── karaoke/            # 🎵 Karaoke text animation
+│   └── karaoke/            # 🎵 가라오케 텍스트 애니메이션
 │       ├── utils/          # timingPresets.ts
-│       ├── types.ts        # Timing types
-│       └── index.ts        # Public API
+│       ├── types.ts        # 타이밍 타입
+│       └── index.ts        # 공개 API
 │
 ├── constants/
 └── assets/
@@ -81,14 +82,14 @@ STTChecker/
 
 ---
 
-## 🔄 Key Migration: Audio Recording
+## 🔄 핵심 마이그레이션: 오디오 녹음
 
-### BEFORE (react-native-audio-record)
+### 이전 (react-native-audio-record)
 
 ```tsx
 import AudioRecord from "react-native-audio-record";
 
-// Imperative API - manual setup
+// 명령형 API - 수동 설정
 const initializeRecording = async () => {
   const options = {
     sampleRate: 16000,
@@ -99,7 +100,7 @@ const initializeRecording = async () => {
   };
   AudioRecord.init(options);
 
-  // Manual permission handling (Android-specific)
+  // 수동 권한 처리 (Android 전용)
   if (Platform.OS === "android") {
     const { PermissionsAndroid } = require("react-native");
     const granted = await PermissionsAndroid.request(
@@ -108,91 +109,91 @@ const initializeRecording = async () => {
   }
 };
 
-// Start recording
+// 녹음 시작
 AudioRecord.start();
 
-// Stop recording (returns string path)
+// 녹음 중지 (문자열 경로 반환)
 const audioFile = await AudioRecord.stop();
 
-// Manual URI formatting for Android
+// Android용 수동 URI 포맷팅
 let fileUri = audioFile;
 if (Platform.OS === "android" && !audioFile.startsWith("file://")) {
   fileUri = `file://${audioFile}`;
 }
 ```
 
-### AFTER (expo-audio with custom hook)
+### 이후 (커스텀 훅을 사용한 expo-audio)
 
 ```tsx
 import { useAudioRecording } from "@/features/audio";
 
-// Declarative hook API - automatic setup
+// 선언형 훅 API - 자동 설정
 const {
   state,                 // { isRecording, currentTime, uri, canRecord }
   permissions,           // { granted, canAskAgain, status }
-  startRecording,        // Start recording (handles permissions)
-  stopRecording,         // Stop and return RecordingResult
-  requestPermissions,    // Request permissions if needed
-  error,                 // Error state
+  startRecording,        // 녹음 시작 (권한 자동 처리)
+  stopRecording,         // 중지 후 RecordingResult 반환
+  requestPermissions,    // 필요시 권한 요청
+  error,                 // 에러 상태
 } = useAudioRecording();
 
-// Auto-request permissions if needed
+// 필요시 권한 자동 요청
 useEffect(() => {
   if (permissions && !permissions.granted && permissions.canAskAgain) {
     requestPermissions();
   }
 }, [permissions]);
 
-// Start recording
+// 녹음 시작
 await startRecording();
 
-// Stop recording (returns structured result)
+// 녹음 중지 (구조화된 결과 반환)
 const result = await stopRecording();
 // result = { uri: string, duration: number }
-// ✅ URI already properly formatted for all platforms
+// ✅ URI가 모든 플랫폼에서 자동으로 올바르게 포맷됨
 ```
 
-### 🎯 Benefits of New Approach
+### 🎯 새로운 접근 방식의 장점
 
-1. **Declarative Hooks**: React-native-audio-record uses imperative API, expo-audio uses declarative hooks
-2. **Cross-Platform**: No platform-specific code needed
-3. **Permission Management**: Built into the hook
-4. **Type Safety**: Full TypeScript support with proper types
-5. **Error Handling**: Centralized error state
-6. **Real-Time State**: Automatic state updates via hooks
-7. **URI Formatting**: Handled automatically
-8. **Modern Expo SDK**: Part of official Expo SDK with better support
+1. **선언형 훅**: react-native-audio-record는 명령형 API 사용, expo-audio는 선언형 훅 사용
+2. **크로스 플랫폼**: 플랫폼별 코드 불필요
+3. **권한 관리**: 훅에 내장됨
+4. **타입 안정성**: 적절한 타입으로 완전한 TypeScript 지원
+5. **에러 처리**: 중앙집중식 에러 상태
+6. **실시간 상태**: 훅을 통한 자동 상태 업데이트
+7. **URI 포맷팅**: 자동 처리
+8. **최신 Expo SDK**: 공식 Expo SDK의 일부로 더 나은 지원
 
 ---
 
-## 📦 Feature Module Pattern
+## 📦 기능 모듈 패턴
 
-Each feature module follows this structure:
+각 기능 모듈은 다음 구조를 따릅니다:
 
 ```
 features/{feature}/
-├── hooks/              # Feature-specific React hooks
-├── components/         # Feature-specific components (if needed)
-├── utils/              # Business logic and utilities
-├── types.ts            # Feature-specific TypeScript types
-└── index.ts            # Public API (barrel export)
+├── hooks/              # 기능별 React 훅
+├── components/         # 기능별 컴포넌트 (필요시)
+├── utils/              # 비즈니스 로직 및 유틸리티
+├── types.ts            # 기능별 TypeScript 타입
+└── index.ts            # 공개 API (배럴 익스포트)
 ```
 
-### Why This Pattern?
+### 이 패턴을 사용하는 이유?
 
-✅ **High Cohesion**: Related code stays together
-✅ **Low Coupling**: Features can be developed/tested independently
-✅ **Clear Boundaries**: Easy to understand what belongs where
-✅ **Reusability**: Features can be extracted to separate packages
-✅ **Type Safety**: Feature-specific types prevent cross-contamination
+✅ **높은 응집도**: 관련 코드가 함께 유지됨
+✅ **낮은 결합도**: 기능을 독립적으로 개발/테스트 가능
+✅ **명확한 경계**: 어디에 무엇이 속하는지 이해하기 쉬움
+✅ **재사용성**: 기능을 별도 패키지로 추출 가능
+✅ **타입 안정성**: 기능별 타입이 교차 오염 방지
 
 ---
 
-## 📝 Type Management Strategy
+## 📝 타입 관리 전략
 
-### Global Types (`types/`)
+### 전역 타입 (`types/`)
 
-Used across multiple features:
+여러 기능에서 사용됨:
 
 ```typescript
 // types/global.ts
@@ -215,9 +216,9 @@ export interface ResultsScreenParams {
 }
 ```
 
-### Feature-Specific Types (`features/{feature}/types.ts`)
+### 기능별 타입 (`features/{feature}/types.ts`)
 
-Isolated to single feature:
+단일 기능에 격리됨:
 
 ```typescript
 // features/audio/types.ts
@@ -235,31 +236,31 @@ export interface AudioPermissions {
 }
 ```
 
-### Type Safety in Navigation
+### 내비게이션에서의 타입 안정성
 
 ```tsx
 import type { RecordScreenParams } from '@/types/navigation';
 
-// Type-safe params
+// 타입 안전한 파라미터
 const params = useLocalSearchParams<RecordScreenParams>();
-const text = params.text;  // ✅ TypeScript knows this is string
+const text = params.text;  // ✅ TypeScript가 이것이 string임을 알고 있음
 
-// Type-safe navigation
+// 타입 안전한 내비게이션
 router.push({
   pathname: '/record',
   params: {
-    text: 'Hello'  // ✅ TypeScript enforces correct params
+    text: 'Hello'  // ✅ TypeScript가 올바른 파라미터 강제
   }
 });
 ```
 
 ---
 
-## 🔌 Import Patterns
+## 🔌 임포트 패턴
 
-### Feature Imports (Barrel Exports)
+### 기능 임포트 (배럴 익스포트)
 
-Each feature module exports through `index.ts`:
+각 기능 모듈은 `index.ts`를 통해 익스포트:
 
 ```typescript
 // features/audio/index.ts
@@ -268,19 +269,19 @@ export { useAudioPlayback } from './hooks/useAudioPlayback';
 export type { RecordingState, PlaybackState } from './types';
 ```
 
-Usage:
+사용법:
 
 ```typescript
-// ✅ Clean single import from feature
+// ✅ 기능에서 깔끔한 단일 임포트
 import { useAudioRecording, type RecordingState } from '@/features/audio';
 
-// ❌ Don't import internal paths
+// ❌ 내부 경로 임포트 금지
 import { useAudioRecording } from '@/features/audio/hooks/useAudioRecording';
 ```
 
-### Path Aliases
+### 경로 별칭
 
-Configured in `tsconfig.json`:
+`tsconfig.json`에서 설정:
 
 ```json
 {
@@ -292,7 +293,7 @@ Configured in `tsconfig.json`:
 }
 ```
 
-Usage:
+사용법:
 
 ```typescript
 import { useAudioRecording } from '@/features/audio';
@@ -302,56 +303,56 @@ import CustomHeader from '@/components/CustomHeader';
 
 ---
 
-## 🛠️ Migration Checklist
+## 🛠️ 마이그레이션 체크리스트
 
-For developers updating their imports:
+개발자가 임포트를 업데이트하기 위한 체크리스트:
 
-### ✅ Audio Feature
-- [ ] Replace `react-native-audio-record` with `useAudioRecording` hook
-- [ ] Update imports: `import { useAudioRecording } from '@/features/audio'`
-- [ ] Remove manual permission handling code
-- [ ] Remove platform-specific URI formatting
+### ✅ 오디오 기능
+- [ ] `react-native-audio-record`를 `useAudioRecording` 훅으로 교체
+- [ ] 임포트 업데이트: `import { useAudioRecording } from '@/features/audio'`
+- [ ] 수동 권한 처리 코드 제거
+- [ ] 플랫폼별 URI 포맷팅 제거
 
-### ✅ STT Feature
-- [ ] Update imports from `@/utils/stt/*` to `@/features/stt`
-- [ ] Example: `import { preprocessAudioFile, runSTTInference } from '@/features/stt'`
+### ✅ STT 기능
+- [ ] `@/utils/stt/*`에서 `@/features/stt`로 임포트 업데이트
+- [ ] 예시: `import { preprocessAudioFile, runSTTInference } from '@/features/stt'`
 
-### ✅ History Feature
-- [ ] Update imports from `@/utils/storage/*` to `@/features/history`
-- [ ] Example: `import { saveHistory, loadHistories } from '@/features/history'`
+### ✅ 히스토리 기능
+- [ ] `@/utils/storage/*`에서 `@/features/history`로 임포트 업데이트
+- [ ] 예시: `import { saveHistory, loadHistories } from '@/features/history'`
 
-### ✅ ONNX Feature
-- [ ] Update imports from `@/utils/onnx/*` to `@/features/onnx`
-- [ ] Example: `import { useONNX, ONNXProvider } from '@/features/onnx'`
+### ✅ ONNX 기능
+- [ ] `@/utils/onnx/*`에서 `@/features/onnx`로 임포트 업데이트
+- [ ] 예시: `import { useONNX, ONNXProvider } from '@/features/onnx'`
 
-### ✅ Karaoke Feature
-- [ ] Update imports from `@/utils/karaoke/*` to `@/features/karaoke`
-- [ ] Example: `import { getTimingPreset } from '@/features/karaoke'`
+### ✅ 가라오케 기능
+- [ ] `@/utils/karaoke/*`에서 `@/features/karaoke`로 임포트 업데이트
+- [ ] 예시: `import { getTimingPreset } from '@/features/karaoke'`
 
-### ✅ Navigation Types
-- [ ] Add type parameters to `useLocalSearchParams<T>()`
-- [ ] Import types from `@/types/navigation`
+### ✅ 내비게이션 타입
+- [ ] `useLocalSearchParams<T>()`에 타입 파라미터 추가
+- [ ] `@/types/navigation`에서 타입 임포트
 
 ---
 
-## 📚 Educational Notes
+## 📚 교육적 노트
 
-### Why Feature-Based Over Utils-Based?
+### 유틸리티 기반보다 기능 기반을 사용하는 이유?
 
-**Utils-Based Problems**:
-- ❌ Hard to find related code (scattered across different utils folders)
-- ❌ Unclear dependencies between modules
-- ❌ Difficult to extract features for reuse
-- ❌ Mixed responsibilities
+**유틸리티 기반의 문제점**:
+- ❌ 관련 코드 찾기 어려움 (다른 유틸 폴더에 흩어져 있음)
+- ❌ 모듈 간 의존성 불명확
+- ❌ 재사용을 위한 기능 추출 어려움
+- ❌ 책임이 혼재됨
 
-**Feature-Based Benefits**:
-- ✅ Related code grouped together
-- ✅ Clear feature boundaries
-- ✅ Easy to understand dependencies
-- ✅ Simple to extract/share features
-- ✅ Better testability
+**기능 기반의 장점**:
+- ✅ 관련 코드가 함께 그룹화됨
+- ✅ 명확한 기능 경계
+- ✅ 의존성 이해 쉬움
+- ✅ 기능 추출/공유 간단
+- ✅ 테스트 가능성 향상
 
-### Why Barrel Exports (index.ts)?
+### 배럴 익스포트(index.ts)를 사용하는 이유?
 
 ```typescript
 // features/audio/index.ts
@@ -359,46 +360,46 @@ export { useAudioRecording } from './hooks/useAudioRecording';
 export type { RecordingState } from './types';
 ```
 
-**Benefits**:
-1. **Single Entry Point**: Import from one place
-2. **Encapsulation**: Hide internal structure
-3. **Refactoring**: Change internals without affecting imports
-4. **Tree Shaking**: Bundlers can optimize better
+**장점**:
+1. **단일 진입점**: 한 곳에서 임포트
+2. **캡슐화**: 내부 구조 숨김
+3. **리팩토링**: 임포트에 영향 없이 내부 변경 가능
+4. **트리 쉐이킹**: 번들러가 더 잘 최적화 가능
 
-### Why Strict TypeScript?
+### 엄격한 TypeScript를 사용하는 이유?
 
 ```typescript
-// ❌ BAD: Using any
+// ❌ 나쁨: any 사용
 function processAudio(data: any) {
-  return data.samples;  // No type safety!
+  return data.samples;  // 타입 안정성 없음!
 }
 
-// ✅ GOOD: Proper types
+// ✅ 좋음: 적절한 타입
 function processAudio(data: Float32Array): Float32Array {
-  return wav2vec2Preprocess(data);  // Type-checked!
+  return wav2vec2Preprocess(data);  // 타입 체크됨!
 }
 ```
 
-**Benefits**:
-- Catch errors at compile time, not runtime
-- Better IDE autocomplete and IntelliSense
-- Self-documenting code
-- Refactoring confidence
+**장점**:
+- 런타임이 아닌 컴파일 타임에 에러 잡기
+- 더 나은 IDE 자동완성 및 IntelliSense
+- 자체 문서화 코드
+- 리팩토링 신뢰도 향상
 
 ---
 
-## 🚀 Next Steps
+## 🚀 다음 단계
 
-### Recommended Improvements
+### 권장 개선사항
 
-1. **Global Hooks Folder**: Move shared hooks (if any) to `hooks/`
-2. **Global Utils Folder**: Move shared utilities (date formatting, etc.) to `utils/`
-3. **State Management**: Add `stores/` for global state (Zustand/Jotai)
-4. **Component Library**: Extract reusable components
-5. **Testing**: Add unit tests for each feature module
-6. **Documentation**: Generate TypeDoc from JSDoc comments
+1. **전역 훅 폴더**: 공유 훅을 `hooks/`로 이동 (있다면)
+2. **전역 유틸 폴더**: 공유 유틸리티(날짜 포맷팅 등)를 `utils/`로 이동
+3. **상태 관리**: 전역 상태를 위한 `stores/` 추가 (Zustand/Jotai)
+4. **컴포넌트 라이브러리**: 재사용 가능한 컴포넌트 추출
+5. **테스팅**: 각 기능 모듈에 단위 테스트 추가
+6. **문서화**: JSDoc 주석에서 TypeDoc 생성
 
-### Testing Strategy
+### 테스팅 전략
 
 ```typescript
 // features/audio/__tests__/useAudioRecording.test.ts
@@ -406,7 +407,7 @@ import { renderHook } from '@testing-library/react-hooks';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 
 describe('useAudioRecording', () => {
-  it('should initialize with correct state', () => {
+  it('올바른 상태로 초기화되어야 함', () => {
     const { result } = renderHook(() => useAudioRecording());
     expect(result.current.state.isRecording).toBe(false);
   });
@@ -415,23 +416,23 @@ describe('useAudioRecording', () => {
 
 ---
 
-## 🔗 Resources
+## 🔗 참고 자료
 
-- [Expo Audio Docs](https://docs.expo.dev/versions/latest/sdk/audio/)
-- [Expo File System v19 Docs](https://docs.expo.dev/versions/latest/sdk/filesystem/)
-- [Expo Router Docs](https://docs.expo.dev/router/introduction/)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
+- [Expo Audio 문서](https://docs.expo.dev/versions/latest/sdk/audio/)
+- [Expo File System v19 문서](https://docs.expo.dev/versions/latest/sdk/filesystem/)
+- [Expo Router 문서](https://docs.expo.dev/router/introduction/)
+- [TypeScript 핸드북](https://www.typescriptlang.org/docs/handbook/intro.html)
 - [Feature-Sliced Design](https://feature-sliced.design/)
 
 ---
 
-## 📞 Support
+## 📞 지원
 
-For questions about this refactoring:
-- Check the inline code comments (extensive documentation)
-- Review the type definitions in `types/` and `features/*/types.ts`
-- See example usage in refactored screens (`app/record.tsx`, `app/results.tsx`)
+이 리팩토링에 대한 질문이 있으시면:
+- 인라인 코드 주석 확인 (광범위한 문서화)
+- `types/` 및 `features/*/types.ts`의 타입 정의 검토
+- 리팩토링된 화면에서 사용 예시 확인 (`app/record.tsx`, `app/results.tsx`)
 
 ---
 
-**Happy Coding! 🎉**
+**즐거운 코딩 되세요! 🎉**

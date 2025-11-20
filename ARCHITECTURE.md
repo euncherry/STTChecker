@@ -1,26 +1,26 @@
-# 🏛️ STTChecker Architecture
+# 🏛️ STTChecker 아키텍처
 
-## 📁 Complete File Tree
+## 📁 전체 파일 트리
 
 ```
 STTChecker/
 │
-├── 📱 app/                                  # Expo Router (file-based routing)
-│   ├── _layout.tsx                          # Root layout (model loading, theme)
-│   ├── +html.tsx                            # HTML wrapper for web
-│   ├── +not-found.tsx                       # 404 page
-│   ├── modal.tsx                            # Generic modal screen
-│   ├── record.tsx                           # ✅ REFACTORED: Recording screen (expo-audio)
-│   ├── results.tsx                          # ✅ REFACTORED: Results screen (feature imports)
+├── 📱 app/                                  # Expo Router (파일 기반 라우팅)
+│   ├── _layout.tsx                          # 루트 레이아웃 (모델 로딩, 테마)
+│   ├── +html.tsx                            # 웹용 HTML 래퍼
+│   ├── +not-found.tsx                       # 404 페이지
+│   ├── modal.tsx                            # 일반 모달 화면
+│   ├── record.tsx                           # ✅ 리팩토링됨: 녹음 화면 (expo-audio)
+│   ├── results.tsx                          # ✅ 리팩토링됨: 결과 화면 (기능 임포트)
 │   │
-│   └── (tabs)/                              # Tab navigation group
-│       ├── _layout.tsx                      # Tab navigator configuration
-│       ├── index.tsx                        # Home tab (sentence input)
-│       ├── sing.tsx                         # Sing tab (karaoke demo)
-│       ├── test.tsx                         # Test tab (file upload)
-│       └── history.tsx                      # History tab (saved recordings)
+│   └── (tabs)/                              # 탭 내비게이션 그룹
+│       ├── _layout.tsx                      # 탭 내비게이터 설정
+│       ├── index.tsx                        # 홈 탭 (문장 입력)
+│       ├── sing.tsx                         # 노래 탭 (가라오케 데모)
+│       ├── test.tsx                         # 테스트 탭 (파일 업로드)
+│       └── history.tsx                      # 히스토리 탭 (저장된 녹음)
 │
-├── 🎨 components/                           # Global reusable UI components
+├── 🎨 components/                           # 전역 재사용 가능한 UI 컴포넌트
 │   ├── CustomHeader.tsx
 │   ├── KaraokeText.tsx
 │   ├── ModelLoadingScreen.tsx
@@ -30,87 +30,87 @@ STTChecker/
 │   ├── useClientOnlyValue.ts
 │   └── useClientOnlyValue.web.ts
 │
-├── 🧩 features/                             # ✨ NEW: Feature-based modules
+├── 🧩 features/                             # ✨ 새로 추가: 기능 기반 모듈
 │   │
-│   ├── 🎤 audio/                            # Audio recording & playback
+│   ├── 🎤 audio/                            # 오디오 녹음 및 재생
 │   │   ├── hooks/
-│   │   │   ├── useAudioRecording.ts         # ✨ NEW: Recording hook (replaces react-native-audio-record)
-│   │   │   └── useAudioPlayback.ts          # ✨ NEW: Playback hook (wraps expo-audio)
+│   │   │   ├── useAudioRecording.ts         # ✨ 새로 추가: 녹음 훅 (react-native-audio-record 대체)
+│   │   │   └── useAudioPlayback.ts          # ✨ 새로 추가: 재생 훅 (expo-audio 래핑)
 │   │   ├── utils/
-│   │   │   └── config.ts                    # Recording presets & configuration
-│   │   ├── types.ts                         # Audio-specific types
-│   │   └── index.ts                         # Public API (barrel export)
+│   │   │   └── config.ts                    # 녹음 프리셋 및 설정
+│   │   ├── types.ts                         # 오디오 전용 타입
+│   │   └── index.ts                         # 공개 API (배럴 익스포트)
 │   │
-│   ├── 🗣️ stt/                             # Speech-to-Text pipeline
+│   ├── 🗣️ stt/                             # 음성-텍스트 변환 파이프라인
 │   │   ├── utils/
-│   │   │   ├── audioPreprocessor.ts         # WAV parsing, resampling, normalization
-│   │   │   ├── inference.ts                 # ONNX inference & CTC decoding
-│   │   │   └── metrics.ts                   # CER/WER calculation
-│   │   ├── types.ts                         # STT-specific types
-│   │   └── index.ts                         # Public API
+│   │   │   ├── audioPreprocessor.ts         # WAV 파싱, 리샘플링, 정규화
+│   │   │   ├── inference.ts                 # ONNX 추론 및 CTC 디코딩
+│   │   │   └── metrics.ts                   # CER/WER 계산
+│   │   ├── types.ts                         # STT 전용 타입
+│   │   └── index.ts                         # 공개 API
 │   │
-│   ├── 💾 history/                          # Recording history & storage
+│   ├── 💾 history/                          # 녹음 히스토리 및 저장소
 │   │   ├── utils/
-│   │   │   └── historyManager.ts            # CRUD operations, file management
-│   │   ├── types.ts                         # HistoryItem, StorageInfo types
-│   │   └── index.ts                         # Public API
+│   │   │   └── historyManager.ts            # CRUD 작업, 파일 관리
+│   │   ├── types.ts                         # HistoryItem, StorageInfo 타입
+│   │   └── index.ts                         # 공개 API
 │   │
-│   ├── 🤖 onnx/                             # ONNX model management
+│   ├── 🤖 onnx/                             # ONNX 모델 관리
 │   │   ├── utils/
-│   │   │   ├── modelLoader.ts               # Model loading (assets → cache)
-│   │   │   └── vocabLoader.ts               # Vocabulary loading
-│   │   ├── onnxContext.tsx                  # React Context provider
-│   │   ├── types.ts                         # ModelInfo, VocabInfo types
-│   │   └── index.ts                         # Public API
+│   │   │   ├── modelLoader.ts               # 모델 로딩 (assets → cache)
+│   │   │   └── vocabLoader.ts               # 어휘 로딩
+│   │   ├── onnxContext.tsx                  # React Context 프로바이더
+│   │   ├── types.ts                         # ModelInfo, VocabInfo 타입
+│   │   └── index.ts                         # 공개 API
 │   │
-│   └── 🎵 karaoke/                          # Karaoke text animation
+│   └── 🎵 karaoke/                          # 가라오케 텍스트 애니메이션
 │       ├── utils/
-│       │   └── timingPresets.ts             # Syllable timing presets
-│       ├── types.ts                         # Timing types
-│       └── index.ts                         # Public API
+│       │   └── timingPresets.ts             # 음절 타이밍 프리셋
+│       ├── types.ts                         # 타이밍 타입
+│       └── index.ts                         # 공개 API
 │
-├── 📘 types/                                # ✨ NEW: Global type definitions
-│   ├── global.ts                            # Shared types (AppError, AudioSource, etc.)
-│   └── navigation.ts                        # Route parameter types (type-safe navigation)
+├── 📘 types/                                # ✨ 새로 추가: 전역 타입 정의
+│   ├── global.ts                            # 공유 타입 (AppError, AudioSource 등)
+│   └── navigation.ts                        # 라우트 파라미터 타입 (타입 안전 내비게이션)
 │
-├── 🎨 constants/                            # App-wide constants
-│   ├── Colors.ts                            # Color palette
-│   └── theme.ts                             # Material Design 3 theme
+├── 🎨 constants/                            # 앱 전체 상수
+│   ├── Colors.ts                            # 컬러 팔레트
+│   └── theme.ts                             # Material Design 3 테마
 │
-├── 🔌 plugins/                              # Expo Config Plugins
-│   ├── withOnnxruntime.js                   # Register ONNX Runtime package
-│   └── withOnnxModel.js                     # Copy model to Android assets
+├── 🔌 plugins/                              # Expo Config 플러그인
+│   ├── withOnnxruntime.js                   # ONNX Runtime 패키지 등록
+│   └── withOnnxModel.js                     # Android assets에 모델 복사
 │
-├── 📦 assets/                               # Static resources
-│   ├── images/                              # Icons, splash screens
-│   ├── model/                               # AI model files (gitignored, ~305MB)
+├── 📦 assets/                               # 정적 리소스
+│   ├── images/                              # 아이콘, 스플래시 화면
+│   ├── model/                               # AI 모델 파일 (gitignored, ~305MB)
 │   │   ├── wav2vec2_korean_final.onnx
 │   │   └── vocab.json
-│   └── webview/                             # WebView HTML files
+│   └── webview/                             # WebView HTML 파일
 │       └── wavesurfer-viewer.html
 │
-├── 📄 Configuration Files
-│   ├── app.json                             # Expo configuration
-│   ├── package.json                         # Dependencies
-│   ├── tsconfig.json                        # TypeScript configuration
-│   ├── metro.config.js                      # Metro bundler config
-│   ├── eas.json                             # EAS Build configuration
-│   ├── CLAUDE.md                            # Project instructions for Claude
-│   ├── REFACTORING_GUIDE.md                 # ✨ NEW: Detailed refactoring guide
-│   └── ARCHITECTURE.md                      # ✨ NEW: This file
+├── 📄 설정 파일
+│   ├── app.json                             # Expo 설정
+│   ├── package.json                         # 의존성
+│   ├── tsconfig.json                        # TypeScript 설정
+│   ├── metro.config.js                      # Metro 번들러 설정
+│   ├── eas.json                             # EAS Build 설정
+│   ├── CLAUDE.md                            # Claude를 위한 프로젝트 지침
+│   ├── REFACTORING_GUIDE.md                 # ✨ 새로 추가: 상세 리팩토링 가이드
+│   └── ARCHITECTURE.md                      # ✨ 새로 추가: 이 파일
 │
-└── 📚 Documentation
-    └── README.md                            # Project README
+└── 📚 문서
+    └── README.md                            # 프로젝트 README
 ```
 
 ---
 
-## 🔄 Import Flow Diagram
+## 🔄 임포트 흐름 다이어그램
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                     app/record.tsx                      │
-│                    (Recording Screen)                    │
+│                      (녹음 화면)                         │
 └─────────────────────┬───────────────────────────────────┘
                       │
         ┌─────────────┼─────────────┬─────────────┐
@@ -130,177 +130,177 @@ STTChecker/
 
 ---
 
-## 🏗️ Feature Module Anatomy
+## 🏗️ 기능 모듈 구조
 
-Each feature module follows this consistent pattern:
+각 기능 모듈은 일관된 패턴을 따릅니다:
 
 ```
 features/{feature}/
 │
-├── hooks/                    # React hooks (if needed)
+├── hooks/                    # React 훅 (필요시)
 │   ├── useSomething.ts
 │   └── useSomethingElse.ts
 │
-├── components/               # Feature-specific components (if needed)
+├── components/               # 기능별 컴포넌트 (필요시)
 │   └── SomeComponent.tsx
 │
-├── utils/                    # Business logic & utilities
+├── utils/                    # 비즈니스 로직 및 유틸리티
 │   ├── helper.ts
 │   └── config.ts
 │
-├── types.ts                  # Feature-specific TypeScript types
+├── types.ts                  # 기능별 TypeScript 타입
 │   └── export interface FeatureType { ... }
 │
-└── index.ts                  # 🚪 PUBLIC API (barrel export)
+└── index.ts                  # 🚪 공개 API (배럴 익스포트)
     ├── export { useSomething } from './hooks/useSomething';
     ├── export { helper } from './utils/helper';
     └── export type { FeatureType } from './types';
 ```
 
-### 🎯 Why This Pattern?
+### 🎯 이 패턴을 사용하는 이유?
 
-1. **Predictable Structure**: Every feature looks the same
-2. **Easy Navigation**: Know where to find things
-3. **Clear API**: `index.ts` defines what's public
-4. **Encapsulation**: Internal implementation hidden
-5. **Testable**: Each module can be tested independently
+1. **예측 가능한 구조**: 모든 기능이 동일하게 보임
+2. **쉬운 탐색**: 어디서 무엇을 찾을지 알 수 있음
+3. **명확한 API**: `index.ts`가 공개된 것을 정의
+4. **캡슐화**: 내부 구현 숨김
+5. **테스트 가능**: 각 모듈을 독립적으로 테스트 가능
 
 ---
 
-## 📦 Dependency Graph
+## 📦 의존성 그래프
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                       App Layer                         │
+│                       앱 레이어                          │
 │  app/record.tsx, app/results.tsx, app/(tabs)/*         │
 └────────────────────┬────────────────────────────────────┘
-                     │ imports
+                     │ 임포트
                      ▼
 ┌─────────────────────────────────────────────────────────┐
-│                    Feature Layer                        │
-│  features/audio, features/stt, features/history, etc.  │
+│                    기능 레이어                           │
+│  features/audio, features/stt, features/history 등     │
 └────────────────────┬────────────────────────────────────┘
-                     │ imports
+                     │ 임포트
                      ▼
 ┌─────────────────────────────────────────────────────────┐
-│                   Component Layer                       │
+│                  컴포넌트 레이어                         │
 │          components/, constants/, types/                │
 └────────────────────┬────────────────────────────────────┘
-                     │ imports
+                     │ 임포트
                      ▼
 ┌─────────────────────────────────────────────────────────┐
-│                   External Layer                        │
-│    expo-audio, expo-file-system, react-native, etc.    │
+│                   외부 레이어                            │
+│    expo-audio, expo-file-system, react-native 등       │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 📏 Dependency Rules
+### 📏 의존성 규칙
 
-✅ **Allowed**:
-- App → Features
-- Features → Components
-- Features → Types
-- Components → Types
+✅ **허용됨**:
+- 앱 → 기능
+- 기능 → 컴포넌트
+- 기능 → 타입
+- 컴포넌트 → 타입
 
-❌ **Not Allowed**:
-- Features → App (circular)
-- Components → Features (breaks reusability)
-- Types → anything (types should be pure)
-
----
-
-## 🔑 Key Architectural Decisions
-
-### 1. Feature-Based Organization
-
-**Decision**: Organize by feature/domain instead of technical layer
-
-**Rationale**:
-- Related code stays together
-- Easier to understand and modify
-- Better for team collaboration
-- Simplifies code splitting and lazy loading
-
-### 2. Barrel Exports (index.ts)
-
-**Decision**: Each feature exports through a single `index.ts`
-
-**Rationale**:
-- Single import path for consumers
-- Can refactor internals without breaking imports
-- Clear public API
-- Better tree-shaking
-
-### 3. Strict TypeScript
-
-**Decision**: No `any` types, explicit return types, strict mode
-
-**Rationale**:
-- Catch errors at compile time
-- Better IDE support
-- Self-documenting code
-- Safer refactoring
-
-### 4. Modern Expo SDK
-
-**Decision**: Use latest expo-audio (v1.0) and expo-file-system (v19)
-
-**Rationale**:
-- Official Expo support
-- Better cross-platform consistency
-- Declarative hooks API
-- Type-safe by default
-
-### 5. Path Aliases (@/)
-
-**Decision**: Use `@/` prefix for absolute imports
-
-**Rationale**:
-- No more `../../../` hell
-- Easier to move files
-- Cleaner imports
-- IDE autocomplete works better
+❌ **허용되지 않음**:
+- 기능 → 앱 (순환 참조)
+- 컴포넌트 → 기능 (재사용성 저해)
+- 타입 → 무엇이든 (타입은 순수해야 함)
 
 ---
 
-## 🚀 Performance Considerations
+## 🔑 주요 아키텍처 결정사항
 
-### Code Splitting (Future)
+### 1. 기능 기반 구성
 
-With feature-based architecture, we can easily lazy-load features:
+**결정**: 기술 계층 대신 기능/도메인별로 구성
+
+**근거**:
+- 관련 코드가 함께 유지됨
+- 이해하고 수정하기 쉬움
+- 팀 협업에 유리
+- 코드 스플리팅 및 레이지 로딩 간소화
+
+### 2. 배럴 익스포트 (index.ts)
+
+**결정**: 각 기능이 단일 `index.ts`를 통해 익스포트
+
+**근거**:
+- 사용자를 위한 단일 임포트 경로
+- 임포트를 깨지 않고 내부 리팩토링 가능
+- 명확한 공개 API
+- 더 나은 트리 쉐이킹
+
+### 3. 엄격한 TypeScript
+
+**결정**: `any` 타입 금지, 명시적 반환 타입, strict 모드
+
+**근거**:
+- 컴파일 타임에 에러 잡기
+- 더 나은 IDE 지원
+- 자체 문서화 코드
+- 더 안전한 리팩토링
+
+### 4. 최신 Expo SDK
+
+**결정**: 최신 expo-audio (v1.0) 및 expo-file-system (v19) 사용
+
+**근거**:
+- 공식 Expo 지원
+- 더 나은 크로스 플랫폼 일관성
+- 선언형 훅 API
+- 기본적으로 타입 안전
+
+### 5. 경로 별칭 (@/)
+
+**결정**: 절대 임포트를 위한 `@/` 접두사 사용
+
+**근거**:
+- `../../../` 지옥 탈출
+- 파일 이동 쉬움
+- 더 깔끔한 임포트
+- IDE 자동완성 더 잘 작동
+
+---
+
+## 🚀 성능 고려사항
+
+### 코드 스플리팅 (미래)
+
+기능 기반 아키텍처로 기능을 쉽게 레이지 로드 가능:
 
 ```typescript
-// Future optimization
+// 미래 최적화
 const AudioFeature = lazy(() => import('@/features/audio'));
 const STTFeature = lazy(() => import('@/features/stt'));
 ```
 
-### Bundle Analysis
+### 번들 분석
 
-Current structure makes it easy to analyze bundle size by feature:
+현재 구조로 기능별 번들 크기 분석 쉬움:
 
 ```bash
 npx react-native-bundle-visualizer
 ```
 
-### Memory Management
+### 메모리 관리
 
-- ONNX model: Loaded once on app startup (in Context)
-- Audio files: Temporary in cache, permanent in document directory
-- History: Max 100 items with automatic cleanup
+- ONNX 모델: 앱 시작 시 한 번 로드 (Context에서)
+- 오디오 파일: 캐시에 임시, 문서 디렉토리에 영구
+- 히스토리: 최대 100개 항목, 자동 정리
 
 ---
 
-## 🧪 Testing Strategy
+## 🧪 테스팅 전략
 
-### Unit Tests
+### 단위 테스트
 
-Test each feature module independently:
+각 기능 모듈을 독립적으로 테스트:
 
 ```typescript
 // features/audio/__tests__/useAudioRecording.test.ts
 describe('useAudioRecording', () => {
-  it('should handle recording lifecycle', async () => {
+  it('녹음 라이프사이클을 처리해야 함', async () => {
     const { result } = renderHook(() => useAudioRecording());
 
     await act(async () => {
@@ -312,82 +312,82 @@ describe('useAudioRecording', () => {
 });
 ```
 
-### Integration Tests
+### 통합 테스트
 
-Test feature interactions:
+기능 상호작용 테스트:
 
 ```typescript
 // __tests__/recording-to-results.test.ts
-describe('Recording to Results Flow', () => {
-  it('should process recording and show results', async () => {
-    // Test complete user flow
+describe('녹음에서 결과까지 흐름', () => {
+  it('녹음을 처리하고 결과를 표시해야 함', async () => {
+    // 전체 사용자 흐름 테스트
   });
 });
 ```
 
 ---
 
-## 📊 Metrics & Monitoring
+## 📊 메트릭 및 모니터링
 
-### Key Metrics to Track
+### 추적할 주요 메트릭
 
-1. **Model Load Time**: Time to load ONNX model
-2. **Recording Duration**: Average recording length
-3. **Inference Time**: Time to process audio
-4. **CER/WER Scores**: Average accuracy
-5. **Storage Usage**: History size over time
+1. **모델 로드 시간**: ONNX 모델 로드 시간
+2. **녹음 시간**: 평균 녹음 길이
+3. **추론 시간**: 오디오 처리 시간
+4. **CER/WER 점수**: 평균 정확도
+5. **저장소 사용량**: 시간에 따른 히스토리 크기
 
-### Logging Convention
+### 로깅 규칙
 
 ```typescript
-console.log('[FeatureName] 🚀 Action starting');
-console.log('[FeatureName] ✅ Success');
-console.error('[FeatureName] ❌ Error:', error);
+console.log('[기능명] 🚀 작업 시작');
+console.log('[기능명] ✅ 성공');
+console.error('[기능명] ❌ 에러:', error);
 ```
 
 ---
 
-## 🔮 Future Enhancements
+## 🔮 향후 개선사항
 
-### Potential Improvements
+### 잠재적 개선사항
 
-1. **State Management**: Add Zustand/Jotai for global state
-2. **API Layer**: Create `services/` for external APIs
-3. **Testing**: Add comprehensive test coverage
-4. **CI/CD**: Automated testing and deployment
-5. **Performance**: Lazy loading and code splitting
-6. **Analytics**: User behavior tracking
-7. **Error Tracking**: Sentry or similar
-8. **Offline Support**: Better offline capabilities
+1. **상태 관리**: 전역 상태를 위한 Zustand/Jotai 추가
+2. **API 레이어**: 외부 API를 위한 `services/` 생성
+3. **테스팅**: 포괄적인 테스트 커버리지 추가
+4. **CI/CD**: 자동화된 테스팅 및 배포
+5. **성능**: 레이지 로딩 및 코드 스플리팅
+6. **분석**: 사용자 행동 추적
+7. **에러 추적**: Sentry 등
+8. **오프라인 지원**: 더 나은 오프라인 기능
 
-### Scalability
+### 확장성
 
-Current architecture supports:
-- Adding new features (just create `features/newFeature/`)
-- Extracting features to separate packages
-- Multiple teams working on different features
-- Incremental adoption of new patterns
+현재 아키텍처는 다음을 지원:
+- 새 기능 추가 (`features/newFeature/` 생성만 하면 됨)
+- 기능을 별도 패키지로 추출
+- 여러 팀이 서로 다른 기능 작업
+- 새로운 패턴의 점진적 도입
 
 ---
 
-## 📚 Learning Resources
+## 📚 학습 자료
 
-### Recommended Reading
+### 권장 읽기 자료
 
 1. **Feature-Sliced Design**: https://feature-sliced.design/
 2. **Expo Router**: https://docs.expo.dev/router/
-3. **TypeScript Patterns**: https://www.typescriptlang.org/docs/handbook/
+3. **TypeScript 패턴**: https://www.typescriptlang.org/docs/handbook/
 4. **React Hooks**: https://react.dev/reference/react
 
-### Example Implementations
+### 구현 예시
 
-- `features/audio/`: Modern audio recording pattern
-- `features/stt/`: Complex processing pipeline
-- `app/record.tsx`: Refactored screen example
-- `types/navigation.ts`: Type-safe navigation
+- `features/audio/`: 최신 오디오 녹음 패턴
+- `features/stt/`: 복잡한 처리 파이프라인
+- `app/record.tsx`: 리팩토링된 화면 예시
+- `types/navigation.ts`: 타입 안전 내비게이션
 
 ---
 
-**Last Updated**: 2025-11-20
-**Architecture Version**: 2.0.0
-**Project**: STTChecker
+**마지막 업데이트**: 2025-11-20
+**아키텍처 버전**: 2.0.0
+**프로젝트**: STTChecker
