@@ -1,9 +1,9 @@
 /**
  * @file features/history/index.ts
- * @description Public API for the history/storage feature module
+ * @description 히스토리/저장소 기능 모듈을 위한 공개 API
  */
 
-// Utils
+// 유틸리티
 export {
   saveHistory,
   loadHistories,
@@ -16,5 +16,5 @@ export {
   saveAudioFile,
 } from './utils/historyManager';
 
-// Types
+// 타입
 export type { HistoryItem, CreateHistoryInput, StorageInfo } from './types';

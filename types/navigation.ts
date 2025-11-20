@@ -1,22 +1,22 @@
 /**
  * @file types/navigation.ts
- * @description Global navigation type definitions for Expo Router
+ * @description Expo Router를 위한 전역 내비게이션 타입 정의
  *
- * 🎯 Why this file exists:
- * - Centralizes all route parameter types for type-safe navigation
- * - Provides autocomplete when using useRouter() and useLocalSearchParams()
- * - Prevents typos in route parameter names
+ * 🎯 이 파일이 존재하는 이유:
+ * - 타입 안전한 내비게이션을 위한 모든 라우트 파라미터 타입을 중앙 집중화
+ * - useRouter() 및 useLocalSearchParams() 사용 시 자동 완성 제공
+ * - 라우트 파라미터 이름의 오타 방지
  *
- * 📚 Usage example:
+ * 📚 사용 예시:
  * ```tsx
  * import { useRouter, useLocalSearchParams } from 'expo-router';
  * import type { RecordScreenParams, ResultsScreenParams } from '@/types/navigation';
  *
- * // In a component:
+ * // 컴포넌트 내부:
  * const router = useRouter();
  * const params = useLocalSearchParams<RecordScreenParams>();
  *
- * // Type-safe navigation
+ * // 타입 안전한 내비게이션
  * router.push({
  *   pathname: '/results',
  *   params: {
@@ -29,33 +29,33 @@
  */
 
 /**
- * Parameters for the /record screen
+ * /record 화면의 파라미터
  */
 export interface RecordScreenParams extends Record<string, string | string[]> {
-  /** The target text that the user should pronounce */
+  /** 사용자가 발음해야 할 목표 텍스트 */
   text: string;
 }
 
 /**
- * Parameters for the /results screen
+ * /results 화면의 파라미터
  */
 export interface ResultsScreenParams extends Record<string, string | string[]> {
-  /** URI of the recorded audio file */
+  /** 녹음된 오디오 파일의 URI */
   audioUri: string;
-  /** The target text that was supposed to be pronounced */
+  /** 발음해야 했던 목표 텍스트 */
   targetText: string;
-  /** Duration of the recording in seconds (as string for URL params) */
+  /** 녹음 지속 시간(초) (URL 파라미터를 위한 문자열) */
   recordingDuration: string;
 }
 
 /**
- * Root navigation parameter list for type-safe routing
+ * 타입 안전한 라우팅을 위한 루트 내비게이션 파라미터 리스트
  *
- * 🔍 This maps screen paths to their parameter types
- * Expo Router uses this for type inference
+ * 🔍 화면 경로를 파라미터 타입에 매핑합니다
+ * Expo Router는 이것을 타입 추론에 사용합니다
  */
 export interface RootStackParamList {
-  "/": undefined; // Home screen (no params)
+  "/": undefined; // 홈 화면 (파라미터 없음)
   "/record": RecordScreenParams;
   "/results": ResultsScreenParams;
   "/(tabs)": undefined;
