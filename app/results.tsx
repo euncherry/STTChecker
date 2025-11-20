@@ -1,4 +1,5 @@
 // app/results.tsx
+import type { ResultsScreenParams } from "@/types/navigation";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -19,7 +20,6 @@ import { saveHistory } from "../utils/storage/historyManager";
 import { preprocessAudioFile } from "../utils/stt/audioPreprocessor";
 import { runSTTInference } from "../utils/stt/inference";
 import { calculateCER, calculateWER } from "../utils/stt/metrics";
-import type { ResultsScreenParams } from "@/types/navigation";
 
 export default function ResultsScreen() {
   const theme = useTheme();
@@ -373,7 +373,9 @@ export default function ResultsScreen() {
                 <WaveSurferWebView
                   userAudioPath={audioUri}
                   onReady={() => {
-                    console.log("[ResultsScreen] ✅ WaveSurfer 그래프 준비 완료");
+                    console.log(
+                      "[ResultsScreen] ✅ WaveSurfer 그래프 준비 완료"
+                    );
                   }}
                   onError={(error) => {
                     console.error("[ResultsScreen] ❌ WaveSurfer 에러:", error);

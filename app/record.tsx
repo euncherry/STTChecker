@@ -30,7 +30,10 @@ import {
 // ✅ NEW: Feature-based imports
 import KaraokeText from "@/components/KaraokeText";
 import { useAudioRecording } from "@/features/audio";
-import { getTimingPreset, DEFAULT_DURATION_PER_CHARACTER } from "@/features/karaoke";
+import {
+  DEFAULT_DURATION_PER_CHARACTER,
+  getTimingPreset,
+} from "@/features/karaoke";
 import type { RecordScreenParams } from "@/types/navigation";
 
 export default function RecordScreen() {
@@ -123,9 +126,7 @@ export default function RecordScreen() {
   };
 
   const startAutoStopTimer = () => {
-    console.log(
-      `[RecordScreen] ⏰ Auto-stop timer: ${autoStopDuration}s`
-    );
+    console.log(`[RecordScreen] ⏰ Auto-stop timer: ${autoStopDuration}s`);
 
     autoStopTimerRef.current = setTimeout(() => {
       console.log("[RecordScreen] ⏰ Auto-stopping recording");
@@ -251,13 +252,17 @@ export default function RecordScreen() {
       }
 
       console.log("[RecordScreen] 📁 Recording saved:", result.uri);
-      console.log("[RecordScreen] ⏱️ Duration:", result.duration.toFixed(2), "s");
+      console.log(
+        "[RecordScreen] ⏱️ Duration:",
+        result.duration.toFixed(2),
+        "s"
+      );
 
       // Navigate to results screen with recording data
       router.replace({
         pathname: "/results",
         params: {
-          audioUri: result.uri,  // ✅ Already properly formatted
+          audioUri: result.uri, // ✅ Already properly formatted
           targetText: targetText || "입력 문장 없음",
           recordingDuration: Math.floor(result.duration).toString(),
         },
@@ -281,7 +286,8 @@ export default function RecordScreen() {
           <KaraokeText
             text={targetText || "문장을 가져오는 중..."}
             referenceTimings={referenceTimings}
-            isPlaying={recordingState.isRecording}  {/* ✅ NEW: Use hook state */}
+            isPlaying={recordingState.isRecording}
+            //{/* ✅ NEW: Use hook state */}
             durationPerCharacter={DEFAULT_DURATION_PER_CHARACTER}
             textColor="#374151"
             fillColor={theme.colors.primary}
@@ -366,11 +372,14 @@ export default function RecordScreen() {
             : startCountdown
         }
         style={styles.button}
-        buttonColor={recordingState.isRecording ? theme.colors.error : theme.colors.primary}
+        buttonColor={
+          recordingState.isRecording ? theme.colors.error : theme.colors.primary
+        }
         icon={recordingState.isRecording ? "stop" : "microphone"}
         labelStyle={styles.buttonLabel}
         contentStyle={styles.buttonContent}
-        disabled={!targetText || isCountingDown || !recordingState.canRecord}  {/* ✅ NEW: Check canRecord */}
+        disabled={!targetText || isCountingDown || !recordingState.canRecord}
+        // {/* ✅ NEW: Check canRecord */}
       >
         {recordingState.isRecording ? "녹음 중지 및 분석" : "녹음 시작"}
       </Button>
