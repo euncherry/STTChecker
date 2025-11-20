@@ -19,11 +19,12 @@ import { saveHistory } from "../utils/storage/historyManager";
 import { preprocessAudioFile } from "../utils/stt/audioPreprocessor";
 import { runSTTInference } from "../utils/stt/inference";
 import { calculateCER, calculateWER } from "../utils/stt/metrics";
+import type { ResultsScreenParams } from "@/types/navigation";
 
 export default function ResultsScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<ResultsScreenParams>();
   const { modelInfo, vocabInfo, isLoading: modelLoading } = useONNX();
 
   // 파라미터 추출

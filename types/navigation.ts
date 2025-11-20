@@ -30,22 +30,27 @@
 
 /**
  * Parameters for the /record screen
+ *
+ * 🔍 Note: All Expo Router search params are `string | string[]` at runtime
+ * Even though we pass a single string, the type system requires this signature
  */
 export interface RecordScreenParams {
   /** The target text that the user should pronounce */
-  text: string;
+  text?: string | string[];
 }
 
 /**
  * Parameters for the /results screen
+ *
+ * 🔍 Note: All Expo Router search params are `string | string[]` at runtime
  */
 export interface ResultsScreenParams {
   /** URI of the recorded audio file */
-  audioUri: string;
+  audioUri?: string | string[];
   /** The target text that was supposed to be pronounced */
-  targetText: string;
+  targetText?: string | string[];
   /** Duration of the recording in seconds (as string for URL params) */
-  recordingDuration: string;
+  recordingDuration?: string | string[];
 }
 
 /**
