@@ -1,26 +1,24 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 
-// This file is web-only and used to configure the root HTML for every
-// web page during static rendering.
-// The contents of this function only run in Node.js environments and
-// do not have access to the DOM or browser APIs.
+// 이 파일은 웹 전용이며 정적 렌더링 중 모든 웹 페이지의 루트 HTML을 구성하는 데 사용됩니다.
+// 이 함수의 내용은 Node.js 환경에서만 실행되며 DOM이나 브라우저 API에 접근할 수 없습니다.
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="ko">
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
-        {/* 
-          Disable body scrolling on web. This makes ScrollView components work closer to how they do on native. 
-          However, body scrolling is often nice to have for mobile web. If you want to enable it, remove this line.
+        {/*
+          웹에서 body 스크롤을 비활성화합니다. 이렇게 하면 ScrollView 컴포넌트가 네이티브에서 작동하는 방식과 더 유사하게 작동합니다.
+          그러나 모바일 웹에서는 body 스크롤이 종종 유용합니다. 활성화하려면 이 줄을 제거하세요.
         */}
         <ScrollViewStyleReset />
 
-        {/* Using raw CSS styles as an escape-hatch to ensure the background color never flickers in dark-mode. */}
+        {/* 다크 모드에서 배경색이 깜빡이지 않도록 하기 위해 원시 CSS 스타일을 사용합니다. */}
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
-        {/* Add any additional <head> elements that you want globally available on web... */}
+        {/* 웹에서 전역적으로 사용할 추가 <head> 요소를 여기에 추가하세요... */}
       </head>
       <body>{children}</body>
     </html>
