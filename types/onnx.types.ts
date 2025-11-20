@@ -96,45 +96,85 @@ export type ProgressCallback = (progress: number) => void;
 export type LogitsTensor = ort.Tensor;
 
 /**
+ * Vocab 데이터 (토큰 → ID 매핑)
+ *
+ * @description
+ * vocab.json에서 로드된 토큰 문자열 → ID 매핑 객체입니다.
+ * 일반 객체 형태로, Map이 아닙니다.
+ *
+ * @example
+ * ```typescript
+ * const vocabData: VocabData = {
+ *   "안": 0,
+ *   "녕": 1,
+ *   "[PAD]": 1204,
+ *   "[UNK]": 1203,
+ *   "|": 859  // blank token (공백)
+ * };
+ * ```
+ */
+export interface VocabData {
+  [key: string]: number;
+}
+
+/**
  * 어휘(Vocabulary) 정보를 담는 인터페이스
  *
  * @description
- * SentencePiece나 WordPiece 등의 토크나이저에서 사용되는
- * 어휘 정보를 저장합니다. CTC 디코딩 시 토큰 ID를 문자열로
- * 변환하는 데 사용됩니다.
+ * SentencePiece 토크나이저에서 사용되는 어휘 정보를 저장합니다.
+ * CTC 디코딩 시 토큰 ID를 문자열로 변환하는 데 사용됩니다.
  *
- * @property tokenToId - 토큰 문자열 → ID 매핑
- *   - 예: { "안": 0, "녕": 1, ..., "|": 32 }
+ * ⚠️ **중요**: 이 타입은 `utils/onnx/vocabLoader.ts`의 실제 반환 타입과 일치합니다!
  *
- * @property idToToken - ID → 토큰 문자열 매핑
- *   - 예: Map(0 => "안", 1 => "녕", ..., 32 => "|")
+ * @property vocab - 토큰 문자열 → ID 매핑 객체 (일반 객체)
+ *   - vocab.json에서 직접 로드된 객체
+ *   - 예: { "안": 0, "녕": 1, ..., "|": 859 }
+ *
+ * @property idToToken - ID → 토큰 문자열 역매핑 (Map)
+ *   - CTC 디코딩 시 사용 (ID → 문자열 변환)
+ *   - 예: Map(0 => "안", 1 => "녕", ..., 859 => "|")
+ *
+ * @property padToken - 패딩 토큰 ID
+ *   - 보통 "[PAD]" 문자의 ID
+ *   - 예: 1204
+ *
+ * @property unkToken - Unknown 토큰 ID
+ *   - 보통 "[UNK]" 문자의 ID
+ *   - 예: 1203
  *
  * @property blankToken - CTC blank 토큰 ID
  *   - 보통 "|" 문자가 blank(공백)을 의미
- *   - 예: 32
+ *   - 예: 859
  *
- * @property padToken - 패딩 토큰 ID
- *   - 보통 "[PAD]" 문자
- *   - 예: 0
+ * @property vocabSize - 전체 어휘 크기
+ *   - Object.keys(vocab).length
+ *   - 예: 1205
  *
  * @example
  * ```typescript
  * const vocabInfo: VocabInfo = {
- *   tokenToId: new Map([["안", 0], ["녕", 1]]),
- *   idToToken: new Map([[0, "안"], [1, "녕"]]),
- *   blankToken: 32,
- *   padToken: 0
+ *   vocab: { "안": 0, "녕": 1, "|": 859, "[PAD]": 1204, "[UNK]": 1203 },
+ *   idToToken: new Map([[0, "안"], [1, "녕"], [859, "|"]]),
+ *   padToken: 1204,
+ *   unkToken: 1203,
+ *   blankToken: 859,
+ *   vocabSize: 1205
  * };
  *
- * // 사용 예시
- * const tokenText = vocabInfo.idToToken.get(tokenId);
+ * // 사용 예시 1: ID → 토큰 변환 (CTC 디코딩)
+ * const tokenText = vocabInfo.idToToken.get(tokenId);  // "안"
+ *
+ * // 사용 예시 2: 토큰 → ID 변환
+ * const tokenId = vocabInfo.vocab["안"];  // 0
  * ```
  */
 export interface VocabInfo {
-  tokenToId: Map<string, number>;
+  vocab: VocabData;
   idToToken: Map<number, string>;
-  blankToken: number;
   padToken: number;
+  unkToken: number;
+  blankToken: number;
+  vocabSize: number;
 }
 
 /**
