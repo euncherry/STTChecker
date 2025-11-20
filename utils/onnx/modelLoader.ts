@@ -3,15 +3,25 @@ import { File, Paths } from "expo-file-system";
 import * as ort from "onnxruntime-react-native";
 import { Platform } from "react-native";
 import RNFS from "react-native-fs";
+import type { ModelInfo, ProgressCallback } from "@/types";
 
-export interface ModelInfo {
-  session: any;
-  inputName: string;
-  outputName: string;
-  modelPath: string;
-}
-
-type ProgressCallback = (progress: number) => void;
+/**
+ * ✅ TypeScript 개선: `any` 타입 제거
+ *
+ * Before ❌:
+ * export interface ModelInfo {
+ *   session: any;  // 타입 안전성 없음
+ * }
+ *
+ * After ✅:
+ * import type { ModelInfo, ProgressCallback } from "@/types";
+ * // ModelInfo.session은 이제 ort.InferenceSession 타입
+ *
+ * 장점:
+ * - IDE 자동완성 지원
+ * - 타입 체크로 런타임 에러 방지
+ * - 리팩토링 안전성 향상
+ */
 
 export async function loadONNXModel(
   onProgress?: ProgressCallback

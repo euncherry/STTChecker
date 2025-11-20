@@ -1,9 +1,30 @@
 // utils/stt/inference.ts
 import { Tensor } from "onnxruntime-react-native";
-import type { VocabInfo } from "../onnx/vocabLoader";
+import type * as ort from "onnxruntime-react-native";
+import type { VocabInfo, LogitsTensor } from "@/types";
 
+/**
+ * ✅ TypeScript 개선: `any` 타입 제거
+ *
+ * Before ❌:
+ * export async function runSTTInference(
+ *   session: any,  // 타입 없음
+ *   ...
+ * ): Promise<string>
+ *
+ * After ✅:
+ * export async function runSTTInference(
+ *   session: ort.InferenceSession,  // 명시적 타입
+ *   ...
+ * ): Promise<string>
+ *
+ * 장점:
+ * - session.run() 메서드 자동완성
+ * - 잘못된 메서드 호출 시 컴파일 에러
+ * - 타입 안전성 100% 확보
+ */
 export async function runSTTInference(
-  session: any,
+  session: ort.InferenceSession,
   audioData: Float32Array,
   vocabInfo: VocabInfo,
   inputName: string,
@@ -98,7 +119,14 @@ function getLogitsStats(data: Float32Array) {
   };
 }
 
-function decodeLogits(logits: any, vocabInfo: VocabInfo): string {
+/**
+ * CTC 디코딩 함수
+ *
+ * @param logits - ONNX 모델의 출력 텐서 (LogitsTensor)
+ * @param vocabInfo - 어휘 정보
+ * @returns 디코딩된 텍스트
+ */
+function decodeLogits(logits: LogitsTensor, vocabInfo: VocabInfo): string {
   const { idToToken, blankToken, padToken } = vocabInfo;
 
   const dims = logits.dims;
