@@ -414,7 +414,14 @@
   };
 
   SpectrogramPlugin.prototype.getWidth = function() {
-    return this.canvas.offsetWidth || this.container.offsetWidth;
+    // Try multiple methods to get width
+    var width = this.canvas.offsetWidth ||
+                this.wrapper.offsetWidth ||
+                this.container.offsetWidth ||
+                this.container.clientWidth;
+
+    // Ensure minimum width to avoid division by zero
+    return Math.max(width, 300);
   };
 
   // ============ Frequency Scale Conversions ============
@@ -1611,13 +1618,23 @@
           }
         );
 
-        // Render spectrogram
-        spectrogramPlugins[pluginKey].render(audioBuffer);
-
-        console.log(
-          "[WaveSurfer HTML] ✅ Spectrogram rendered with plugin:",
-          canvasId
-        );
+        // Render spectrogram after DOM updates (wait for layout)
+        // Use requestAnimationFrame to ensure DOM is fully rendered
+        requestAnimationFrame(() => {
+          try {
+            spectrogramPlugins[pluginKey].render(audioBuffer);
+            console.log(
+              "[WaveSurfer HTML] ✅ Spectrogram rendered with plugin:",
+              canvasId
+            );
+          } catch (error) {
+            console.error(
+              "[WaveSurfer HTML] ❌ Spectrogram render error:",
+              error,
+              error.stack
+            );
+          }
+        });
       }
 
       // Process spectrogram
