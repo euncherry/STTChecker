@@ -7,12 +7,12 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>WaveSurfer Analysis</title>
-    <!-- v1.2.1 - Fixed console logging and initialization tracking -->
+    <!-- v1.2.2 - Converted to local libraries for offline support -->
 
-    <!-- WaveSurfer.js 7.x CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@7"></script>
-    <!-- Spectrogram Plugin -->
-    <script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/spectrogram.esm.js"></script>
+    <!-- WaveSurfer.js 7.x (로컬 파일 - 오프라인 지원) -->
+    <script src="./wavesurfer.min.js"></script>
+    <!-- Spectrogram Plugin (로컬 파일) -->
+    <script type="module" src="./spectrogram.esm.js"></script>
 
     <style>
       * {
@@ -1180,10 +1180,10 @@
       // Check WaveSurfer loaded
       if (typeof WaveSurfer === "undefined") {
         console.error(
-          "[WaveSurfer HTML] ❌ WaveSurfer.js not loaded! CDN might have failed."
+          "[WaveSurfer HTML] ❌ WaveSurfer.js not loaded! Local library files might be missing."
         );
         showError(
-          "WaveSurfer.js 라이브러리 로드 실패 (인터넷 연결을 확인하세요)"
+          "WaveSurfer.js 라이브러리 로드 실패 (파일이 누락되었을 수 있습니다)"
         );
       } else {
         console.log("[WaveSurfer HTML] ✅ WaveSurfer.js loaded successfully");
