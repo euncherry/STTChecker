@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>WaveSurfer Analysis</title>
-    <!-- v1.3.0 - WaveSurfer.js FFT 플러그인 추가로 스펙트로그램 품질 개선 -->
+    <!-- v1.4.0 - WaveSurfer.js Full Spectrogram Plugin으로 완전 교체 -->
 
 
     <!-- WaveSurfer.js 7.x (인라인 - 오프라인 지원) -->
@@ -16,337 +16,515 @@
 
     </script>
 
-    <!-- WaveSurfer.js FFT & Spectrogram Utilities (인라인) -->
+    <!-- WaveSurfer.js FFT & Full Spectrogram Plugin (인라인) -->
     <script>
-// WaveSurfer.js Spectrogram Plugin
-// Converted from TypeScript to standalone JavaScript
+// WaveSurfer.js Full Spectrogram Plugin
+// Converted from TypeScript to standalone JavaScript for WebView use
 
 (function() {
   'use strict';
 
-  // FFT Implementation (already in main code, but kept for plugin)
-  function FFT(bufferSize, sampleRate, windowFunc, alpha) {
-    this.bufferSize = bufferSize;
-    this.sampleRate = sampleRate;
-    this.bandwidth = (2 / bufferSize) * (sampleRate / 2);
+  // ============ Helper Functions ============
 
-    this.sinTable = new Float32Array(bufferSize);
-    this.cosTable = new Float32Array(bufferSize);
-    this.windowValues = new Float32Array(bufferSize);
-    this.reverseTable = new Uint32Array(bufferSize);
+  // Simple createElement replacement (no dependency on WaveSurfer.dom)
+  function createElement(tag, attributes, parent) {
+    const element = attributes && attributes.xmlns
+      ? document.createElementNS(attributes.xmlns, tag)
+      : document.createElement(tag);
 
-    this.peakBand = 0;
-    this.peak = 0;
-
-    var i;
-    switch (windowFunc) {
-      case 'bartlett':
-        for (i = 0; i < bufferSize; i++) {
-          this.windowValues[i] = (2 / (bufferSize - 1)) * ((bufferSize - 1) / 2 - Math.abs(i - (bufferSize - 1) / 2));
+    if (attributes) {
+      Object.keys(attributes).forEach(key => {
+        if (key === 'style' && typeof attributes[key] === 'object') {
+          Object.assign(element.style, attributes[key]);
+        } else if (key === 'part') {
+          element.setAttribute('part', attributes[key]);
+        } else if (key !== 'xmlns') {
+          element.setAttribute(key, attributes[key]);
         }
-        break;
-      case 'bartlettHann':
-        for (i = 0; i < bufferSize; i++) {
-          this.windowValues[i] =
-            0.62 - 0.48 * Math.abs(i / (bufferSize - 1) - 0.5) - 0.38 * Math.cos((Math.PI * 2 * i) / (bufferSize - 1));
-        }
-        break;
-      case 'blackman':
-        alpha = alpha || 0.16;
-        for (i = 0; i < bufferSize; i++) {
-          this.windowValues[i] =
-            (1 - alpha) / 2 -
-            0.5 * Math.cos((Math.PI * 2 * i) / (bufferSize - 1)) +
-            (alpha / 2) * Math.cos((4 * Math.PI * i) / (bufferSize - 1));
-        }
-        break;
-      case 'cosine':
-        for (i = 0; i < bufferSize; i++) {
-          this.windowValues[i] = Math.cos((Math.PI * i) / (bufferSize - 1) - Math.PI / 2);
-        }
-        break;
-      case 'gauss':
-        alpha = alpha || 0.25;
-        for (i = 0; i < bufferSize; i++) {
-          this.windowValues[i] = Math.pow(
-            Math.E,
-            -0.5 * Math.pow((i - (bufferSize - 1) / 2) / ((alpha * (bufferSize - 1)) / 2), 2)
-          );
-        }
-        break;
-      case 'hamming':
-        for (i = 0; i < bufferSize; i++) {
-          this.windowValues[i] = 0.54 - 0.46 * Math.cos((Math.PI * 2 * i) / (bufferSize - 1));
-        }
-        break;
-      case 'hann':
-      case undefined:
-        for (i = 0; i < bufferSize; i++) {
-          this.windowValues[i] = 0.5 * (1 - Math.cos((Math.PI * 2 * i) / (bufferSize - 1)));
-        }
-        break;
-      case 'lanczoz':
-        for (i = 0; i < bufferSize; i++) {
-          this.windowValues[i] =
-            Math.sin(Math.PI * ((2 * i) / (bufferSize - 1) - 1)) / (Math.PI * ((2 * i) / (bufferSize - 1) - 1));
-        }
-        break;
-      case 'rectangular':
-        for (i = 0; i < bufferSize; i++) {
-          this.windowValues[i] = 1;
-        }
-        break;
-      case 'triangular':
-        for (i = 0; i < bufferSize; i++) {
-          this.windowValues[i] = (2 / bufferSize) * (bufferSize / 2 - Math.abs(i - (bufferSize - 1) / 2));
-        }
-        break;
-      default:
-        throw Error("No such window function '" + windowFunc + "'");
+      });
     }
 
-    var limit = 1;
-    var bit = bufferSize >> 1;
-
-    while (limit < bufferSize) {
-      for (i = 0; i < limit; i++) {
-        this.reverseTable[i + limit] = this.reverseTable[i] + bit;
-      }
-      limit = limit << 1;
-      bit = bit >> 1;
+    if (parent) {
+      parent.appendChild(element);
     }
 
-    for (i = 0; i < bufferSize; i++) {
-      this.sinTable[i] = Math.sin(-Math.PI / i);
-      this.cosTable[i] = Math.cos(-Math.PI / i);
-    }
-
-    this.calculateSpectrum = function(buffer) {
-      var bufferSize = this.bufferSize,
-        cosTable = this.cosTable,
-        sinTable = this.sinTable,
-        reverseTable = this.reverseTable,
-        real = new Float32Array(bufferSize),
-        imag = new Float32Array(bufferSize),
-        bSi = 2 / this.bufferSize,
-        sqrt = Math.sqrt,
-        rval,
-        ival,
-        mag,
-        spectrum = new Float32Array(bufferSize / 2);
-
-      var k = Math.floor(Math.log(bufferSize) / Math.LN2);
-
-      if (Math.pow(2, k) !== bufferSize) {
-        throw 'Invalid buffer size, must be a power of 2.';
-      }
-      if (bufferSize !== buffer.length) {
-        throw (
-          'Supplied buffer is not the same size as defined FFT. FFT Size: ' +
-          bufferSize +
-          ' Buffer Size: ' +
-          buffer.length
-        );
-      }
-
-      var halfSize = 1,
-        phaseShiftStepReal,
-        phaseShiftStepImag,
-        currentPhaseShiftReal,
-        currentPhaseShiftImag,
-        off,
-        tr,
-        ti,
-        tmpReal;
-
-      for (var i = 0; i < bufferSize; i++) {
-        real[i] = buffer[reverseTable[i]] * this.windowValues[reverseTable[i]];
-        imag[i] = 0;
-      }
-
-      while (halfSize < bufferSize) {
-        phaseShiftStepReal = cosTable[halfSize];
-        phaseShiftStepImag = sinTable[halfSize];
-
-        currentPhaseShiftReal = 1;
-        currentPhaseShiftImag = 0;
-
-        for (var fftStep = 0; fftStep < halfSize; fftStep++) {
-          var i = fftStep;
-
-          while (i < bufferSize) {
-            off = i + halfSize;
-            tr = currentPhaseShiftReal * real[off] - currentPhaseShiftImag * imag[off];
-            ti = currentPhaseShiftReal * imag[off] + currentPhaseShiftImag * real[off];
-
-            real[off] = real[i] - tr;
-            imag[off] = imag[i] - ti;
-            real[i] += tr;
-            imag[i] += ti;
-
-            i += halfSize << 1;
-          }
-
-          tmpReal = currentPhaseShiftReal;
-          currentPhaseShiftReal = tmpReal * phaseShiftStepReal - currentPhaseShiftImag * phaseShiftStepImag;
-          currentPhaseShiftImag = tmpReal * phaseShiftStepImag + currentPhaseShiftImag * phaseShiftStepReal;
-        }
-
-        halfSize = halfSize << 1;
-      }
-
-      for (var i = 0, N = bufferSize / 2; i < N; i++) {
-        rval = real[i];
-        ival = imag[i];
-        mag = bSi * sqrt(rval * rval + ival * ival);
-
-        if (mag > this.peak) {
-          this.peakBand = i;
-          this.peak = mag;
-        }
-        spectrum[i] = mag;
-      }
-      return spectrum;
-    };
+    return element;
   }
+
+  // ============ FFT Implementation ============
+  // (Already defined globally as WaveSurferFFT, but included here for completeness)
 
   var ERB_A = (1000 * Math.log(10)) / (24.7 * 4.37);
 
-  // Roseus colormap
-  var ROSEUS_COLORMAP = [
-    [0.004528, 0.004341, 0.004307, 1], [0.005625, 0.006156, 0.00601, 1],
-    [0.006628, 0.008293, 0.008161, 1], [0.007551, 0.010738, 0.01079, 1],
-    [0.008382, 0.013482, 0.013941, 1], [0.009111, 0.01652, 0.017662, 1],
-    [0.009727, 0.019846, 0.022009, 1], [0.010223, 0.023452, 0.027035, 1],
-    [0.010593, 0.027331, 0.032799, 1], [0.010833, 0.031475, 0.039361, 1],
-    [0.010941, 0.035875, 0.046415, 1], [0.010918, 0.04052, 0.053597, 1],
-    [0.010768, 0.045158, 0.060914, 1], [0.010492, 0.049708, 0.068367, 1],
-    [0.010098, 0.054171, 0.075954, 1], [0.009594, 0.058549, 0.083672, 1],
-    [0.008989, 0.06284, 0.091521, 1], [0.008297, 0.067046, 0.099499, 1],
-    [0.00753, 0.071165, 0.107603, 1], [0.006704, 0.075196, 0.11583, 1],
-    [0.005838, 0.07914, 0.124178, 1], [0.004949, 0.082994, 0.132643, 1],
-    [0.004062, 0.086758, 0.141223, 1], [0.003198, 0.09043, 0.149913, 1],
-    [0.002382, 0.09401, 0.158711, 1], [0.001643, 0.097494, 0.167612, 1],
-    [0.001009, 0.100883, 0.176612, 1], [0.000514, 0.104174, 0.185704, 1],
-    [0.000187, 0.107366, 0.194886, 1], [0.000066, 0.110457, 0.204151, 1],
-    [0.000186, 0.113445, 0.213496, 1], [0.000587, 0.116329, 0.222914, 1],
-    [0.001309, 0.119106, 0.232397, 1], [0.002394, 0.121776, 0.241942, 1],
-    [0.003886, 0.124336, 0.251542, 1], [0.005831, 0.126784, 0.261189, 1],
-    [0.008276, 0.12912, 0.270876, 1], [0.011268, 0.131342, 0.280598, 1],
-    [0.014859, 0.133447, 0.290345, 1], [0.0191, 0.135435, 0.300111, 1],
-    [0.024043, 0.137305, 0.309888, 1], [0.029742, 0.139054, 0.319669, 1],
-    [0.036252, 0.140683, 0.329441, 1], [0.043507, 0.142189, 0.339203, 1],
-    [0.050922, 0.143571, 0.348942, 1], [0.058432, 0.144831, 0.358649, 1],
-    [0.066041, 0.145965, 0.368319, 1], [0.073744, 0.146974, 0.377938, 1],
-    [0.081541, 0.147858, 0.387501, 1], [0.089431, 0.148616, 0.396998, 1],
-    [0.097411, 0.149248, 0.406419, 1], [0.105479, 0.149754, 0.415755, 1],
-    [0.113634, 0.150134, 0.424998, 1], [0.121873, 0.150389, 0.434139, 1],
-    [0.130192, 0.150521, 0.443167, 1], [0.138591, 0.150528, 0.452075, 1],
-    [0.147065, 0.150413, 0.460852, 1], [0.155614, 0.150175, 0.469493, 1],
-    [0.164232, 0.149818, 0.477985, 1], [0.172917, 0.149343, 0.486322, 1],
-    [0.181666, 0.148751, 0.494494, 1], [0.190476, 0.148046, 0.502493, 1],
-    [0.199344, 0.147229, 0.510313, 1], [0.208267, 0.146302, 0.517944, 1],
-    [0.217242, 0.145267, 0.52538, 1], [0.226264, 0.144131, 0.532613, 1],
-    [0.235331, 0.142894, 0.539635, 1], [0.24444, 0.141559, 0.546442, 1],
-    [0.253587, 0.140131, 0.553026, 1], [0.262769, 0.138615, 0.559381, 1],
-    [0.271981, 0.137016, 0.5655, 1], [0.281222, 0.135335, 0.571381, 1],
-    [0.290487, 0.133581, 0.577017, 1], [0.299774, 0.131757, 0.582404, 1],
-    [0.30908, 0.129867, 0.587538, 1], [0.318399, 0.12792, 0.592415, 1],
-    [0.32773, 0.125921, 0.597032, 1], [0.337069, 0.123877, 0.601385, 1],
-    [0.346413, 0.121793, 0.605474, 1], [0.355758, 0.119678, 0.609295, 1],
-    [0.365102, 0.11754, 0.612846, 1], [0.374443, 0.115386, 0.616127, 1],
-    [0.383774, 0.113226, 0.619138, 1], [0.393096, 0.111066, 0.621876, 1],
-    [0.402404, 0.108918, 0.624343, 1], [0.411694, 0.106794, 0.62654, 1],
-    [0.420967, 0.104698, 0.628466, 1], [0.430217, 0.102645, 0.630123, 1],
-    [0.439442, 0.100647, 0.631513, 1], [0.448637, 0.098717, 0.632638, 1],
-    [0.457805, 0.096861, 0.633499, 1], [0.46694, 0.095095, 0.6341, 1],
-    [0.47604, 0.093433, 0.634443, 1], [0.485102, 0.091885, 0.634532, 1],
-    [0.494125, 0.090466, 0.63437, 1], [0.503104, 0.08919, 0.633962, 1],
-    [0.512041, 0.088067, 0.633311, 1], [0.520931, 0.087108, 0.63242, 1],
-    [0.529773, 0.086329, 0.631297, 1], [0.538564, 0.085738, 0.629944, 1],
-    [0.547302, 0.085346, 0.628367, 1], [0.555986, 0.085162, 0.626572, 1],
-    [0.564615, 0.08519, 0.624563, 1], [0.573187, 0.085439, 0.622345, 1],
-    [0.581698, 0.085913, 0.619926, 1], [0.590149, 0.086615, 0.617311, 1],
-    [0.598538, 0.087543, 0.614503, 1], [0.606862, 0.0887, 0.611511, 1],
-    [0.61512, 0.090084, 0.608343, 1], [0.623312, 0.09169, 0.605001, 1],
-    [0.631438, 0.093511, 0.601489, 1], [0.639492, 0.095546, 0.597821, 1],
-    [0.647476, 0.097787, 0.593999, 1], [0.655389, 0.100226, 0.590028, 1],
-    [0.66323, 0.102856, 0.585914, 1], [0.670995, 0.105669, 0.581667, 1],
-    [0.678686, 0.108658, 0.577291, 1], [0.686302, 0.111813, 0.57279, 1],
-    [0.69384, 0.115129, 0.568175, 1], [0.7013, 0.118597, 0.563449, 1],
-    [0.708682, 0.122209, 0.558616, 1], [0.715984, 0.125959, 0.553687, 1],
-    [0.723206, 0.12984, 0.548666, 1], [0.730346, 0.133846, 0.543558, 1],
-    [0.737406, 0.13797, 0.538366, 1], [0.744382, 0.142209, 0.533101, 1],
-    [0.751274, 0.146556, 0.527767, 1], [0.758082, 0.151008, 0.522369, 1],
-    [0.764805, 0.155559, 0.516912, 1], [0.771443, 0.160206, 0.511402, 1],
-    [0.777995, 0.164946, 0.505845, 1], [0.784459, 0.169774, 0.500246, 1],
-    [0.790836, 0.174689, 0.494607, 1], [0.797125, 0.179688, 0.488935, 1],
-    [0.803325, 0.184767, 0.483238, 1], [0.809435, 0.189925, 0.477518, 1],
-    [0.815455, 0.19516, 0.471781, 1], [0.821384, 0.200471, 0.466028, 1],
-    [0.827222, 0.205854, 0.460267, 1], [0.832968, 0.211308, 0.454505, 1],
-    [0.838621, 0.216834, 0.448738, 1], [0.844181, 0.222428, 0.442979, 1],
-    [0.849647, 0.22809, 0.43723, 1], [0.855019, 0.233819, 0.431491, 1],
-    [0.860295, 0.239613, 0.425771, 1], [0.865475, 0.245471, 0.420074, 1],
-    [0.870558, 0.251393, 0.414403, 1], [0.875545, 0.25738, 0.408759, 1],
-    [0.880433, 0.263427, 0.403152, 1], [0.885223, 0.269535, 0.397585, 1],
-    [0.889913, 0.275705, 0.392058, 1], [0.894503, 0.281934, 0.386578, 1],
-    [0.898993, 0.288222, 0.381152, 1], [0.903381, 0.294569, 0.375781, 1],
-    [0.907667, 0.300974, 0.370469, 1], [0.911849, 0.307435, 0.365223, 1],
-    [0.915928, 0.313953, 0.360048, 1], [0.919902, 0.320527, 0.354948, 1],
-    [0.923771, 0.327155, 0.349928, 1], [0.927533, 0.333838, 0.344994, 1],
-    [0.931188, 0.340576, 0.340149, 1], [0.934736, 0.347366, 0.335403, 1],
-    [0.938175, 0.354207, 0.330762, 1], [0.941504, 0.361101, 0.326229, 1],
-    [0.944723, 0.368045, 0.321814, 1], [0.947831, 0.375039, 0.317523, 1],
-    [0.950826, 0.382083, 0.313364, 1], [0.953709, 0.389175, 0.309345, 1],
-    [0.956478, 0.396314, 0.305477, 1], [0.959133, 0.403499, 0.301766, 1],
-    [0.961671, 0.410731, 0.298221, 1], [0.964093, 0.418008, 0.294853, 1],
-    [0.966399, 0.425327, 0.291676, 1], [0.968586, 0.43269, 0.288696, 1],
-    [0.970654, 0.440095, 0.285926, 1], [0.972603, 0.44754, 0.28338, 1],
-    [0.974431, 0.455025, 0.281067, 1], [0.976139, 0.462547, 0.279003, 1],
-    [0.977725, 0.470107, 0.277198, 1], [0.979188, 0.477703, 0.275666, 1],
-    [0.980529, 0.485332, 0.274422, 1], [0.981747, 0.492995, 0.273476, 1],
-    [0.98284, 0.50069, 0.272842, 1], [0.983808, 0.508415, 0.272532, 1],
-    [0.984653, 0.516168, 0.27256, 1], [0.985373, 0.523948, 0.272937, 1],
-    [0.985966, 0.531754, 0.273673, 1], [0.986436, 0.539582, 0.274779, 1],
-    [0.98678, 0.547434, 0.276264, 1], [0.986998, 0.555305, 0.278135, 1],
-    [0.987091, 0.563195, 0.280401, 1], [0.987061, 0.5711, 0.283066, 1],
-    [0.986907, 0.579019, 0.286137, 1], [0.986629, 0.58695, 0.289615, 1],
-    [0.986229, 0.594891, 0.293503, 1], [0.985709, 0.602839, 0.297802, 1],
-    [0.985069, 0.610792, 0.302512, 1], [0.98431, 0.618748, 0.307632, 1],
-    [0.983435, 0.626704, 0.313159, 1], [0.982445, 0.634657, 0.319089, 1],
-    [0.981341, 0.642606, 0.32542, 1], [0.98013, 0.650546, 0.332144, 1],
-    [0.978812, 0.658475, 0.339257, 1], [0.977392, 0.666391, 0.346753, 1],
-    [0.97587, 0.67429, 0.354625, 1], [0.974252, 0.68217, 0.362865, 1],
-    [0.972545, 0.690026, 0.371466, 1], [0.97075, 0.697856, 0.380419, 1],
-    [0.968873, 0.705658, 0.389718, 1], [0.966921, 0.713426, 0.399353, 1],
-    [0.964901, 0.721157, 0.409313, 1], [0.962815, 0.728851, 0.419594, 1],
-    [0.960677, 0.7365, 0.430181, 1], [0.95849, 0.744103, 0.44107, 1],
-    [0.956263, 0.751656, 0.452248, 1], [0.954009, 0.759153, 0.463702, 1],
-    [0.951732, 0.766595, 0.475429, 1], [0.949445, 0.773974, 0.487414, 1],
-    [0.947158, 0.781289, 0.499647, 1], [0.944885, 0.788535, 0.512116, 1],
-    [0.942634, 0.795709, 0.524811, 1], [0.940423, 0.802807, 0.537717, 1],
-    [0.938261, 0.809825, 0.550825, 1], [0.936163, 0.81676, 0.564121, 1],
-    [0.934146, 0.823608, 0.577591, 1], [0.932224, 0.830366, 0.59122, 1],
-    [0.930412, 0.837031, 0.604997, 1], [0.928727, 0.843599, 0.618904, 1],
-    [0.927187, 0.850066, 0.632926, 1], [0.925809, 0.856432, 0.647047, 1],
-    [0.92461, 0.862691, 0.661249, 1], [0.923607, 0.868843, 0.675517, 1],
-    [0.92282, 0.874884, 0.689832, 1], [0.922265, 0.880812, 0.704174, 1],
-    [0.921962, 0.886626, 0.718523, 1], [0.92193, 0.892323, 0.732859, 1],
-    [0.922183, 0.897903, 0.747163, 1], [0.922741, 0.903364, 0.76141, 1],
-    [0.92362, 0.908706, 0.77558, 1], [0.924837, 0.913928, 0.789648, 1],
-    [0.926405, 0.919031, 0.80359, 1], [0.92834, 0.924015, 0.817381, 1],
-    [0.930655, 0.928881, 0.830995, 1], [0.93336, 0.933631, 0.844405, 1],
-    [0.936466, 0.938267, 0.857583, 1], [0.939982, 0.942791, 0.870499, 1],
-    [0.943914, 0.947207, 0.883122, 1], [0.948267, 0.951519, 0.895421, 1],
-    [0.953044, 0.955732, 0.907359, 1], [0.958246, 0.959852, 0.918901, 1],
-    [0.963869, 0.963887, 0.930004, 1], [0.969909, 0.967845, 0.940623, 1],
-    [0.976355, 0.971737, 0.950704, 1], [0.983195, 0.97558, 0.960181, 1],
-    [0.990402, 0.979395, 0.968966, 1], [0.99793, 0.983217, 0.97692, 1]
-  ];
+  // ============ Spectrogram Plugin Class ============
 
-  // Expose globally for HTML to use
-  window.WaveSurferFFT = FFT;
-  window.WaveSurferSpectrogramColormap = ROSEUS_COLORMAP;
+  function SpectrogramPlugin(options) {
+    options = options || {};
+
+    // Configuration
+    this.container = typeof options.container === 'string'
+      ? document.querySelector(options.container)
+      : options.container;
+
+    this.fftSamples = options.fftSamples || 512;
+    this.height = options.height || 200;
+    this.noverlap = options.noverlap || null;
+    this.windowFunc = options.windowFunc || 'hann';
+    this.alpha = options.alpha;
+    this.frequencyMin = options.frequencyMin || 0;
+    this.frequencyMax = options.frequencyMax || 0;
+    this.gainDB = options.gainDB != null ? options.gainDB : 20;
+    this.rangeDB = options.rangeDB != null ? options.rangeDB : 80;
+    this.scale = options.scale || 'mel';
+    this.labels = options.labels || false;
+    this.labelsBackground = options.labelsBackground;
+    this.labelsColor = options.labelsColor;
+    this.labelsHzColor = options.labelsHzColor || options.labelsColor;
+
+    // Color map
+    if (options.colorMap && typeof options.colorMap !== 'string') {
+      this.colorMap = options.colorMap;
+    } else {
+      this.colorMap = this.getColorMap(options.colorMap || 'roseus');
+    }
+
+    // Filter banks
+    this.numMelFilters = this.fftSamples / 2;
+    this.numLogFilters = this.fftSamples / 2;
+    this.numBarkFilters = this.fftSamples / 2;
+    this.numErbFilters = this.fftSamples / 2;
+
+    // State
+    this.buffer = null;
+    this.frequencies = null;
+
+    // Create UI
+    this.createWrapper();
+    this.createCanvas();
+  }
+
+  SpectrogramPlugin.prototype.getColorMap = function(name) {
+    if (name === 'gray') {
+      var map = [];
+      for (var i = 0; i < 256; i++) {
+        var val = (255 - i) / 256;
+        map.push([val, val, val, 1]);
+      }
+      return map;
+    } else if (name === 'igray') {
+      var map = [];
+      for (var i = 0; i < 256; i++) {
+        var val = i / 256;
+        map.push([val, val, val, 1]);
+      }
+      return map;
+    } else {
+      // Return roseus colormap (already defined globally)
+      return window.WaveSurferSpectrogramColormap;
+    }
+  };
+
+  SpectrogramPlugin.prototype.createWrapper = function() {
+    this.wrapper = createElement('div', {
+      style: {
+        display: 'block',
+        position: 'relative',
+        userSelect: 'none',
+        width: '100%',
+        height: this.height + 'px'
+      }
+    });
+
+    if (this.labels) {
+      this.labelsEl = createElement('canvas', {
+        part: 'spec-labels',
+        style: {
+          position: 'absolute',
+          zIndex: '9',
+          width: '55px',
+          height: '100%'
+        }
+      }, this.wrapper);
+    }
+
+    if (this.container) {
+      this.container.appendChild(this.wrapper);
+    }
+  };
+
+  SpectrogramPlugin.prototype.createCanvas = function() {
+    this.canvas = createElement('canvas', {
+      style: {
+        position: 'absolute',
+        left: '0',
+        top: '0',
+        width: '100%',
+        height: '100%',
+        zIndex: '4'
+      }
+    }, this.wrapper);
+
+    this.spectrCc = this.canvas.getContext('2d');
+  };
+
+  SpectrogramPlugin.prototype.getWidth = function() {
+    return this.canvas.offsetWidth || this.container.offsetWidth;
+  };
+
+  // ============ Frequency Scale Conversions ============
+
+  SpectrogramPlugin.prototype.hzToMel = function(hz) {
+    return 2595 * Math.log10(1 + hz / 700);
+  };
+
+  SpectrogramPlugin.prototype.melToHz = function(mel) {
+    return 700 * (Math.pow(10, mel / 2595) - 1);
+  };
+
+  SpectrogramPlugin.prototype.hzToLog = function(hz) {
+    return Math.log10(Math.max(1, hz));
+  };
+
+  SpectrogramPlugin.prototype.logToHz = function(log) {
+    return Math.pow(10, log);
+  };
+
+  SpectrogramPlugin.prototype.hzToBark = function(hz) {
+    var bark = (26.81 * hz) / (1960 + hz) - 0.53;
+    if (bark < 2) bark += 0.15 * (2 - bark);
+    if (bark > 20.1) bark += 0.22 * (bark - 20.1);
+    return bark;
+  };
+
+  SpectrogramPlugin.prototype.barkToHz = function(bark) {
+    if (bark < 2) bark = (bark - 0.3) / 0.85;
+    if (bark > 20.1) bark = (bark + 4.422) / 1.22;
+    return 1960 * ((bark + 0.53) / (26.28 - bark));
+  };
+
+  SpectrogramPlugin.prototype.hzToErb = function(hz) {
+    return ERB_A * Math.log10(1 + hz * 0.00437);
+  };
+
+  SpectrogramPlugin.prototype.erbToHz = function(erb) {
+    return (Math.pow(10, erb / ERB_A) - 1) / 0.00437;
+  };
+
+  SpectrogramPlugin.prototype.hzToScale = function(hz) {
+    switch (this.scale) {
+      case 'mel': return this.hzToMel(hz);
+      case 'logarithmic': return this.hzToLog(hz);
+      case 'bark': return this.hzToBark(hz);
+      case 'erb': return this.hzToErb(hz);
+      default: return hz;
+    }
+  };
+
+  SpectrogramPlugin.prototype.scaleToHz = function(scale) {
+    switch (this.scale) {
+      case 'mel': return this.melToHz(scale);
+      case 'logarithmic': return this.logToHz(scale);
+      case 'bark': return this.barkToHz(scale);
+      case 'erb': return this.erbToHz(scale);
+      default: return scale;
+    }
+  };
+
+  // ============ Filter Banks ============
+
+  SpectrogramPlugin.prototype.createFilterBank = function(numFilters, sampleRate, hzToScale, scaleToHz) {
+    var filterMin = hzToScale(0);
+    var filterMax = hzToScale(sampleRate / 2);
+    var filterBank = [];
+
+    for (var i = 0; i < numFilters; i++) {
+      filterBank.push(new Array(this.fftSamples / 2 + 1).fill(0));
+    }
+
+    var scale = sampleRate / this.fftSamples;
+
+    for (var i = 0; i < numFilters; i++) {
+      var hz = scaleToHz(filterMin + (i / numFilters) * (filterMax - filterMin));
+      var j = Math.floor(hz / scale);
+      var hzLow = j * scale;
+      var hzHigh = (j + 1) * scale;
+      var r = (hz - hzLow) / (hzHigh - hzLow);
+      filterBank[i][j] = 1 - r;
+      filterBank[i][j + 1] = r;
+    }
+
+    return filterBank;
+  };
+
+  SpectrogramPlugin.prototype.applyFilterBank = function(fftPoints, filterBank) {
+    var numFilters = filterBank.length;
+    var logSpectrum = new Float32Array(numFilters);
+
+    for (var i = 0; i < numFilters; i++) {
+      for (var j = 0; j < fftPoints.length; j++) {
+        logSpectrum[i] += fftPoints[j] * filterBank[i][j];
+      }
+    }
+
+    return logSpectrum;
+  };
+
+  // ============ Main Processing ============
+
+  SpectrogramPlugin.prototype.getFrequencies = function(buffer) {
+    var fftSamples = this.fftSamples;
+    var sampleRate = buffer.sampleRate;
+
+    this.frequencyMax = this.frequencyMax || sampleRate / 2;
+    this.buffer = buffer;
+
+    var noverlap = this.noverlap;
+    if (!noverlap) {
+      var width = this.getWidth();
+      var uniqueSamplesPerPx = buffer.length / width;
+      noverlap = Math.max(0, Math.round(fftSamples - uniqueSamplesPerPx));
+    }
+
+    var fft = new WaveSurferFFT(fftSamples, sampleRate, this.windowFunc, this.alpha);
+
+    var filterBank = null;
+    switch (this.scale) {
+      case 'mel':
+        filterBank = this.createFilterBank(
+          this.numMelFilters,
+          sampleRate,
+          this.hzToMel.bind(this),
+          this.melToHz.bind(this)
+        );
+        break;
+      case 'logarithmic':
+        filterBank = this.createFilterBank(
+          this.numLogFilters,
+          sampleRate,
+          this.hzToLog.bind(this),
+          this.logToHz.bind(this)
+        );
+        break;
+      case 'bark':
+        filterBank = this.createFilterBank(
+          this.numBarkFilters,
+          sampleRate,
+          this.hzToBark.bind(this),
+          this.barkToHz.bind(this)
+        );
+        break;
+      case 'erb':
+        filterBank = this.createFilterBank(
+          this.numErbFilters,
+          sampleRate,
+          this.hzToErb.bind(this),
+          this.erbToHz.bind(this)
+        );
+        break;
+    }
+
+    var channelData = buffer.getChannelData(0);
+    var channelFreq = [];
+    var currentOffset = 0;
+
+    while (currentOffset + fftSamples < channelData.length) {
+      var segment = channelData.slice(currentOffset, currentOffset + fftSamples);
+      var spectrum = fft.calculateSpectrum(segment);
+
+      if (filterBank) {
+        spectrum = this.applyFilterBank(spectrum, filterBank);
+      }
+
+      var array = new Uint8Array(spectrum.length);
+      for (var j = 0; j < spectrum.length; j++) {
+        var magnitude = spectrum[j] > 1e-12 ? spectrum[j] : 1e-12;
+        var valueDB = 20 * Math.log10(magnitude);
+
+        if (valueDB < -this.gainDB - this.rangeDB) {
+          array[j] = 0;
+        } else if (valueDB > -this.gainDB) {
+          array[j] = 255;
+        } else {
+          array[j] = Math.round(((valueDB + this.gainDB) / this.rangeDB) * 255);
+        }
+      }
+
+      channelFreq.push(array);
+      currentOffset += fftSamples - noverlap;
+    }
+
+    this.frequencies = [channelFreq]; // Wrap in array for consistency
+    return this.frequencies;
+  };
+
+  // ============ Drawing ============
+
+  SpectrogramPlugin.prototype.resample = function(oldMatrix) {
+    var columnsNumber = this.getWidth();
+    var newMatrix = [];
+    var oldPiece = 1 / oldMatrix.length;
+    var newPiece = 1 / columnsNumber;
+
+    for (var i = 0; i < columnsNumber; i++) {
+      var column = new Array(oldMatrix[0].length);
+
+      for (var j = 0; j < oldMatrix.length; j++) {
+        var oldStart = j * oldPiece;
+        var oldEnd = oldStart + oldPiece;
+        var newStart = i * newPiece;
+        var newEnd = newStart + newPiece;
+        var overlap = Math.max(0, Math.min(oldEnd, newEnd) - Math.max(oldStart, newStart));
+
+        if (overlap > 0) {
+          for (var k = 0; k < oldMatrix[0].length; k++) {
+            if (column[k] == null) column[k] = 0;
+            column[k] += (overlap / newPiece) * oldMatrix[j][k];
+          }
+        }
+      }
+
+      var intColumn = new Uint8Array(oldMatrix[0].length);
+      for (var m = 0; m < oldMatrix[0].length; m++) {
+        intColumn[m] = column[m];
+      }
+
+      newMatrix.push(intColumn);
+    }
+
+    return newMatrix;
+  };
+
+  SpectrogramPlugin.prototype.render = function(buffer) {
+    if (!buffer) return;
+
+    var frequencies = this.getFrequencies(buffer);
+    this.drawSpectrogram(frequencies);
+  };
+
+  SpectrogramPlugin.prototype.drawSpectrogram = function(frequenciesData) {
+    if (!frequenciesData || frequenciesData.length === 0) return;
+
+    // Ensure correct format
+    if (!isNaN(frequenciesData[0][0])) {
+      frequenciesData = [frequenciesData];
+    }
+
+    var width = this.getWidth();
+    var height = this.height;
+
+    this.canvas.width = width;
+    this.canvas.height = height;
+
+    var spectrCc = this.spectrCc;
+    var freqFrom = this.buffer.sampleRate / 2;
+    var freqMin = this.frequencyMin;
+    var freqMax = this.frequencyMax;
+
+    if (freqMax > freqFrom) {
+      var bgColor = this.colorMap[this.colorMap.length - 1];
+      spectrCc.fillStyle = 'rgba(' +
+        Math.round(bgColor[0] * 255) + ',' +
+        Math.round(bgColor[1] * 255) + ',' +
+        Math.round(bgColor[2] * 255) + ',' +
+        bgColor[3] + ')';
+      spectrCc.fillRect(0, 0, width, height);
+    }
+
+    for (var c = 0; c < frequenciesData.length; c++) {
+      var pixels = this.resample(frequenciesData[c]);
+      var bitmapHeight = pixels[0].length;
+      var imageData = new ImageData(width, bitmapHeight);
+
+      for (var i = 0; i < pixels.length; i++) {
+        for (var j = 0; j < pixels[i].length; j++) {
+          var colorMap = this.colorMap[pixels[i][j]];
+          var redIndex = ((bitmapHeight - j - 1) * width + i) * 4;
+          imageData.data[redIndex] = colorMap[0] * 255;
+          imageData.data[redIndex + 1] = colorMap[1] * 255;
+          imageData.data[redIndex + 2] = colorMap[2] * 255;
+          imageData.data[redIndex + 3] = colorMap[3] * 255;
+        }
+      }
+
+      var rMin = this.hzToScale(freqMin) / this.hzToScale(freqFrom);
+      var rMax = this.hzToScale(freqMax) / this.hzToScale(freqFrom);
+      var rMax1 = Math.min(1, rMax);
+
+      var self = this;
+      createImageBitmap(
+        imageData,
+        0,
+        Math.round(bitmapHeight * (1 - rMax1)),
+        width,
+        Math.round(bitmapHeight * (rMax1 - rMin))
+      ).then(function(bitmap) {
+        spectrCc.drawImage(
+          bitmap,
+          0,
+          height * (c + 1 - rMax1 / rMax),
+          width,
+          (height * rMax1) / rMax
+        );
+      });
+    }
+
+    if (this.labels) {
+      this.loadLabels();
+    }
+  };
+
+  SpectrogramPlugin.prototype.loadLabels = function() {
+    if (!this.labelsEl) return;
+
+    var ctx = this.labelsEl.getContext('2d');
+    var height = this.height;
+    var bgWidth = 55;
+    var labelIndex = 5 * (height / 256);
+
+    var dispScale = window.devicePixelRatio || 1;
+    this.labelsEl.height = height * dispScale;
+    this.labelsEl.width = bgWidth * dispScale;
+    ctx.scale(dispScale, dispScale);
+
+    ctx.fillStyle = this.labelsBackground || 'rgba(68,68,68,0)';
+    ctx.fillRect(0, 0, bgWidth, height);
+
+    for (var i = 0; i <= labelIndex; i++) {
+      var filterMin = this.hzToScale(this.frequencyMin);
+      var filterMax = this.hzToScale(this.frequencyMax);
+      var freq = this.scaleToHz(filterMin + (i / labelIndex) * (filterMax - filterMin));
+
+      var label = freq >= 1000 ? (freq / 1000).toFixed(1) : Math.round(freq);
+      var units = freq >= 1000 ? 'kHz' : 'Hz';
+
+      var x = 16;
+      var y = height - (i / labelIndex) * height;
+      y = Math.min(Math.max(y, 10), height - 10);
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      ctx.fillStyle = this.labelsHzColor || '#fff';
+      ctx.font = '12px Helvetica';
+      ctx.fillText(units, x + 24, y);
+
+      ctx.fillStyle = this.labelsColor || '#fff';
+      ctx.font = '12px Helvetica';
+      ctx.fillText(label, x, y);
+    }
+  };
+
+  SpectrogramPlugin.prototype.destroy = function() {
+    if (this.wrapper) {
+      this.wrapper.remove();
+    }
+    this.buffer = null;
+    this.frequencies = null;
+  };
+
+  // ============ Export ============
+
+  window.SpectrogramPlugin = SpectrogramPlugin;
 
 })();
     </script>
@@ -828,16 +1006,16 @@
               "[WaveSurfer HTML] 🎨 Spectrogram tab activated, redrawing canvases..."
             );
             setTimeout(() => {
-              if (spectrogramResults.user) {
+              if (spectrogramBuffers.user) {
                 drawSpectrogram(
                   "spectrogram-user-canvas",
-                  spectrogramResults.user
+                  spectrogramBuffers.user
                 );
               }
-              if (spectrogramResults.ref) {
+              if (spectrogramBuffers.ref) {
                 drawSpectrogram(
                   "spectrogram-ref-canvas",
-                  spectrogramResults.ref
+                  spectrogramBuffers.ref
                 );
               }
             }, 100); // Small delay to ensure tab is visible
@@ -1090,42 +1268,31 @@
       }
 
       // ==================== Spectrogram Functions ====================
+      // Using WaveSurfer Spectrogram Plugin for high-quality visualization
 
-      // Improved FFT using WaveSurfer.js implementation
-      // Uses Cooley-Tukey FFT algorithm (much faster than DFT)
-      function generateSpectrogramData(audioBuffer, fftSize = 512) {
-        const audioData = audioBuffer.getChannelData(0);
-        const sampleRate = audioBuffer.sampleRate;
-        const hopSize = fftSize / 4; // 75% overlap
+      // Store plugin instances
+      let spectrogramPlugins = {
+        user: null,
+        ref: null
+      };
 
-        // Create FFT instance with Hamming window
-        const fft = new WaveSurferFFT(fftSize, sampleRate, 'hamming');
+      // Store audio buffers for redrawing
+      let spectrogramBuffers = {
+        user: null,
+        ref: null
+      };
 
-        const spectrogramData = [];
-
-        for (let i = 0; i < audioData.length - fftSize; i += hopSize) {
-          const frame = audioData.slice(i, i + fftSize);
-
-          // FFT already applies windowing internally
-          const spectrum = fft.calculateSpectrum(frame);
-
-          // Convert Float32Array to regular array for compatibility
-          const magnitudes = Array.from(spectrum);
-          spectrogramData.push(magnitudes);
-        }
-
-        return {
-          data: spectrogramData,
-          freqResolution: sampleRate / fftSize,
-          timeResolution: hopSize / sampleRate,
-        };
-      }
-
-      // Draw spectrogram on canvas
+      // Create and render spectrogram using plugin
       function drawSpectrogram(canvasId, audioBuffer) {
+        console.log(
+          "[WaveSurfer HTML] 🎨 Generating spectrogram with plugin for:",
+          canvasId
+        );
+
+        // Get canvas container
         const canvas = document.getElementById(canvasId);
         if (!canvas) {
-          console.log(
+          console.error(
             "[WaveSurfer HTML] ❌ Spectrogram canvas not found:",
             canvasId
           );
@@ -1134,75 +1301,47 @@
 
         const container = canvas.parentElement;
 
-        console.log(
-          "[WaveSurfer HTML] 🎨 Generating spectrogram for:",
-          canvasId
-        );
+        // Clean up existing canvas and plugin
+        canvas.remove();
 
-        const fftSize = 512;
-        const spectrogramResult = generateSpectrogramData(audioBuffer, fftSize);
-        const { data: spectrogramData, freqResolution } = spectrogramResult;
+        // Determine which plugin instance to use
+        const pluginKey = canvasId.includes('user') ? 'user' : 'ref';
 
-        if (spectrogramData.length === 0) {
-          console.log("[WaveSurfer HTML] ❌ No spectrogram data generated");
-          return;
+        // Destroy existing plugin
+        if (spectrogramPlugins[pluginKey]) {
+          spectrogramPlugins[pluginKey].destroy();
         }
 
-        // Canvas dimensions
-        canvas.width = spectrogramData.length;
-        canvas.height = fftSize / 2; // Half of FFT size (Nyquist)
-        canvas.style.width = "100%";
-        canvas.style.height = "120px";
+        // Create new canvas
+        const newCanvas = document.createElement('canvas');
+        newCanvas.id = canvasId;
+        newCanvas.style.width = '100%';
+        newCanvas.style.height = '120px';
+        container.appendChild(newCanvas);
 
-        const ctx = canvas.getContext("2d");
-        const width = canvas.width;
-        const height = canvas.height;
-
-        console.log(
-          "[WaveSurfer HTML] 🎨 Spectrogram canvas: width=" +
-            width +
-            ", height=" +
-            height +
-            ", frames=" +
-            spectrogramData.length
-        );
-
-        // Find max magnitude for normalization
-        let maxMagnitude = 0;
-        spectrogramData.forEach((frame) => {
-          frame.forEach((mag) => {
-            if (mag > maxMagnitude) maxMagnitude = mag;
-          });
+        // Create plugin with advanced settings
+        spectrogramPlugins[pluginKey] = new SpectrogramPlugin({
+          container: container,
+          fftSamples: 512,
+          height: 120,
+          windowFunc: 'hann', // Hann window for better frequency resolution
+          scale: 'mel', // Mel scale (perceptually accurate)
+          colorMap: 'roseus', // Beautiful roseus colormap
+          gainDB: 25, // Brightness boost
+          rangeDB: 80, // Dynamic range
+          frequencyMin: 0,
+          frequencyMax: 8000, // Focus on speech range
+          labels: false // Disable labels for cleaner look
         });
 
-        // Draw spectrogram
-        for (let x = 0; x < width; x++) {
-          const frame = spectrogramData[x];
-          if (!frame) continue;
+        // Render spectrogram
+        spectrogramPlugins[pluginKey].render(audioBuffer);
 
-          for (let y = 0; y < height; y++) {
-            const magnitude = frame[y] || 0;
-            const normalizedMag = magnitude / maxMagnitude;
-
-            // Color mapping: blue (low) -> yellow -> red (high)
-            const intensity = Math.pow(normalizedMag, 0.5); // Gamma correction
-            const hue = (1 - intensity) * 240; // Blue to red
-            const saturation = intensity * 100;
-            const lightness = 20 + intensity * 60;
-
-            ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-            ctx.fillRect(x, height - y - 1, 1, 1); // Flip Y axis
-          }
-        }
-
-        console.log("[WaveSurfer HTML] ✅ Spectrogram drawn successfully");
+        console.log(
+          "[WaveSurfer HTML] ✅ Spectrogram rendered with plugin:",
+          canvasId
+        );
       }
-
-      // Store spectrogram results for redrawing
-      let spectrogramResults = {
-        user: null,
-        ref: null,
-      };
 
       // Process spectrogram
       async function processSpectrogram(wavesurfer, canvasId) {
@@ -1211,16 +1350,15 @@
             "[WaveSurfer HTML] 🎵 Processing spectrogram for canvas:",
             canvasId
           );
+
           const audioBuffer = wavesurfer.getDecodedData();
 
-          // Store audio buffer for redrawing
-          if (canvasId === "spectrogram-user") {
-            spectrogramResults.user = audioBuffer;
-          } else if (canvasId === "spectrogram-ref") {
-            spectrogramResults.ref = audioBuffer;
-          }
+          // Store audio buffer
+          const bufferKey = canvasId.includes('user') ? 'user' : 'ref';
+          spectrogramBuffers[bufferKey] = audioBuffer;
 
           drawSpectrogram(canvasId, audioBuffer);
+
           console.log(
             "[WaveSurfer HTML] ✅ Spectrogram processing complete for",
             canvasId
