@@ -528,6 +528,8 @@
     var fftSamples = this.fftSamples;
     var sampleRate = buffer.sampleRate;
 
+    console.log('[WaveSurfer HTML] 🎼 getFrequencies: fftSamples=' + fftSamples + ', sampleRate=' + sampleRate + ', bufferLength=' + buffer.length);
+
     this.frequencyMax = this.frequencyMax || sampleRate / 2;
     this.buffer = buffer;
 
@@ -536,6 +538,7 @@
       var width = this.getWidth();
       var uniqueSamplesPerPx = buffer.length / width;
       noverlap = Math.max(0, Math.round(fftSamples - uniqueSamplesPerPx));
+      console.log('[WaveSurfer HTML] 📊 Calculated noverlap: ' + noverlap + ' (width=' + width + ', samplesPerPx=' + uniqueSamplesPerPx + ')');
     }
 
     var fft = new WaveSurferFFT(fftSamples, sampleRate, this.windowFunc, this.alpha);
@@ -580,6 +583,8 @@
     var channelFreq = [];
     var currentOffset = 0;
 
+    console.log('[WaveSurfer HTML] 🔄 Starting FFT loop: channelDataLength=' + channelData.length + ', fftSamples=' + fftSamples);
+
     while (currentOffset + fftSamples < channelData.length) {
       var segment = channelData.slice(currentOffset, currentOffset + fftSamples);
       var spectrum = fft.calculateSpectrum(segment);
@@ -604,6 +609,12 @@
 
       channelFreq.push(array);
       currentOffset += fftSamples - noverlap;
+    }
+
+    console.log('[WaveSurfer HTML] ✅ FFT loop complete: collected ' + channelFreq.length + ' frames');
+
+    if (channelFreq.length === 0) {
+      console.error('[WaveSurfer HTML] ❌ No FFT frames collected! channelDataLength=' + channelData.length + ', fftSamples=' + fftSamples);
     }
 
     this.frequencies = [channelFreq]; // Wrap in array for consistency
@@ -655,7 +666,10 @@
   };
 
   SpectrogramPlugin.prototype.drawSpectrogram = function(frequenciesData) {
-    if (!frequenciesData || frequenciesData.length === 0) return;
+    if (!frequenciesData || frequenciesData.length === 0) {
+      console.error('[WaveSurfer HTML] ❌ drawSpectrogram: frequenciesData is empty or undefined');
+      return;
+    }
 
     // Ensure correct format
     if (!isNaN(frequenciesData[0][0])) {
@@ -664,6 +678,8 @@
 
     var width = this.getWidth();
     var height = this.height;
+
+    console.log('[WaveSurfer HTML] 📐 drawSpectrogram: width=' + width + ', height=' + height + ', channels=' + frequenciesData.length);
 
     this.canvas.width = width;
     this.canvas.height = height;
@@ -684,13 +700,35 @@
     }
 
     for (var c = 0; c < frequenciesData.length; c++) {
+      console.log('[WaveSurfer HTML] 🎵 Processing channel ' + c + ', data length: ' + frequenciesData[c].length);
+
       var pixels = this.resample(frequenciesData[c]);
+
+      if (!pixels || pixels.length === 0) {
+        console.error('[WaveSurfer HTML] ❌ resample returned empty pixels for channel ' + c);
+        continue;
+      }
+
+      if (!pixels[0]) {
+        console.error('[WaveSurfer HTML] ❌ pixels[0] is undefined for channel ' + c);
+        continue;
+      }
+
       var bitmapHeight = pixels[0].length;
+      console.log('[WaveSurfer HTML] 📊 Resampled: width=' + pixels.length + ', height=' + bitmapHeight);
+
       var imageData = new ImageData(width, bitmapHeight);
 
       for (var i = 0; i < pixels.length; i++) {
         for (var j = 0; j < pixels[i].length; j++) {
-          var colorMap = this.colorMap[pixels[i][j]];
+          var pixelValue = pixels[i][j];
+          var colorMap = this.colorMap[pixelValue];
+
+          if (!colorMap) {
+            console.error('[WaveSurfer HTML] ❌ colorMap[' + pixelValue + '] is undefined (max: 255)');
+            colorMap = this.colorMap[0]; // Fallback to first color
+          }
+
           var redIndex = ((bitmapHeight - j - 1) * width + i) * 4;
           imageData.data[redIndex] = colorMap[0] * 255;
           imageData.data[redIndex + 1] = colorMap[1] * 255;
