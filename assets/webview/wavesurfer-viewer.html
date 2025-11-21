@@ -1282,6 +1282,12 @@
         ref: null
       };
 
+      // Store containers for reuse (since plugin will replace canvas)
+      let spectrogramContainers = {
+        user: null,
+        ref: null
+      };
+
       // Create and render spectrogram using plugin
       function drawSpectrogram(canvasId, audioBuffer) {
         console.log(
@@ -1289,35 +1295,51 @@
           canvasId
         );
 
-        // Get canvas container
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) {
-          console.error(
-            "[WaveSurfer HTML] ❌ Spectrogram canvas not found:",
-            canvasId
-          );
-          return;
-        }
-
-        const container = canvas.parentElement;
-
-        // Clean up existing canvas and plugin
-        canvas.remove();
-
         // Determine which plugin instance to use
         const pluginKey = canvasId.includes('user') ? 'user' : 'ref';
 
+        // Get or retrieve container
+        let container = spectrogramContainers[pluginKey];
+
+        if (!container) {
+          // First call: find container by canvas id
+          const canvas = document.getElementById(canvasId);
+          if (!canvas) {
+            console.error(
+              "[WaveSurfer HTML] ❌ Spectrogram canvas not found:",
+              canvasId
+            );
+            return;
+          }
+          container = canvas.parentElement;
+          spectrogramContainers[pluginKey] = container;
+          console.log(
+            "[WaveSurfer HTML] 📦 Container saved for:",
+            pluginKey
+          );
+        }
+
         // Destroy existing plugin
         if (spectrogramPlugins[pluginKey]) {
+          console.log(
+            "[WaveSurfer HTML] 🗑️ Destroying existing plugin:",
+            pluginKey
+          );
           spectrogramPlugins[pluginKey].destroy();
         }
 
-        // Create new canvas
-        const newCanvas = document.createElement('canvas');
-        newCanvas.id = canvasId;
-        newCanvas.style.width = '100%';
-        newCanvas.style.height = '120px';
-        container.appendChild(newCanvas);
+        // Clear container completely (plugin will create its own elements)
+        container.innerHTML = '';
+
+        console.log(
+          "[WaveSurfer HTML] 📦 Container cleared, creating plugin with config:",
+          {
+            fftSamples: 512,
+            height: 120,
+            scale: 'mel',
+            frequencyMax: 8000
+          }
+        );
 
         // Create plugin with advanced settings
         spectrogramPlugins[pluginKey] = new SpectrogramPlugin({
@@ -1333,6 +1355,15 @@
           frequencyMax: 8000, // Focus on speech range
           labels: false // Disable labels for cleaner look
         });
+
+        console.log(
+          "[WaveSurfer HTML] 🎵 Plugin created, rendering audio buffer...",
+          {
+            duration: audioBuffer.duration,
+            sampleRate: audioBuffer.sampleRate,
+            channels: audioBuffer.numberOfChannels
+          }
+        );
 
         // Render spectrogram
         spectrogramPlugins[pluginKey].render(audioBuffer);
