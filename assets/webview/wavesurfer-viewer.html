@@ -686,22 +686,30 @@
       var rMax = this.hzToScale(freqMax) / this.hzToScale(freqFrom);
       var rMax1 = Math.min(1, rMax);
 
-      var self = this;
-      createImageBitmap(
-        imageData,
-        0,
-        Math.round(bitmapHeight * (1 - rMax1)),
-        width,
-        Math.round(bitmapHeight * (rMax1 - rMin))
-      ).then(function(bitmap) {
-        spectrCc.drawImage(
-          bitmap,
-          0,
-          height * (c + 1 - rMax1 / rMax),
-          width,
-          (height * rMax1) / rMax
-        );
-      });
+      // Use putImageData directly (synchronous) instead of createImageBitmap (async)
+      // Create temporary canvas for frequency range cropping
+      var tempCanvas = document.createElement('canvas');
+      var sourceY = Math.round(bitmapHeight * (1 - rMax1));
+      var sourceHeight = Math.round(bitmapHeight * (rMax1 - rMin));
+
+      tempCanvas.width = width;
+      tempCanvas.height = sourceHeight;
+      var tempCtx = tempCanvas.getContext('2d');
+
+      // Put image data on temp canvas
+      tempCtx.putImageData(imageData, 0, -sourceY);
+
+      // Draw temp canvas to main canvas with scaling
+      var destY = height * (c + 1 - rMax1 / rMax);
+      var destHeight = (height * rMax1) / rMax;
+
+      spectrCc.drawImage(
+        tempCanvas,
+        0, 0, width, sourceHeight,
+        0, destY, width, destHeight
+      );
+
+      console.log('[WaveSurfer HTML] 🖼️ Drew spectrogram channel ' + c + ' at y=' + destY + ', height=' + destHeight);
     }
 
     if (this.labels) {
@@ -1578,6 +1586,15 @@
         );
 
         // Create plugin with advanced settings
+        // IMPORTANT: frequencyMax must be <= sampleRate/2 (Nyquist frequency)
+        // For 8kHz audio, max is 4000Hz
+        const nyquistFreq = audioBuffer.sampleRate / 2;
+        const maxFreq = Math.min(8000, nyquistFreq);
+
+        console.log(
+          "[WaveSurfer HTML] 🔊 Frequency range: 0-" + maxFreq + "Hz (Nyquist: " + nyquistFreq + "Hz)"
+        );
+
         spectrogramPlugins[pluginKey] = new SpectrogramPlugin({
           container: container,
           fftSamples: 512,
@@ -1588,7 +1605,7 @@
           gainDB: 25, // Brightness boost
           rangeDB: 80, // Dynamic range
           frequencyMin: 0,
-          frequencyMax: 8000, // Focus on speech range
+          frequencyMax: maxFreq, // Don't exceed Nyquist frequency!
           labels: false // Disable labels for cleaner look
         });
 
