@@ -12,6 +12,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import CustomHeader from "../../components/CustomHeader";
+import WaveSurferWebView from "../../components/WaveSurferWebView";
 import { useONNX } from "../../utils/onnx/onnxContext";
 import { preprocessAudioFile } from "../../utils/stt/audioPreprocessor";
 import { runSTTInference } from "../../utils/stt/inference";
@@ -24,6 +25,7 @@ export default function TestScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [processingTime, setProcessingTime] = useState<number>(0);
+  const [showGraphs, setShowGraphs] = useState(false); // 그래프 표시 여부
 
   const pickAudioFile = async () => {
     try {
@@ -156,22 +158,67 @@ export default function TestScreen() {
           </Card>
 
           {result && (
-            <Card style={styles.card}>
-              <Card.Title title="✅ 인식 결과" />
-              <Card.Content>
-                <View style={styles.resultBox}>
-                  <Text variant="titleLarge" style={styles.resultText}>
-                    {result}
+            <>
+              <Card style={styles.card}>
+                <Card.Title title="✅ 인식 결과" />
+                <Card.Content>
+                  <View style={styles.resultBox}>
+                    <Text variant="titleLarge" style={styles.resultText}>
+                      {result}
+                    </Text>
+                  </View>
+                  <Text
+                    variant="bodySmall"
+                    style={[styles.timeText, { color: theme.colors.primary }]}
+                  >
+                    ⏱️ 처리 시간: {processingTime}초
                   </Text>
-                </View>
-                <Text
-                  variant="bodySmall"
-                  style={[styles.timeText, { color: theme.colors.primary }]}
-                >
-                  ⏱️ 처리 시간: {processingTime}초
-                </Text>
-              </Card.Content>
-            </Card>
+                </Card.Content>
+              </Card>
+
+              {/* 음성 분석 그래프 카드 */}
+              <Card style={styles.card}>
+                <Card.Title
+                  title="📊 음성 분석 그래프"
+                  subtitle="파형, 음정, 주파수 스펙트럼 분석"
+                />
+                <Card.Content>
+                  <Button
+                    mode={showGraphs ? "outlined" : "contained"}
+                    onPress={() => setShowGraphs(!showGraphs)}
+                    icon={showGraphs ? "chevron-up" : "chart-line"}
+                    style={styles.button}
+                  >
+                    {showGraphs ? "그래프 숨기기" : "그래프 보기"}
+                  </Button>
+
+                  {showGraphs && selectedFile && (
+                    <View style={styles.graphContainer}>
+                      <WaveSurferWebView
+                        userAudioPath={selectedFile}
+                        onReady={() => {
+                          console.log(
+                            "[TestScreen] ✅ WaveSurfer 그래프 준비 완료"
+                          );
+                        }}
+                        onError={(error) => {
+                          console.error("[TestScreen] ❌ WaveSurfer 에러:", error);
+                          Alert.alert("그래프 오류", error);
+                        }}
+                      />
+                    </View>
+                  )}
+
+                  {showGraphs && !selectedFile && (
+                    <View style={styles.graphPlaceholder}>
+                      <Text variant="bodyMedium" style={styles.placeholderText}>
+                        ⚠️ 오디오 파일이 없습니다
+                      </Text>
+                    </View>
+                  )}
+                </Card.Content>
+              </Card>
+            </>
           )}
 
           {!modelInfo && (
@@ -249,5 +296,22 @@ const styles = StyleSheet.create({
   timeText: {
     textAlign: "right",
     marginTop: 8,
+  },
+  graphContainer: {
+    marginTop: 16,
+    height: 500, // 그래프를 표시하기 위한 충분한 높이
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  graphPlaceholder: {
+    marginTop: 16,
+    padding: 32,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholderText: {
+    opacity: 0.6,
   },
 });
