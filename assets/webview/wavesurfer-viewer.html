@@ -1531,11 +1531,11 @@
         const ctx = canvas.getContext("2d");
         const container = canvas.parentElement;
 
-        // Canvas width = frequencies 길이 (1:1 매핑)
+        // Canvas size = frequencies length (웹 코드와 동일)
         canvas.width = frequencies.length;
-        canvas.height = 150;
+        canvas.height = 200; // 웹과 동일한 높이
         canvas.style.width = "100%";
-        canvas.style.height = "150px";
+        canvas.style.height = "200px";
 
         const height = canvas.height;
         const width = canvas.width;
@@ -1547,110 +1547,41 @@
             width +
             ", height=" +
             height +
-            ", containerWidth=" +
-            container.offsetWidth +
-            ", freqCount=" +
-            frequencies.length +
             ", baseFreq=" +
             baseFrequency +
             "Hz"
         );
 
+        // 배경 클리어
         ctx.clearRect(0, 0, width, height);
 
-        const pitchUpColor = "#385587"; // Blue (rising)
-        const pitchDownColor = "#C26351"; // Red (falling)
-        const lineColor = "#4A90E2"; // Line color
+        const pitchUpColor = "#385587"; // Blue (rising) - 웹과 동일
+        const pitchDownColor = "#C26351"; // Red (falling) - 웹과 동일
 
-        // Step 1: 실제 음정 범위(min/max) 계산
-        const validFrequencies = frequencies.filter((f) => f && f > 0);
+        // 각 주파수를 점으로 그리기 (웹/공식 문서 방식)
+        const pointSize = 3; // 웹 코드와 동일
+        let prevY = 0;
 
-        if (validFrequencies.length === 0) {
-          console.log("[WaveSurfer HTML] ⚠️ No valid pitch points to draw");
-          return;
-        }
-
-        const minFreq = Math.min(...validFrequencies);
-        const maxFreq = Math.max(...validFrequencies);
-        const freqRange = maxFreq - minFreq;
-
-        console.log(
-          "[WaveSurfer HTML] 🎼 Frequency range: min=" +
-            minFreq.toFixed(1) +
-            "Hz, max=" +
-            maxFreq.toFixed(1) +
-            "Hz, range=" +
-            freqRange.toFixed(1) +
-            "Hz"
-        );
-
-        // Step 2: Canvas 여유 공간 설정 (상하 10px margin)
-        const margin = 25;
-        const drawableHeight = height - 2 * margin;
-
-        // Step 3: 음정 데이터를 Canvas 높이에 정규화하여 validPoints 생성
-        const validPoints = [];
         frequencies.forEach((frequency, index) => {
-          if (frequency && frequency > 0) {
-            // 주파수 범위를 0~1로 정규화
-            let normalized = 0;
-            if (freqRange > 0) {
-              normalized = (frequency - minFreq) / freqRange;
-            }
+          if (!frequency) return;
 
-            // Canvas 좌표로 변환 (높은 주파수 = 위쪽 = 작은 y값)
-            // normalized 0 (최소 주파수) → y = height - margin (아래쪽)
-            // normalized 1 (최대 주파수) → y = margin (위쪽)
-            const y = Math.round(margin + (1 - normalized) * drawableHeight);
+          // ✅ 웹/공식 문서와 동일한 Y 위치 계산
+          // baseFrequency * 2를 최대값으로 사용
+          const y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
 
-            validPoints.push({ x: index, y: y, freq: frequency });
-          }
-        });
+          // 색상 결정 (음정 상승/하강)
+          ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
 
-        // Step 2: Draw connecting line
-        ctx.beginPath();
-        ctx.strokeStyle = lineColor;
-        ctx.lineWidth = 0.5;
+          // 점 그리기 (웹은 fillRect, 공식 문서도 fillRect)
+          ctx.fillRect(index, y, pointSize, pointSize);
 
-        validPoints.forEach((point, idx) => {
-          if (idx === 0) {
-            ctx.moveTo(point.x, point.y);
-          } else {
-            const prevPoint = validPoints[idx - 1];
-            // If gap is too large (>5px), start new line segment
-            if (point.x - prevPoint.x > 5) {
-              ctx.moveTo(point.x, point.y);
-            } else {
-              ctx.lineTo(point.x, point.y);
-            }
-          }
-        });
-        ctx.stroke();
-
-        // Step 3: Draw circular points with color coding
-        let prevY = validPoints[0].y;
-        validPoints.forEach((point, idx) => {
-          // Determine color based on pitch direction
-          const isRising = idx > 0 && point.y < prevY;
-          const color = isRising ? pitchUpColor : pitchDownColor;
-
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.arc(point.x, point.y, 1, 0, 2 * Math.PI);
-          ctx.fill();
-          ctx.strokeStyle = "rgba(0, 0, 0, 0)"; // 가시성 올라가게
-          ctx.lineWidth = 0.3;
-          ctx.stroke();
-
-          prevY = point.y;
+          prevY = y;
         });
 
         console.log(
-          "[WaveSurfer HTML] 🎨 Drew",
-          validPoints.length,
-          "pitch points with lines on canvas (out of",
+          "[WaveSurfer HTML] ✅ Drew",
           frequencies.length,
-          "frequencies)"
+          "pitch points (baseFreq method)"
         );
       }
 
