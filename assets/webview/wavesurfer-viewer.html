@@ -16,6 +16,9 @@
 
     </script>
 
+    <!-- Pitchfinder.js - Official pitch detection library -->
+    <script src="https://unpkg.com/pitchfinder@3.0.0/dist/pitchfinder.umd.js"></script>
+
     <!-- WaveSurfer.js FFT & Full Spectrogram Plugin (인라인) -->
     <script>
 // WaveSurfer.js Full Spectrogram Plugin
@@ -1590,72 +1593,46 @@
         );
       }
 
-      // AMDF (Average Magnitude Difference Function) - Pitchfinder.js 방식
-      function amdfPitchDetection(buffer, sampleRate) {
-        const SIZE = buffer.length;
-
-        // 음성 주파수 범위 (50-500Hz)
-        const MIN_FREQ = 50;
-        const MAX_FREQ = 500;
-        const MIN_PERIOD = Math.floor(sampleRate / MAX_FREQ);  // 32 @ 16kHz
-        const MAX_PERIOD = Math.floor(sampleRate / MIN_FREQ);  // 320 @ 16kHz
-
-        // RMS (무음 감지)
-        let rms = 0;
-        for (let i = 0; i < SIZE; i++) {
-          rms += buffer[i] * buffer[i];
-        }
-        rms = Math.sqrt(rms / SIZE);
-
-        if (rms < 0.01) return 0;  // 무음
-
-        // AMDF 계산
-        let minAMDF = Infinity;
-        let bestPeriod = -1;
-
-        for (let period = MIN_PERIOD; period < MAX_PERIOD; period++) {
-          let sum = 0;
-
-          for (let i = 0; i < SIZE - period; i++) {
-            sum += Math.abs(buffer[i] - buffer[i + period]);
-          }
-
-          // AMDF: Average Magnitude Difference
-          const amdf = sum / (SIZE - period);
-
-          // 최소값 찾기 (최소 = 가장 주기적)
-          if (amdf < minAMDF) {
-            minAMDF = amdf;
-            bestPeriod = period;
-          }
-        }
-
-        if (bestPeriod === -1) return 0;
-
-        const frequency = sampleRate / bestPeriod;
-
-        // 범위 체크
-        if (frequency < MIN_FREQ || frequency > MAX_FREQ) {
-          return 0;
-        }
-
-        return frequency;
-      }
-
-      // Detect pitch using AMDF (웹 버전과 동일)
+      // Detect pitch using official Pitchfinder.js library (AMDF algorithm)
       function detectPitchSimple(audioBuffer, sampleRate = 16000) {
-        const audioData = audioBuffer.getChannelData(0);
-        const frameSize = 2048;
-        const hopSize = 256;
-        const frequencies = [];
+        console.log(
+          "[WaveSurfer HTML] 🎼 Starting pitch detection with Pitchfinder.js..."
+        );
 
-        for (let i = 0; i < audioData.length - frameSize; i += hopSize) {
-          const frame = audioData.slice(i, i + frameSize);
-          const pitch = amdfPitchDetection(frame, sampleRate);  // ← AMDF 사용
-          frequencies.push(pitch);
+        // Check if Pitchfinder is loaded
+        if (typeof Pitchfinder === "undefined") {
+          console.error(
+            "[WaveSurfer HTML] ❌ Pitchfinder.js not loaded! Falling back to empty result."
+          );
+          return {
+            frequencies: [],
+            baseFrequency: 0,
+            averagePitch: 0,
+            minPitch: 0,
+            maxPitch: 0,
+          };
         }
 
-        // ✅ baseFrequency = 최빈값 (웹과 동일)
+        const audioData = audioBuffer.getChannelData(0);
+
+        // Create AMDF pitch detector (like official example)
+        const detectPitch = Pitchfinder.AMDF({ sampleRate: sampleRate });
+
+        // Use Pitchfinder.frequencies helper (like official docs)
+        // tempo/quantization parameters for windowing
+        const bpm = 120; // Default BPM for quantization
+        const frequencies = Pitchfinder.frequencies(detectPitch, audioData, {
+          tempo: bpm,
+          quantization: bpm,
+        });
+
+        console.log(
+          "[WaveSurfer HTML] 🎵 Detected " +
+            frequencies.length +
+            " frequency frames"
+        );
+
+        // Calculate baseFrequency as MODE (most frequent) - like official example
         const frequencyMap = {};
         let maxAmount = 0;
         let baseFrequency = 0;
@@ -1663,42 +1640,54 @@
         frequencies.forEach((frequency) => {
           if (!frequency || frequency <= 0) return;
 
-          // 10Hz 단위로 반올림 (웹과 동일)
+          // 10Hz tolerance (like official example: Math.round(frequency * 10) / 10)
           const tolerance = 10;
           const rounded = Math.round(frequency * tolerance) / tolerance;
 
           if (!frequencyMap[rounded]) frequencyMap[rounded] = 0;
           frequencyMap[rounded] += 1;
 
+          // Find mode (most frequent)
           if (frequencyMap[rounded] > maxAmount) {
             maxAmount = frequencyMap[rounded];
             baseFrequency = rounded;
           }
         });
 
+        // Calculate statistics
         const validFreqs = frequencies.filter((f) => f > 0);
-        const averagePitch = validFreqs.length > 0
-          ? validFreqs.reduce((a, b) => a + b, 0) / validFreqs.length
-          : baseFrequency;
+        const averagePitch =
+          validFreqs.length > 0
+            ? validFreqs.reduce((a, b) => a + b, 0) / validFreqs.length
+            : baseFrequency;
 
         const minFreq = validFreqs.length > 0 ? Math.min(...validFreqs) : 0;
         const maxFreq = validFreqs.length > 0 ? Math.max(...validFreqs) : 0;
 
         console.log(
-          "[WaveSurfer HTML] 🎼 Pitch detection (AMDF): base=" +
-            Math.round(baseFrequency) +
-            "Hz, avg=" +
-            Math.round(averagePitch) +
-            "Hz, range=" +
+          "[WaveSurfer HTML] 🎼 Pitch detection (Pitchfinder AMDF):"
+        );
+        console.log(
+          "  - Base (mode): " + Math.round(baseFrequency) + "Hz"
+        );
+        console.log("  - Average: " + Math.round(averagePitch) + "Hz");
+        console.log(
+          "  - Range: " +
             Math.round(minFreq) +
             "-" +
             Math.round(maxFreq) +
             "Hz"
         );
+        console.log(
+          "  - Valid frequencies: " +
+            validFreqs.length +
+            " / " +
+            frequencies.length
+        );
 
         return {
           frequencies,
-          baseFrequency,  // 최빈값
+          baseFrequency, // MODE (most frequent)
           averagePitch,
           minPitch: minFreq,
           maxPitch: maxFreq,
