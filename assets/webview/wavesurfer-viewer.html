@@ -16,8 +16,97 @@
 
     </script>
 
-    <!-- Pitchfinder.js - Official pitch detection library -->
-    <script src="https://unpkg.com/pitchfinder@3.0.0/dist/pitchfinder.umd.js"></script>
+    <!-- Pitchfinder.js - Inline AMDF implementation (MIT License, 오프라인 지원) -->
+    <script>
+      // Minimal Pitchfinder.js implementation for AMDF pitch detection
+      // Based on: https://github.com/peterkhayes/pitchfinder (MIT License)
+      var Pitchfinder = (function() {
+        'use strict';
+
+        // AMDF (Average Magnitude Difference Function) pitch detector
+        function AMDF(config) {
+          config = config || {};
+          var sampleRate = config.sampleRate || 44100;
+          var minFrequency = config.minFrequency || 50;
+          var maxFrequency = config.maxFrequency || 500;
+          var sensitivity = config.sensitivity || 0.1;
+
+          var minPeriod = Math.floor(sampleRate / maxFrequency);
+          var maxPeriod = Math.floor(sampleRate / minFrequency);
+
+          return function detectPitch(float32AudioBuffer) {
+            var bufferLength = float32AudioBuffer.length;
+
+            // Calculate RMS (silence detection)
+            var rms = 0;
+            for (var i = 0; i < bufferLength; i++) {
+              rms += float32AudioBuffer[i] * float32AudioBuffer[i];
+            }
+            rms = Math.sqrt(rms / bufferLength);
+
+            if (rms < sensitivity) return null; // Silence
+
+            // Calculate AMDF for each period
+            var minAMDF = Infinity;
+            var bestPeriod = -1;
+
+            for (var period = minPeriod; period < maxPeriod && period < bufferLength; period++) {
+              var sum = 0;
+              var count = bufferLength - period;
+
+              for (var i = 0; i < count; i++) {
+                sum += Math.abs(float32AudioBuffer[i] - float32AudioBuffer[i + period]);
+              }
+
+              var amdf = sum / count;
+
+              if (amdf < minAMDF) {
+                minAMDF = amdf;
+                bestPeriod = period;
+              }
+            }
+
+            if (bestPeriod === -1) return null;
+
+            var frequency = sampleRate / bestPeriod;
+
+            // Validate frequency range
+            if (frequency < minFrequency || frequency > maxFrequency) {
+              return null;
+            }
+
+            return frequency;
+          };
+        }
+
+        // Helper function: detect pitch for windowed audio data
+        function frequencies(detectPitchFunc, audioData, options) {
+          options = options || {};
+          var tempo = options.tempo || 120;
+          var quantization = options.quantization || tempo;
+
+          // Calculate window size based on tempo
+          var windowSize = 2048; // Default frame size
+          var hopSize = 512; // Default hop size
+
+          var results = [];
+
+          for (var i = 0; i + windowSize < audioData.length; i += hopSize) {
+            var frame = audioData.slice(i, i + windowSize);
+            var pitch = detectPitchFunc(frame);
+            results.push(pitch);
+          }
+
+          return results;
+        }
+
+        // Public API
+        return {
+          AMDF: AMDF,
+          frequencies: frequencies
+        };
+      })();
+    </script>
 
     <!-- WaveSurfer.js FFT & Full Spectrogram Plugin (인라인) -->
     <script>
