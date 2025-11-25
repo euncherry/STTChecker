@@ -27,9 +27,9 @@
         function AMDF(config) {
           config = config || {};
           var sampleRate = config.sampleRate || 44100;
-          var minFrequency = config.minFrequency || 80;   // 80Hz (더 낮은 남성 목소리)
-          var maxFrequency = config.maxFrequency || 600;  // 600Hz (더 높은 여성 목소리)
-          var sensitivity = config.sensitivity || 0.01;   // 0.01 (더 민감하게)
+          var minFrequency = config.minFrequency || 60;   // 60Hz (더 넓은 범위)
+          var maxFrequency = config.maxFrequency || 800;  // 800Hz (더 넓은 범위)
+          var sensitivity = config.sensitivity || 0.005;  // 0.005 (더욱 민감하게)
 
           var minPeriod = Math.floor(sampleRate / maxFrequency);
           var maxPeriod = Math.floor(sampleRate / minFrequency);
@@ -85,9 +85,9 @@
           var tempo = options.tempo || 120;
           var quantization = options.quantization || tempo;
 
-          // Calculate window size based on tempo
-          var windowSize = 2048; // Default frame size
-          var hopSize = 256; // Smaller hop = more points (512 → 256)
+          // 더 작은 윈도우로 더 많은 디테일 감지
+          var windowSize = 1024; // 2048 → 1024 (더 작은 윈도우)
+          var hopSize = 128;     // 256 → 128 (더 많은 포인트)
 
           var results = [];
 
@@ -1739,6 +1739,29 @@
           "[WaveSurfer HTML] 📊 Valid: " + validCount + ", Null/Zero: " + nullCount
         );
 
+        // 디버그: 처음 20개 주파수 값 출력
+        const first20 = frequencies.slice(0, 20);
+        console.log(
+          "[WaveSurfer HTML] 🔍 First 20 frequencies: " +
+            first20.map(f => f ? Math.round(f) + "Hz" : "null").join(", ")
+        );
+
+        // 디버그: 유효한 주파수들의 분포
+        const validFreqs = frequencies.filter((f) => f > 0);
+        if (validFreqs.length > 0) {
+          const sorted = validFreqs.slice().sort((a, b) => a - b);
+          const median = sorted[Math.floor(sorted.length / 2)];
+          console.log(
+            "[WaveSurfer HTML] 📊 Frequency distribution: min=" +
+              Math.round(sorted[0]) +
+              "Hz, median=" +
+              Math.round(median) +
+              "Hz, max=" +
+              Math.round(sorted[sorted.length - 1]) +
+              "Hz"
+          );
+        }
+
         // Calculate baseFrequency as MODE (most frequent) - like official example
         const frequencyMap = {};
         let maxAmount = 0;
@@ -1761,8 +1784,7 @@
           }
         });
 
-        // Calculate statistics
-        const validFreqs = frequencies.filter((f) => f > 0);
+        // Calculate statistics (validFreqs 이미 위에서 계산됨)
         const averagePitch =
           validFreqs.length > 0
             ? validFreqs.reduce((a, b) => a + b, 0) / validFreqs.length
