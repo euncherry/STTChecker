@@ -1558,16 +1558,28 @@
         const pitchUpColor = "#385587"; // Blue (rising) - 웹과 동일
         const pitchDownColor = "#C26351"; // Red (falling) - 웹과 동일
 
+        // ✅ 음성 주파수 범위 필터링 (octave error 방지)
+        const MIN_VOICE_FREQ = 50;   // 최소 음성 주파수 (Hz)
+        const MAX_VOICE_FREQ = 500;  // 최대 음성 주파수 (Hz)
+
         // 각 주파수를 점으로 그리기 (웹/공식 문서 방식)
         const pointSize = 3; // 웹 코드와 동일
         let prevY = 0;
+        let validPointCount = 0;
 
         frequencies.forEach((frequency, index) => {
           if (!frequency) return;
 
-          // ✅ 웹/공식 문서와 동일한 Y 위치 계산
-          // baseFrequency * 2를 최대값으로 사용
-          const y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
+          // ✅ 유효한 음성 범위만 그리기 (octave error 필터링)
+          if (frequency < MIN_VOICE_FREQ || frequency > MAX_VOICE_FREQ) {
+            return; // 범위 밖 주파수 무시
+          }
+
+          // 웹/공식 문서와 동일한 Y 위치 계산
+          let y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
+
+          // ✅ Y값을 캔버스 범위로 클리핑 (overflow 방지)
+          y = Math.max(0, Math.min(height - 1, y));
 
           // 색상 결정 (음정 상승/하강)
           ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
@@ -1576,12 +1588,15 @@
           ctx.fillRect(index, y, pointSize, pointSize);
 
           prevY = y;
+          validPointCount++;
         });
 
         console.log(
           "[WaveSurfer HTML] ✅ Drew",
+          validPointCount,
+          "pitch points out of",
           frequencies.length,
-          "pitch points (baseFreq method)"
+          "(filtered " + MIN_VOICE_FREQ + "-" + MAX_VOICE_FREQ + "Hz)"
         );
       }
 
@@ -1618,7 +1633,14 @@
 
       function autoCorrelation(buffer, sampleRate) {
         const SIZE = buffer.length;
-        const MAX_SAMPLES = Math.floor(SIZE / 2);
+
+        // ✅ 음성 주파수 범위로 검색 범위 제한 (50-500Hz)
+        const MIN_FREQ = 50;
+        const MAX_FREQ = 500;
+        const MIN_OFFSET = Math.floor(sampleRate / MAX_FREQ);  // ~32 for 16kHz
+        const MAX_OFFSET = Math.floor(sampleRate / MIN_FREQ);  // ~320 for 16kHz
+        const MAX_SAMPLES = Math.min(Math.floor(SIZE / 2), MAX_OFFSET);
+
         let best_offset = -1;
         let best_correlation = 0;
         let rms = 0;
@@ -1629,10 +1651,13 @@
         }
         rms = Math.sqrt(rms / SIZE);
 
+        // 무음 감지 threshold
         if (rms < 0.01) return 0;
 
         let lastCorrelation = 1;
-        for (let offset = 1; offset < MAX_SAMPLES; offset++) {
+
+        // ✅ MIN_OFFSET부터 시작 (너무 높은 주파수 무시)
+        for (let offset = MIN_OFFSET; offset < MAX_SAMPLES; offset++) {
           let correlation = 0;
 
           for (let i = 0; i < MAX_SAMPLES; i++) {
@@ -1641,7 +1666,8 @@
 
           correlation = 1 - correlation / MAX_SAMPLES;
 
-          if (correlation > 0.9 && correlation > lastCorrelation) {
+          // ✅ Threshold 낮춤 (0.9 → 0.8)
+          if (correlation > 0.8 && correlation > lastCorrelation) {
             const foundGoodCorrelation = correlation > best_correlation;
             if (foundGoodCorrelation) {
               best_correlation = correlation;
@@ -1653,6 +1679,12 @@
 
         if (best_offset === -1) return 0;
         const fundamental = sampleRate / best_offset;
+
+        // ✅ 최종 범위 체크 (안전장치)
+        if (fundamental < MIN_FREQ || fundamental > MAX_FREQ) {
+          return 0;
+        }
+
         return fundamental;
       }
 
