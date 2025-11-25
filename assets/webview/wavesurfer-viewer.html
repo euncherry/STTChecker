@@ -1651,7 +1651,7 @@
         const pitchDownColor = "#C26351"; // Red (falling) - 웹과 동일
 
         // 각 주파수를 점으로 그리기 (웹/공식 문서 방식)
-        const pointSize = 3; // 웹 코드와 동일
+        const pointSize = window.devicePixelRatio || 1; // 공식 코드와 동일
         let prevY = 0;
         let drawnCount = 0;
 
@@ -1707,9 +1707,22 @@
         // Create AMDF pitch detector (like official example)
         const detectPitch = Pitchfinder.AMDF({ sampleRate: sampleRate });
 
+        // Calculate tempo/quantization dynamically (공식 코드와 동일)
+        const duration = audioData.length / sampleRate;
+        const bpm = audioData.length / duration / 60;
+
+        console.log(
+          "[WaveSurfer HTML] 🎵 Audio info: length=" +
+            audioData.length +
+            ", sampleRate=" +
+            sampleRate +
+            ", duration=" +
+            duration.toFixed(2) +
+            "s, bpm=" +
+            bpm.toFixed(2)
+        );
+
         // Use Pitchfinder.frequencies helper (like official docs)
-        // tempo/quantization parameters for windowing
-        const bpm = 120; // Default BPM for quantization
         const frequencies = Pitchfinder.frequencies(detectPitch, audioData, {
           tempo: bpm,
           quantization: bpm,
