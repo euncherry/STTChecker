@@ -27,9 +27,9 @@
         function AMDF(config) {
           config = config || {};
           var sampleRate = config.sampleRate || 44100;
-          var minFrequency = config.minFrequency || 50;
-          var maxFrequency = config.maxFrequency || 500;
-          var sensitivity = config.sensitivity || 0.1;
+          var minFrequency = config.minFrequency || 80;   // 80Hz (더 낮은 남성 목소리)
+          var maxFrequency = config.maxFrequency || 600;  // 600Hz (더 높은 여성 목소리)
+          var sensitivity = config.sensitivity || 0.01;   // 0.01 (더 민감하게)
 
           var minPeriod = Math.floor(sampleRate / maxFrequency);
           var maxPeriod = Math.floor(sampleRate / minFrequency);
@@ -87,7 +87,7 @@
 
           // Calculate window size based on tempo
           var windowSize = 2048; // Default frame size
-          var hopSize = 512; // Default hop size
+          var hopSize = 256; // Smaller hop = more points (512 → 256)
 
           var results = [];
 
@@ -1716,9 +1716,14 @@
         });
 
         console.log(
-          "[WaveSurfer HTML] 🎵 Detected " +
-            frequencies.length +
-            " frequency frames"
+          "[WaveSurfer HTML] 🎵 Total frames detected: " + frequencies.length
+        );
+
+        // 디버그: null vs 유효한 값 카운트
+        const nullCount = frequencies.filter(f => !f || f <= 0).length;
+        const validCount = frequencies.filter(f => f > 0).length;
+        console.log(
+          "[WaveSurfer HTML] 📊 Valid: " + validCount + ", Null/Zero: " + nullCount
         );
 
         // Calculate baseFrequency as MODE (most frequent) - like official example
