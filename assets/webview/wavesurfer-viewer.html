@@ -7,12 +7,1088 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>WaveSurfer Analysis</title>
-    <!-- v1.2.1 - Fixed console logging and initialization tracking -->
+    <!-- v1.4.0 - WaveSurfer.js Full Spectrogram Plugin으로 완전 교체 -->
 
-    <!-- WaveSurfer.js 7.x CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@7"></script>
-    <!-- Spectrogram Plugin -->
-    <script src="https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/spectrogram.esm.js"></script>
+
+    <!-- WaveSurfer.js 7.x (인라인 - 오프라인 지원) -->
+    <script>
+!function(t,e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define(e):(t="undefined"!=typeof globalThis?globalThis:t||self).WaveSurfer=e()}(this,(function(){"use strict";function t(t,e,i,n){return new(i||(i=Promise))((function(s,r){function o(t){try{h(n.next(t))}catch(t){r(t)}}function a(t){try{h(n.throw(t))}catch(t){r(t)}}function h(t){var e;t.done?s(t.value):(e=t.value,e instanceof i?e:new i((function(t){t(e)}))).then(o,a)}h((n=n.apply(t,e||[])).next())}))}"function"==typeof SuppressedError&&SuppressedError;class e{constructor(){this.listeners={}}on(t,e,i){if(this.listeners[t]||(this.listeners[t]=new Set),null==i?void 0:i.once){const i=(...n)=>{this.un(t,i),e(...n)};return this.listeners[t].add(i),()=>this.un(t,i)}return this.listeners[t].add(e),()=>this.un(t,e)}un(t,e){var i;null===(i=this.listeners[t])||void 0===i||i.delete(e)}once(t,e){return this.on(t,e,{once:!0})}unAll(){this.listeners={}}emit(t,...e){this.listeners[t]&&this.listeners[t].forEach((t=>t(...e)))}}const i={decode:function(e,i){return t(this,void 0,void 0,(function*(){const t=new AudioContext({sampleRate:i});try{return yield t.decodeAudioData(e)}finally{t.close()}}))},createBuffer:function(t,e){if(!t||0===t.length)throw new Error("channelData must be a non-empty array");if(e<=0)throw new Error("duration must be greater than 0");if("number"==typeof t[0]&&(t=[t]),!t[0]||0===t[0].length)throw new Error("channelData must contain non-empty channel arrays");!function(t){const e=t[0];if(e.some((t=>t>1||t<-1))){const i=e.length;let n=0;for(let t=0;t<i;t++){const i=Math.abs(e[t]);i>n&&(n=i)}for(const e of t)for(let t=0;t<i;t++)e[t]/=n}}(t);const i=t.map((t=>t instanceof Float32Array?t:Float32Array.from(t)));return{duration:e,length:i[0].length,sampleRate:i[0].length/e,numberOfChannels:i.length,getChannelData:t=>{const e=i[t];if(!e)throw new Error(`Channel ${t} not found`);return e},copyFromChannel:AudioBuffer.prototype.copyFromChannel,copyToChannel:AudioBuffer.prototype.copyToChannel}}};function n(t,e){const i=e.xmlns?document.createElementNS(e.xmlns,t):document.createElement(t);for(const[t,s]of Object.entries(e))if("children"===t&&s)for(const[t,e]of Object.entries(s))e instanceof Node?i.appendChild(e):"string"==typeof e?i.appendChild(document.createTextNode(e)):i.appendChild(n(t,e));else"style"===t?Object.assign(i.style,s):"textContent"===t?i.textContent=s:i.setAttribute(t,s.toString());return i}function s(t,e,i){const s=n(t,e||{});return null==i||i.appendChild(s),s}var r=Object.freeze({__proto__:null,createElement:s,default:s});const o={fetchBlob:function(e,i,n){return t(this,void 0,void 0,(function*(){const s=yield fetch(e,n);if(s.status>=400)throw new Error(`Failed to fetch ${e}: ${s.status} (${s.statusText})`);return function(e,i){t(this,void 0,void 0,(function*(){if(!e.body||!e.headers)return;const t=e.body.getReader(),n=Number(e.headers.get("Content-Length"))||0;let s=0;const r=t=>{s+=(null==t?void 0:t.length)||0;const e=Math.round(s/n*100);i(e)};try{for(;;){const e=yield t.read();if(e.done)break;r(e.value)}}catch(t){console.warn("Progress tracking error:",t)}}))}(s.clone(),i),s.blob()}))}};class a extends e{constructor(t){super(),this.isExternalMedia=!1,t.media?(this.media=t.media,this.isExternalMedia=!0):this.media=document.createElement("audio"),t.mediaControls&&(this.media.controls=!0),t.autoplay&&(this.media.autoplay=!0),null!=t.playbackRate&&this.onMediaEvent("canplay",(()=>{null!=t.playbackRate&&(this.media.playbackRate=t.playbackRate)}),{once:!0})}onMediaEvent(t,e,i){return this.media.addEventListener(t,e,i),()=>this.media.removeEventListener(t,e,i)}getSrc(){return this.media.currentSrc||this.media.src||""}revokeSrc(){const t=this.getSrc();t.startsWith("blob:")&&URL.revokeObjectURL(t)}canPlayType(t){return""!==this.media.canPlayType(t)}setSrc(t,e){const i=this.getSrc();if(t&&i===t)return;this.revokeSrc();const n=e instanceof Blob&&(this.canPlayType(e.type)||!t)?URL.createObjectURL(e):t;if(i&&this.media.removeAttribute("src"),n||t)try{this.media.src=n}catch(e){this.media.src=t}}destroy(){this.isExternalMedia||(this.media.pause(),this.revokeSrc(),this.media.removeAttribute("src"),this.media.load(),this.media.remove())}setMediaElement(t){this.media=t}play(){return t(this,void 0,void 0,(function*(){try{return yield this.media.play()}catch(t){if(t instanceof DOMException&&"AbortError"===t.name)return;throw t}}))}pause(){this.media.pause()}isPlaying(){return!this.media.paused&&!this.media.ended}setTime(t){this.media.currentTime=Math.max(0,Math.min(t,this.getDuration()))}getDuration(){return this.media.duration}getCurrentTime(){return this.media.currentTime}getVolume(){return this.media.volume}setVolume(t){this.media.volume=t}getMuted(){return this.media.muted}setMuted(t){this.media.muted=t}getPlaybackRate(){return this.media.playbackRate}isSeeking(){return this.media.seeking}setPlaybackRate(t,e){null!=e&&(this.media.preservesPitch=e),this.media.playbackRate=t}getMediaElement(){return this.media}setSinkId(t){return this.media.setSinkId(t)}}function h(t){return t<0?0:t>1?1:t}function l({maxTop:t,maxBottom:e,halfHeight:i,vScale:n}){const s=Math.round(t*i*n);return{topHeight:s,totalHeight:s+Math.round(e*i*n)||1}}function c({barAlign:t,halfHeight:e,topHeight:i,totalHeight:n,canvasHeight:s}){return"top"===t?0:"bottom"===t?s-n:e-i}function d(t,e,i){const n=e-t.left,s=i-t.top;return[n/t.width,s/t.height]}function u(t){return Boolean(t.barWidth||t.barGap||t.barAlign)}function p(t,e){if(!u(e))return t;const i=e.barWidth||.5,n=i+(e.barGap||i/2);return 0===n?t:Math.floor(t/n)*n}function m({scrollLeft:t,totalWidth:e,numCanvases:i}){if(0===e)return[0];const n=t/e,s=Math.floor(n*i);return[s-1,s,s+1]}function f({scrollLeft:t,clientWidth:e,scrollWidth:i}){if(0===i)return{startX:0,endX:0};return{startX:t/i,endX:(t+e)/i}}class g extends e{constructor(t,e){super(),this.timeouts=[],this.isScrollable=!1,this.audioData=null,this.resizeObserver=null,this.lastContainerWidth=0,this.isDragging=!1,this.subscriptions=[],this.unsubscribeOnScroll=[],this.dragUnsubscribe=null,this.subscriptions=[],this.options=t;const i=this.parentFromOptionsContainer(t.container);this.parent=i;const[n,s]=this.initHtml();i.appendChild(n),this.container=n,this.scrollContainer=s.querySelector(".scroll"),this.wrapper=s.querySelector(".wrapper"),this.canvasWrapper=s.querySelector(".canvases"),this.progressWrapper=s.querySelector(".progress"),this.cursor=s.querySelector(".cursor"),e&&s.appendChild(e),this.initEvents()}parentFromOptionsContainer(t){let e;if("string"==typeof t?e=document.querySelector(t):t instanceof HTMLElement&&(e=t),!e)throw new Error("Container not found");return e}initEvents(){if(this.wrapper.addEventListener("click",(t=>{const e=this.wrapper.getBoundingClientRect(),[i,n]=d(e,t.clientX,t.clientY);this.emit("click",i,n)})),this.wrapper.addEventListener("dblclick",(t=>{const e=this.wrapper.getBoundingClientRect(),[i,n]=d(e,t.clientX,t.clientY);this.emit("dblclick",i,n)})),!0!==this.options.dragToSeek&&"object"!=typeof this.options.dragToSeek||this.initDrag(),this.scrollContainer.addEventListener("scroll",(()=>{const{scrollLeft:t,scrollWidth:e,clientWidth:i}=this.scrollContainer,{startX:n,endX:s}=f({scrollLeft:t,scrollWidth:e,clientWidth:i});this.emit("scroll",n,s,t,t+i)})),"function"==typeof ResizeObserver){const t=this.createDelay(100);this.resizeObserver=new ResizeObserver((()=>{t().then((()=>this.onContainerResize())).catch((()=>{}))})),this.resizeObserver.observe(this.scrollContainer)}}onContainerResize(){const t=this.parent.clientWidth;t===this.lastContainerWidth&&"auto"!==this.options.height||(this.lastContainerWidth=t,this.reRender(),this.emit("resize"))}initDrag(){this.dragUnsubscribe||(this.dragUnsubscribe=function(t,e,i,n,s=3,r=0,o=100){if(!t)return()=>{};const a=new Map,h=matchMedia("(pointer: coarse)").matches;let l=()=>{};const c=c=>{if(c.button!==r)return;if(a.set(c.pointerId,c),a.size>1)return;let d=c.clientX,u=c.clientY,p=!1;const m=Date.now(),f=n=>{if(n.defaultPrevented||a.size>1)return;if(h&&Date.now()-m<o)return;const r=n.clientX,l=n.clientY,c=r-d,f=l-u;if(p||Math.abs(c)>s||Math.abs(f)>s){n.preventDefault(),n.stopPropagation();const s=t.getBoundingClientRect(),{left:o,top:a}=s;p||(null==i||i(d-o,u-a),p=!0),e(c,f,r-o,l-a),d=r,u=l}},g=e=>{if(a.delete(e.pointerId),p){const i=e.clientX,s=e.clientY,r=t.getBoundingClientRect(),{left:o,top:a}=r;null==n||n(i-o,s-a)}l()},v=t=>{a.delete(t.pointerId),t.relatedTarget&&t.relatedTarget!==document.documentElement||g(t)},b=t=>{p&&(t.stopPropagation(),t.preventDefault())},y=t=>{t.defaultPrevented||a.size>1||p&&t.preventDefault()};document.addEventListener("pointermove",f),document.addEventListener("pointerup",g),document.addEventListener("pointerout",v),document.addEventListener("pointercancel",v),document.addEventListener("touchmove",y,{passive:!1}),document.addEventListener("click",b,{capture:!0}),l=()=>{document.removeEventListener("pointermove",f),document.removeEventListener("pointerup",g),document.removeEventListener("pointerout",v),document.removeEventListener("pointercancel",v),document.removeEventListener("touchmove",y),setTimeout((()=>{document.removeEventListener("click",b,{capture:!0})}),10)}};return t.addEventListener("pointerdown",c),()=>{l(),t.removeEventListener("pointerdown",c),a.clear()}}(this.wrapper,((t,e,i)=>{const n=this.wrapper.getBoundingClientRect().width;this.emit("drag",h(i/n))}),(t=>{this.isDragging=!0;const e=this.wrapper.getBoundingClientRect().width;this.emit("dragstart",h(t/e))}),(t=>{this.isDragging=!1;const e=this.wrapper.getBoundingClientRect().width;this.emit("dragend",h(t/e))})),this.subscriptions.push(this.dragUnsubscribe))}initHtml(){const t=document.createElement("div"),e=t.attachShadow({mode:"open"}),i=this.options.cspNonce&&"string"==typeof this.options.cspNonce?this.options.cspNonce.replace(/"/g,""):"";return e.innerHTML=`\n      <style${i?` nonce="${i}"`:""}>\n        :host {\n          user-select: none;\n          min-width: 1px;\n        }\n        :host audio {\n          display: block;\n          width: 100%;\n        }\n        :host .scroll {\n          overflow-x: auto;\n          overflow-y: hidden;\n          width: 100%;\n          position: relative;\n        }\n        :host .noScrollbar {\n          scrollbar-color: transparent;\n          scrollbar-width: none;\n        }\n        :host .noScrollbar::-webkit-scrollbar {\n          display: none;\n          -webkit-appearance: none;\n        }\n        :host .wrapper {\n          position: relative;\n          overflow: visible;\n          z-index: 2;\n        }\n        :host .canvases {\n          min-height: ${this.getHeight(this.options.height,this.options.splitChannels)}px;\n          pointer-events: none;\n        }\n        :host .canvases > div {\n          position: relative;\n        }\n        :host canvas {\n          display: block;\n          position: absolute;\n          top: 0;\n          image-rendering: pixelated;\n        }\n        :host .progress {\n          pointer-events: none;\n          position: absolute;\n          z-index: 2;\n          top: 0;\n          left: 0;\n          width: 0;\n          height: 100%;\n          overflow: hidden;\n        }\n        :host .progress > div {\n          position: relative;\n        }\n        :host .cursor {\n          pointer-events: none;\n          position: absolute;\n          z-index: 5;\n          top: 0;\n          left: 0;\n          height: 100%;\n          border-radius: 2px;\n        }\n      </style>\n\n      <div class="scroll" part="scroll">\n        <div class="wrapper" part="wrapper">\n          <div class="canvases" part="canvases"></div>\n          <div class="progress" part="progress"></div>\n          <div class="cursor" part="cursor"></div>\n        </div>\n      </div>\n    `,[t,e]}setOptions(t){if(this.options.container!==t.container){const e=this.parentFromOptionsContainer(t.container);e.appendChild(this.container),this.parent=e}!0!==t.dragToSeek&&"object"!=typeof this.options.dragToSeek||this.initDrag(),this.options=t,this.reRender()}getWrapper(){return this.wrapper}getWidth(){return this.scrollContainer.clientWidth}getScroll(){return this.scrollContainer.scrollLeft}setScroll(t){this.scrollContainer.scrollLeft=t}setScrollPercentage(t){const{scrollWidth:e}=this.scrollContainer,i=e*t;this.setScroll(i)}destroy(){var t;this.subscriptions.forEach((t=>t())),this.container.remove(),this.resizeObserver&&(this.resizeObserver.disconnect(),this.resizeObserver=null),null===(t=this.unsubscribeOnScroll)||void 0===t||t.forEach((t=>t())),this.unsubscribeOnScroll=[]}createDelay(t=10){let e,i;const n=()=>{e&&(clearTimeout(e),e=void 0),i&&(i(),i=void 0)};return this.timeouts.push(n),()=>new Promise(((s,r)=>{n(),i=r,e=setTimeout((()=>{e=void 0,i=void 0,s()}),t)}))}getHeight(t,e){var i;const n=(null===(i=this.audioData)||void 0===i?void 0:i.numberOfChannels)||1;return function({optionsHeight:t,optionsSplitChannels:e,parentHeight:i,numberOfChannels:n,defaultHeight:s=128}){if(null==t)return s;const r=Number(t);if(!isNaN(r))return r;if("auto"===t){const t=i||s;return(null==e?void 0:e.every((t=>!t.overlay)))?t/n:t}return s}({optionsHeight:t,optionsSplitChannels:e,parentHeight:this.parent.clientHeight,numberOfChannels:n,defaultHeight:128})}convertColorValues(t){return function(t,e){if(!Array.isArray(t))return t||"";if(0===t.length)return"#999";if(t.length<2)return t[0]||"";const i=document.createElement("canvas"),n=i.getContext("2d"),s=i.height*e,r=n.createLinearGradient(0,0,0,s||e),o=1/(t.length-1);return t.forEach(((t,e)=>{r.addColorStop(e*o,t)})),r}(t,this.getPixelRatio())}getPixelRatio(){return t=window.devicePixelRatio,Math.max(1,t||1);var t}renderBarWaveform(t,e,i,n){const{width:s,height:r}=i.canvas,{halfHeight:o,barWidth:a,barRadius:h,barIndexScale:d,barSpacing:u}=function({width:t,height:e,length:i,options:n,pixelRatio:s}){const r=e/2,o=n.barWidth?n.barWidth*s:1,a=n.barGap?n.barGap*s:n.barWidth?o/2:0,h=o+a||1;return{halfHeight:r,barWidth:o,barGap:a,barRadius:n.barRadius||0,barIndexScale:i>0?t/h/i:0,barSpacing:h}}({width:s,height:r,length:(t[0]||[]).length,options:e,pixelRatio:this.getPixelRatio()}),p=function({channelData:t,barIndexScale:e,barSpacing:i,barWidth:n,halfHeight:s,vScale:r,canvasHeight:o,barAlign:a}){const h=t[0]||[],d=t[1]||h,u=h.length,p=[];let m=0,f=0,g=0;for(let t=0;t<=u;t++){const u=Math.round(t*e);if(u>m){const{topHeight:t,totalHeight:e}=l({maxTop:f,maxBottom:g,halfHeight:s,vScale:r}),h=c({barAlign:a,halfHeight:s,topHeight:t,totalHeight:e,canvasHeight:o});p.push({x:m*i,y:h,width:n,height:e}),m=u,f=0,g=0}const v=Math.abs(h[t]||0),b=Math.abs(d[t]||0);v>f&&(f=v),b>g&&(g=b)}return p}({channelData:t,barIndexScale:d,barSpacing:u,barWidth:a,halfHeight:o,vScale:n,canvasHeight:r,barAlign:e.barAlign});i.beginPath();for(const t of p)h&&"roundRect"in i?i.roundRect(t.x,t.y,t.width,t.height,h):i.rect(t.x,t.y,t.width,t.height);i.fill(),i.closePath()}renderLineWaveform(t,e,i,n){const{width:s,height:r}=i.canvas,o=function({channelData:t,width:e,height:i,vScale:n}){const s=i/2,r=t[0]||[];return[r,t[1]||r].map(((t,i)=>{const r=t.length,o=r?e/r:0,a=s,h=0===i?-1:1,l=[{x:0,y:a}];let c=0,d=0;for(let e=0;e<=r;e++){const i=Math.round(e*o);if(i>c){const t=a+(Math.round(d*s*n)||1)*h;l.push({x:c,y:t}),c=i,d=0}const r=Math.abs(t[e]||0);r>d&&(d=r)}return l.push({x:c,y:a}),l}))}({channelData:t,width:s,height:r,vScale:n});i.beginPath();for(const t of o)if(t.length){i.moveTo(t[0].x,t[0].y);for(let e=1;e<t.length;e++){const n=t[e];i.lineTo(n.x,n.y)}}i.fill(),i.closePath()}renderWaveform(t,e,i){if(i.fillStyle=this.convertColorValues(e.waveColor),e.renderFunction)return void e.renderFunction(t,i);const n=function({channelData:t,barHeight:e,normalize:i}){var n;const s=e||1;if(!i)return s;const r=t[0];if(!r||0===r.length)return s;let o=0;for(let t=0;t<r.length;t++){const e=null!==(n=r[t])&&void 0!==n?n:0,i=Math.abs(e);i>o&&(o=i)}return o?s/o:s}({channelData:t,barHeight:e.barHeight,normalize:e.normalize});u(e)?this.renderBarWaveform(t,e,i,n):this.renderLineWaveform(t,e,i,n)}renderSingleCanvas(t,e,i,n,s,r,o){const a=this.getPixelRatio(),h=document.createElement("canvas");h.width=Math.round(i*a),h.height=Math.round(n*a),h.style.width=`${i}px`,h.style.height=`${n}px`,h.style.left=`${Math.round(s)}px`,r.appendChild(h);const l=h.getContext("2d");if(e.renderFunction?(l.fillStyle=this.convertColorValues(e.waveColor),e.renderFunction(t,l)):this.renderWaveform(t,e,l),h.width>0&&h.height>0){const t=h.cloneNode(),i=t.getContext("2d");i.drawImage(h,0,0),i.globalCompositeOperation="source-in",i.fillStyle=this.convertColorValues(e.progressColor),i.fillRect(0,0,h.width,h.height),o.appendChild(t)}}renderMultiCanvas(t,e,i,n,s,r){const o=this.getPixelRatio(),{clientWidth:a}=this.scrollContainer,h=i/o,l=function({clientWidth:t,totalWidth:e,options:i}){return p(Math.min(8e3,t,e),i)}({clientWidth:a,totalWidth:h,options:e});let c={};if(0===l)return;const d=i=>{if(i<0||i>=u)return;if(c[i])return;c[i]=!0;const o=i*l;let a=Math.min(h-o,l);if(a=p(a,e),a<=0)return;const d=function({channelData:t,offset:e,clampedWidth:i,totalWidth:n}){return t.map((t=>{const s=Math.floor(e/n*t.length),r=Math.floor((e+i)/n*t.length);return t.slice(s,r)}))}({channelData:t,offset:o,clampedWidth:a,totalWidth:h});this.renderSingleCanvas(d,e,a,n,o,s,r)},u=Math.ceil(h/l);if(!this.isScrollable){for(let t=0;t<u;t++)d(t);return}if(m({scrollLeft:this.scrollContainer.scrollLeft,totalWidth:h,numCanvases:u}).forEach((t=>d(t))),u>1){const t=this.on("scroll",(()=>{const{scrollLeft:t}=this.scrollContainer;Object.keys(c).length>10&&(s.innerHTML="",r.innerHTML="",c={}),m({scrollLeft:t,totalWidth:h,numCanvases:u}).forEach((t=>d(t)))}));this.unsubscribeOnScroll.push(t)}}renderChannel(t,e,i,n){var{overlay:s}=e,r=function(t,e){var i={};for(var n in t)Object.prototype.hasOwnProperty.call(t,n)&&e.indexOf(n)<0&&(i[n]=t[n]);if(null!=t&&"function"==typeof Object.getOwnPropertySymbols){var s=0;for(n=Object.getOwnPropertySymbols(t);s<n.length;s++)e.indexOf(n[s])<0&&Object.prototype.propertyIsEnumerable.call(t,n[s])&&(i[n[s]]=t[n[s]])}return i}(e,["overlay"]);const o=document.createElement("div"),a=this.getHeight(r.height,r.splitChannels);o.style.height=`${a}px`,s&&n>0&&(o.style.marginTop=`-${a}px`),this.canvasWrapper.style.minHeight=`${a}px`,this.canvasWrapper.appendChild(o);const h=o.cloneNode();this.progressWrapper.appendChild(h),this.renderMultiCanvas(t,r,i,a,o,h)}render(e){return t(this,void 0,void 0,(function*(){var t;this.timeouts.forEach((t=>t())),this.timeouts=[],this.canvasWrapper.innerHTML="",this.progressWrapper.innerHTML="",null!=this.options.width&&(this.scrollContainer.style.width="number"==typeof this.options.width?`${this.options.width}px`:this.options.width);const i=this.getPixelRatio(),n=this.scrollContainer.clientWidth,{scrollWidth:s,isScrollable:r,useParentWidth:o,width:a}=function({duration:t,minPxPerSec:e=0,parentWidth:i,fillParent:n,pixelRatio:s}){const r=Math.ceil(t*e),o=r>i,a=Boolean(n&&!o);return{scrollWidth:r,isScrollable:o,useParentWidth:a,width:(a?i:r)*s}}({duration:e.duration,minPxPerSec:this.options.minPxPerSec||0,parentWidth:n,fillParent:this.options.fillParent,pixelRatio:i});if(this.isScrollable=r,this.wrapper.style.width=o?"100%":`${s}px`,this.scrollContainer.style.overflowX=this.isScrollable?"auto":"hidden",this.scrollContainer.classList.toggle("noScrollbar",!!this.options.hideScrollbar),this.cursor.style.backgroundColor=`${this.options.cursorColor||this.options.progressColor}`,this.cursor.style.width=`${this.options.cursorWidth}px`,this.audioData=e,this.emit("render"),this.options.splitChannels)for(let i=0;i<e.numberOfChannels;i++){const n=Object.assign(Object.assign({},this.options),null===(t=this.options.splitChannels)||void 0===t?void 0:t[i]);this.renderChannel([e.getChannelData(i)],n,a,i)}else{const t=[e.getChannelData(0)];e.numberOfChannels>1&&t.push(e.getChannelData(1)),this.renderChannel(t,this.options,a,0)}Promise.resolve().then((()=>this.emit("rendered")))}))}reRender(){if(this.unsubscribeOnScroll.forEach((t=>t())),this.unsubscribeOnScroll=[],!this.audioData)return;const{scrollWidth:t}=this.scrollContainer,{right:e}=this.progressWrapper.getBoundingClientRect();if(this.render(this.audioData),this.isScrollable&&t!==this.scrollContainer.scrollWidth){const{right:t}=this.progressWrapper.getBoundingClientRect(),i=function(t){const e=2*t;return(e<0?Math.floor(e):Math.ceil(e))/2}(t-e);this.scrollContainer.scrollLeft+=i}}zoom(t){this.options.minPxPerSec=t,this.reRender()}scrollIntoView(t,e=!1){const{scrollLeft:i,scrollWidth:n,clientWidth:s}=this.scrollContainer,r=t*n,o=i,a=i+s,h=s/2;if(this.isDragging){const t=30;r+t>a?this.scrollContainer.scrollLeft+=t:r-t<o&&(this.scrollContainer.scrollLeft-=t)}else{(r<o||r>a)&&(this.scrollContainer.scrollLeft=r-(this.options.autoCenter?h:0));const t=r-i-h;e&&this.options.autoCenter&&t>0&&(this.scrollContainer.scrollLeft+=t)}{const t=this.scrollContainer.scrollLeft,{startX:e,endX:i}=f({scrollLeft:t,scrollWidth:n,clientWidth:s});this.emit("scroll",e,i,t,t+s)}}renderProgress(t,e){if(isNaN(t))return;const i=100*t;this.canvasWrapper.style.clipPath=`polygon(${i}% 0%, 100% 0%, 100% 100%, ${i}% 100%)`,this.progressWrapper.style.width=`${i}%`,this.cursor.style.left=`${i}%`,this.cursor.style.transform=this.options.cursorWidth?`translateX(-${t*this.options.cursorWidth}px)`:"",this.isScrollable&&this.options.autoScroll&&this.scrollIntoView(t,e)}exportImage(e,i,n){return t(this,void 0,void 0,(function*(){const t=this.canvasWrapper.querySelectorAll("canvas");if(!t.length)throw new Error("No waveform data");if("dataURL"===n){const n=Array.from(t).map((t=>t.toDataURL(e,i)));return Promise.resolve(n)}return Promise.all(Array.from(t).map((t=>new Promise(((n,s)=>{t.toBlob((t=>{t?n(t):s(new Error("Could not export image"))}),e,i)})))))}))}}class v extends e{constructor(){super(...arguments),this.animationFrameId=null,this.isRunning=!1}start(){if(this.isRunning)return;this.isRunning=!0;const t=()=>{this.isRunning&&(this.emit("tick"),this.animationFrameId=requestAnimationFrame(t))};t()}stop(){this.isRunning=!1,null!==this.animationFrameId&&(cancelAnimationFrame(this.animationFrameId),this.animationFrameId=null)}destroy(){this.stop()}}class b extends e{constructor(t=new AudioContext){super(),this.bufferNode=null,this.playStartTime=0,this.playedDuration=0,this._muted=!1,this._playbackRate=1,this._duration=void 0,this.buffer=null,this.currentSrc="",this.paused=!0,this.crossOrigin=null,this.seeking=!1,this.autoplay=!1,this.addEventListener=this.on,this.removeEventListener=this.un,this.audioContext=t,this.gainNode=this.audioContext.createGain(),this.gainNode.connect(this.audioContext.destination)}load(){return t(this,void 0,void 0,(function*(){}))}get src(){return this.currentSrc}set src(t){if(this.currentSrc=t,this._duration=void 0,!t)return this.buffer=null,void this.emit("emptied");fetch(t).then((e=>{if(e.status>=400)throw new Error(`Failed to fetch ${t}: ${e.status} (${e.statusText})`);return e.arrayBuffer()})).then((e=>this.currentSrc!==t?null:this.audioContext.decodeAudioData(e))).then((e=>{this.currentSrc===t&&(this.buffer=e,this.emit("loadedmetadata"),this.emit("canplay"),this.autoplay&&this.play())})).catch((t=>{console.error("WebAudioPlayer load error:",t)}))}_play(){if(!this.paused)return;this.paused=!1,this.bufferNode&&(this.bufferNode.onended=null,this.bufferNode.disconnect()),this.bufferNode=this.audioContext.createBufferSource(),this.buffer&&(this.bufferNode.buffer=this.buffer),this.bufferNode.playbackRate.value=this._playbackRate,this.bufferNode.connect(this.gainNode);let t=this.playedDuration*this._playbackRate;(t>=this.duration||t<0)&&(t=0,this.playedDuration=0),this.bufferNode.start(this.audioContext.currentTime,t),this.playStartTime=this.audioContext.currentTime,this.bufferNode.onended=()=>{this.currentTime>=this.duration&&(this.pause(),this.emit("ended"))}}_pause(){var t;this.paused=!0,null===(t=this.bufferNode)||void 0===t||t.stop(),this.playedDuration+=this.audioContext.currentTime-this.playStartTime}play(){return t(this,void 0,void 0,(function*(){this.paused&&(this._play(),this.emit("play"))}))}pause(){this.paused||(this._pause(),this.emit("pause"))}stopAt(t){const e=t-this.currentTime,i=this.bufferNode;null==i||i.stop(this.audioContext.currentTime+e),null==i||i.addEventListener("ended",(()=>{i===this.bufferNode&&(this.bufferNode=null,this.pause())}),{once:!0})}setSinkId(e){return t(this,void 0,void 0,(function*(){return this.audioContext.setSinkId(e)}))}get playbackRate(){return this._playbackRate}set playbackRate(t){this._playbackRate=t,this.bufferNode&&(this.bufferNode.playbackRate.value=t)}get currentTime(){return(this.paused?this.playedDuration:this.playedDuration+(this.audioContext.currentTime-this.playStartTime))*this._playbackRate}set currentTime(t){const e=!this.paused;e&&this._pause(),this.playedDuration=t/this._playbackRate,e&&this._play(),this.emit("seeking"),this.emit("timeupdate")}get duration(){var t,e;return null!==(t=this._duration)&&void 0!==t?t:(null===(e=this.buffer)||void 0===e?void 0:e.duration)||0}set duration(t){this._duration=t}get volume(){return this.gainNode.gain.value}set volume(t){this.gainNode.gain.value=t,this.emit("volumechange")}get muted(){return this._muted}set muted(t){this._muted!==t&&(this._muted=t,this._muted?this.gainNode.disconnect():this.gainNode.connect(this.audioContext.destination))}canPlayType(t){return/^(audio|video)\//.test(t)}getGainNode(){return this.gainNode}getChannelData(){const t=[];if(!this.buffer)return t;const e=this.buffer.numberOfChannels;for(let i=0;i<e;i++)t.push(this.buffer.getChannelData(i));return t}removeAttribute(t){switch(t){case"src":this.src="";break;case"playbackRate":this.playbackRate=0;break;case"currentTime":this.currentTime=0;break;case"duration":this.duration=0;break;case"volume":this.volume=0;break;case"muted":this.muted=!1}}}const y={waveColor:"#999",progressColor:"#555",cursorWidth:1,minPxPerSec:0,fillParent:!0,interact:!0,dragToSeek:!1,autoScroll:!0,autoCenter:!0,sampleRate:8e3};class C extends a{static create(t){return new C(t)}constructor(t){const e=t.media||("WebAudio"===t.backend?new b:void 0);super({media:e,mediaControls:t.mediaControls,autoplay:t.autoplay,playbackRate:t.audioRate}),this.plugins=[],this.decodedData=null,this.stopAtPosition=null,this.subscriptions=[],this.mediaSubscriptions=[],this.abortController=null,this.options=Object.assign({},y,t),this.timer=new v;const i=e?void 0:this.getMediaElement();this.renderer=new g(this.options,i),this.initPlayerEvents(),this.initRendererEvents(),this.initTimerEvents(),this.initPlugins();const n=this.options.url||this.getSrc()||"";Promise.resolve().then((()=>{this.emit("init");const{peaks:t,duration:e}=this.options;(n||t&&e)&&this.load(n,t,e).catch((t=>{this.emit("error",t instanceof Error?t:new Error(String(t)))}))}))}updateProgress(t=this.getCurrentTime()){return this.renderer.renderProgress(t/this.getDuration(),this.isPlaying()),t}initTimerEvents(){this.subscriptions.push(this.timer.on("tick",(()=>{if(!this.isSeeking()){const t=this.updateProgress();this.emit("timeupdate",t),this.emit("audioprocess",t),null!=this.stopAtPosition&&this.isPlaying()&&t>=this.stopAtPosition&&this.pause()}})))}initPlayerEvents(){this.isPlaying()&&(this.emit("play"),this.timer.start()),this.mediaSubscriptions.push(this.onMediaEvent("timeupdate",(()=>{const t=this.updateProgress();this.emit("timeupdate",t)})),this.onMediaEvent("play",(()=>{this.emit("play"),this.timer.start()})),this.onMediaEvent("pause",(()=>{this.emit("pause"),this.timer.stop(),this.stopAtPosition=null})),this.onMediaEvent("emptied",(()=>{this.timer.stop(),this.stopAtPosition=null})),this.onMediaEvent("ended",(()=>{this.emit("timeupdate",this.getDuration()),this.emit("finish"),this.stopAtPosition=null})),this.onMediaEvent("seeking",(()=>{this.emit("seeking",this.getCurrentTime())})),this.onMediaEvent("error",(()=>{var t;this.emit("error",null!==(t=this.getMediaElement().error)&&void 0!==t?t:new Error("Media error")),this.stopAtPosition=null})))}initRendererEvents(){this.subscriptions.push(this.renderer.on("click",((t,e)=>{this.options.interact&&(this.seekTo(t),this.emit("interaction",t*this.getDuration()),this.emit("click",t,e))})),this.renderer.on("dblclick",((t,e)=>{this.emit("dblclick",t,e)})),this.renderer.on("scroll",((t,e,i,n)=>{const s=this.getDuration();this.emit("scroll",t*s,e*s,i,n)})),this.renderer.on("render",(()=>{this.emit("redraw")})),this.renderer.on("rendered",(()=>{this.emit("redrawcomplete")})),this.renderer.on("dragstart",(t=>{this.emit("dragstart",t)})),this.renderer.on("dragend",(t=>{this.emit("dragend",t)})),this.renderer.on("resize",(()=>{this.emit("resize")})));{let t;const e=this.renderer.on("drag",(e=>{var i;if(!this.options.interact)return;this.renderer.renderProgress(e),clearTimeout(t);let n=0;const s=this.options.dragToSeek;this.isPlaying()?n=0:!0===s?n=200:s&&"object"==typeof s&&(n=null!==(i=s.debounceTime)&&void 0!==i?i:200),t=setTimeout((()=>{this.seekTo(e)}),n),this.emit("interaction",e*this.getDuration()),this.emit("drag",e)}));this.subscriptions.push((()=>{clearTimeout(t),e()}))}}initPlugins(){var t;(null===(t=this.options.plugins)||void 0===t?void 0:t.length)&&this.options.plugins.forEach((t=>{this.registerPlugin(t)}))}unsubscribePlayerEvents(){this.mediaSubscriptions.forEach((t=>t())),this.mediaSubscriptions=[]}setOptions(t){this.options=Object.assign({},this.options,t),t.duration&&!t.peaks&&(this.decodedData=i.createBuffer(this.exportPeaks(),t.duration)),t.peaks&&t.duration&&(this.decodedData=i.createBuffer(t.peaks,t.duration)),this.renderer.setOptions(this.options),t.audioRate&&this.setPlaybackRate(t.audioRate),null!=t.mediaControls&&(this.getMediaElement().controls=t.mediaControls)}registerPlugin(t){if(this.plugins.includes(t))return t;t._init(this),this.plugins.push(t);const e=t.once("destroy",(()=>{this.plugins=this.plugins.filter((e=>e!==t)),this.subscriptions=this.subscriptions.filter((t=>t!==e))}));return this.subscriptions.push(e),t}unregisterPlugin(t){this.plugins=this.plugins.filter((e=>e!==t)),t.destroy()}getWrapper(){return this.renderer.getWrapper()}getWidth(){return this.renderer.getWidth()}getScroll(){return this.renderer.getScroll()}setScroll(t){return this.renderer.setScroll(t)}setScrollTime(t){const e=t/this.getDuration();this.renderer.setScrollPercentage(e)}getActivePlugins(){return this.plugins}loadAudio(e,n,s,r){return t(this,void 0,void 0,(function*(){var t;if(this.emit("load",e),!this.options.media&&this.isPlaying()&&this.pause(),this.decodedData=null,this.stopAtPosition=null,null===(t=this.abortController)||void 0===t||t.abort(),this.abortController=null,!n&&!s){const t=this.options.fetchParams||{};window.AbortController&&!t.signal&&(this.abortController=new AbortController,t.signal=this.abortController.signal);const i=t=>this.emit("loading",t);n=yield o.fetchBlob(e,i,t);const s=this.options.blobMimeType;s&&(n=new Blob([n],{type:s}))}this.setSrc(e,n);const a=yield new Promise((t=>{const e=r||this.getDuration();e?t(e):this.mediaSubscriptions.push(this.onMediaEvent("loadedmetadata",(()=>t(this.getDuration())),{once:!0}))}));if(!e&&!n){const t=this.getMediaElement();t instanceof b&&(t.duration=a)}if(s)this.decodedData=i.createBuffer(s,a||0);else if(n){const t=yield n.arrayBuffer();this.decodedData=yield i.decode(t,this.options.sampleRate)}this.decodedData&&(this.emit("decode",this.getDuration()),this.renderer.render(this.decodedData)),this.emit("ready",this.getDuration())}))}load(e,i,n){return t(this,void 0,void 0,(function*(){try{return yield this.loadAudio(e,void 0,i,n)}catch(t){throw this.emit("error",t),t}}))}loadBlob(e,i,n){return t(this,void 0,void 0,(function*(){try{return yield this.loadAudio("",e,i,n)}catch(t){throw this.emit("error",t),t}}))}zoom(t){if(!this.decodedData)throw new Error("No audio loaded");this.renderer.zoom(t),this.emit("zoom",t)}getDecodedData(){return this.decodedData}exportPeaks({channels:t=2,maxLength:e=8e3,precision:i=1e4}={}){if(!this.decodedData)throw new Error("The audio has not been decoded yet");const n=Math.min(t,this.decodedData.numberOfChannels),s=[];for(let t=0;t<n;t++){const n=this.decodedData.getChannelData(t),r=[],o=n.length/e;for(let t=0;t<e;t++){const e=n.slice(Math.floor(t*o),Math.ceil((t+1)*o));let s=0;for(let t=0;t<e.length;t++){const i=e[t];Math.abs(i)>Math.abs(s)&&(s=i)}r.push(Math.round(s*i)/i)}s.push(r)}return s}getDuration(){let t=super.getDuration()||0;return 0!==t&&t!==1/0||!this.decodedData||(t=this.decodedData.duration),t}toggleInteraction(t){this.options.interact=t}setTime(t){this.stopAtPosition=null,super.setTime(t),this.updateProgress(t),this.emit("timeupdate",t)}seekTo(t){const e=this.getDuration()*t;this.setTime(e)}play(e,i){const n=Object.create(null,{play:{get:()=>super.play}});return t(this,void 0,void 0,(function*(){null!=e&&this.setTime(e);const t=yield n.play.call(this);return null!=i&&(this.media instanceof b?this.media.stopAt(i):this.stopAtPosition=i),t}))}playPause(){return t(this,void 0,void 0,(function*(){return this.isPlaying()?this.pause():this.play()}))}stop(){this.pause(),this.setTime(0)}skip(t){this.setTime(this.getCurrentTime()+t)}empty(){this.load("",[[0]],.001)}setMediaElement(t){this.unsubscribePlayerEvents(),super.setMediaElement(t),this.initPlayerEvents()}exportImage(){return t(this,arguments,void 0,(function*(t="image/png",e=1,i="dataURL"){return this.renderer.exportImage(t,e,i)}))}destroy(){var t;this.emit("destroy"),null===(t=this.abortController)||void 0===t||t.abort(),this.plugins.forEach((t=>t.destroy())),this.subscriptions.forEach((t=>t())),this.unsubscribePlayerEvents(),this.timer.destroy(),this.renderer.destroy(),super.destroy()}}return C.BasePlugin=class extends e{constructor(t){super(),this.subscriptions=[],this.isDestroyed=!1,this.options=t}onInit(){}_init(t){this.isDestroyed&&(this.subscriptions=[],this.isDestroyed=!1),this.wavesurfer=t,this.onInit()}destroy(){this.emit("destroy"),this.subscriptions.forEach((t=>t())),this.subscriptions=[],this.isDestroyed=!0,this.wavesurfer=void 0}},C.dom=r,C}));
+
+    </script>
+
+    <!-- Pitchfinder.js - Inline AMDF implementation (MIT License, 오프라인 지원) -->
+    <script>
+      // Minimal Pitchfinder.js implementation for AMDF pitch detection
+      // Based on: https://github.com/peterkhayes/pitchfinder (MIT License)
+      var Pitchfinder = (function() {
+        'use strict';
+
+        // AMDF (Average Magnitude Difference Function) pitch detector
+        function AMDF(config) {
+          config = config || {};
+          var sampleRate = config.sampleRate || 44100;
+          var minFrequency = config.minFrequency || 60;   // 60Hz (더 넓은 범위)
+          var maxFrequency = config.maxFrequency || 800;  // 800Hz (더 넓은 범위)
+          var sensitivity = config.sensitivity || 0.005;  // 0.005 (더욱 민감하게)
+
+          var minPeriod = Math.floor(sampleRate / maxFrequency);
+          var maxPeriod = Math.floor(sampleRate / minFrequency);
+
+          return function detectPitch(float32AudioBuffer) {
+            var bufferLength = float32AudioBuffer.length;
+
+            // Calculate RMS (silence detection)
+            var rms = 0;
+            for (var i = 0; i < bufferLength; i++) {
+              rms += float32AudioBuffer[i] * float32AudioBuffer[i];
+            }
+            rms = Math.sqrt(rms / bufferLength);
+
+            if (rms < sensitivity) return null; // Silence
+
+            // Calculate AMDF for each period
+            var minAMDF = Infinity;
+            var bestPeriod = -1;
+
+            for (var period = minPeriod; period < maxPeriod && period < bufferLength; period++) {
+              var sum = 0;
+              var count = bufferLength - period;
+
+              for (var i = 0; i < count; i++) {
+                sum += Math.abs(float32AudioBuffer[i] - float32AudioBuffer[i + period]);
+              }
+
+              var amdf = sum / count;
+
+              if (amdf < minAMDF) {
+                minAMDF = amdf;
+                bestPeriod = period;
+              }
+            }
+
+            if (bestPeriod === -1) return null;
+
+            var frequency = sampleRate / bestPeriod;
+
+            // Validate frequency range
+            if (frequency < minFrequency || frequency > maxFrequency) {
+              return null;
+            }
+
+            return frequency;
+          };
+        }
+
+        // Helper function: detect pitch for windowed audio data
+        function frequencies(detectPitchFunc, audioData, options) {
+          options = options || {};
+          var tempo = options.tempo || 120;
+          var quantization = options.quantization || tempo;
+
+          // 더 작은 윈도우로 더 많은 디테일 감지
+          var windowSize = 1024; // 2048 → 1024 (더 작은 윈도우)
+          var hopSize = 64;      // 128 → 64 (더욱 촘촘한 포인트)
+
+          var results = [];
+
+          for (var i = 0; i + windowSize < audioData.length; i += hopSize) {
+            var frame = audioData.slice(i, i + windowSize);
+            var pitch = detectPitchFunc(frame);
+            results.push(pitch);
+          }
+
+          return results;
+        }
+
+        // Public API
+        return {
+          AMDF: AMDF,
+          frequencies: frequencies
+        };
+      })();
+    </script>
+
+    <!-- WaveSurfer.js FFT & Full Spectrogram Plugin (인라인) -->
+    <script>
+// WaveSurfer.js Full Spectrogram Plugin
+// Converted from TypeScript to standalone JavaScript for WebView use
+
+(function() {
+  'use strict';
+
+  // ============ Helper Functions ============
+
+  // Simple createElement replacement (no dependency on WaveSurfer.dom)
+  function createElement(tag, attributes, parent) {
+    const element = attributes && attributes.xmlns
+      ? document.createElementNS(attributes.xmlns, tag)
+      : document.createElement(tag);
+
+    if (attributes) {
+      Object.keys(attributes).forEach(key => {
+        if (key === 'style' && typeof attributes[key] === 'object') {
+          Object.assign(element.style, attributes[key]);
+        } else if (key === 'part') {
+          element.setAttribute('part', attributes[key]);
+        } else if (key !== 'xmlns') {
+          element.setAttribute(key, attributes[key]);
+        }
+      });
+    }
+
+    if (parent) {
+      parent.appendChild(element);
+    }
+
+    return element;
+  }
+
+  // ============ FFT Implementation ============
+
+  // FFT class for spectral analysis
+  function FFT(fftSize, sampleRate, windowFunc, alpha) {
+    this.fftSize = fftSize;
+    this.sampleRate = sampleRate;
+    this.windowFunc = windowFunc || 'hann';
+    this.alpha = alpha;
+
+    // Precompute window function
+    this.window = this.createWindow(fftSize, windowFunc, alpha);
+  }
+
+  FFT.prototype.createWindow = function(size, type, alpha) {
+    var window = new Float32Array(size);
+
+    switch (type) {
+      case 'hann':
+        for (var i = 0; i < size; i++) {
+          window[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (size - 1)));
+        }
+        break;
+
+      case 'hamming':
+        for (var i = 0; i < size; i++) {
+          window[i] = 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / (size - 1));
+        }
+        break;
+
+      case 'blackman':
+        var a0 = 0.42659, a1 = 0.49656, a2 = 0.076849;
+        for (var i = 0; i < size; i++) {
+          window[i] = a0 - a1 * Math.cos((2 * Math.PI * i) / (size - 1)) +
+                      a2 * Math.cos((4 * Math.PI * i) / (size - 1));
+        }
+        break;
+
+      case 'bartlett':
+        for (var i = 0; i < size; i++) {
+          window[i] = 1 - Math.abs((i - (size - 1) / 2) / ((size - 1) / 2));
+        }
+        break;
+
+      case 'gauss':
+        var sigma = alpha || 0.4;
+        var center = (size - 1) / 2;
+        for (var i = 0; i < size; i++) {
+          var t = (i - center) / (sigma * center);
+          window[i] = Math.exp(-0.5 * t * t);
+        }
+        break;
+
+      default: // rectangular
+        for (var i = 0; i < size; i++) {
+          window[i] = 1.0;
+        }
+    }
+
+    return window;
+  };
+
+  // Cooley-Tukey FFT algorithm
+  FFT.prototype.fft = function(signal) {
+    var n = signal.length;
+
+    if (n <= 1) return signal;
+
+    // Bit reversal
+    var output = new Array(n);
+    for (var i = 0; i < n; i++) {
+      var j = this.reverseBits(i, Math.log2(n));
+      output[j] = signal[i];
+    }
+
+    // Cooley-Tukey decimation
+    for (var size = 2; size <= n; size *= 2) {
+      var halfSize = size / 2;
+      var step = Math.PI / halfSize;
+
+      for (var i = 0; i < n; i += size) {
+        for (var j = 0; j < halfSize; j++) {
+          var angle = step * j;
+          var wr = Math.cos(angle);
+          var wi = -Math.sin(angle);
+
+          var evenIdx = i + j;
+          var oddIdx = i + j + halfSize;
+
+          var evenReal = output[evenIdx].real;
+          var evenImag = output[evenIdx].imag;
+          var oddReal = output[oddIdx].real;
+          var oddImag = output[oddIdx].imag;
+
+          var tr = wr * oddReal - wi * oddImag;
+          var ti = wr * oddImag + wi * oddReal;
+
+          output[evenIdx] = {
+            real: evenReal + tr,
+            imag: evenImag + ti
+          };
+
+          output[oddIdx] = {
+            real: evenReal - tr,
+            imag: evenImag - ti
+          };
+        }
+      }
+    }
+
+    return output;
+  };
+
+  FFT.prototype.reverseBits = function(num, bits) {
+    var reversed = 0;
+    for (var i = 0; i < bits; i++) {
+      reversed = (reversed << 1) | (num & 1);
+      num >>= 1;
+    }
+    return reversed;
+  };
+
+  FFT.prototype.calculateSpectrum = function(signal) {
+    var n = this.fftSize;
+
+    // Apply window function
+    var windowed = new Array(n);
+    for (var i = 0; i < n; i++) {
+      windowed[i] = {
+        real: (signal[i] || 0) * this.window[i],
+        imag: 0
+      };
+    }
+
+    // Perform FFT
+    var fftResult = this.fft(windowed);
+
+    // Calculate magnitude spectrum (only first half due to symmetry)
+    var spectrum = new Float32Array(n / 2 + 1);
+    for (var i = 0; i <= n / 2; i++) {
+      var real = fftResult[i].real;
+      var imag = fftResult[i].imag;
+      spectrum[i] = Math.sqrt(real * real + imag * imag) / n;
+    }
+
+    return spectrum;
+  };
+
+  // Export FFT class globally
+  window.WaveSurferFFT = FFT;
+
+  // ============ Roseus Colormap ============
+  // Official Roseus colormap from https://github.com/dofuuz/roseus
+  // Perceptually uniform colormap with full range of lightness
+  // Designed for Audacity spectrogram visualization
+  var ROSEUS_COLORMAP = [
+[0.004528, 0.004341, 0.004307, 1.0],
+[0.005625, 0.006156, 0.006010, 1.0],
+[0.006628, 0.008293, 0.008161, 1.0],
+[0.007551, 0.010738, 0.010790, 1.0],
+[0.008382, 0.013482, 0.013941, 1.0],
+[0.009111, 0.016520, 0.017662, 1.0],
+[0.009727, 0.019846, 0.022009, 1.0],
+[0.010223, 0.023452, 0.027035, 1.0],
+[0.010593, 0.027331, 0.032799, 1.0],
+[0.010833, 0.031475, 0.039361, 1.0],
+[0.010941, 0.035875, 0.046415, 1.0],
+[0.010918, 0.040520, 0.053597, 1.0],
+[0.010768, 0.045158, 0.060914, 1.0],
+[0.010492, 0.049708, 0.068367, 1.0],
+[0.010098, 0.054171, 0.075954, 1.0],
+[0.009594, 0.058549, 0.083672, 1.0],
+[0.008989, 0.062840, 0.091521, 1.0],
+[0.008297, 0.067046, 0.099499, 1.0],
+[0.007530, 0.071165, 0.107603, 1.0],
+[0.006704, 0.075196, 0.115830, 1.0],
+[0.005838, 0.079140, 0.124178, 1.0],
+[0.004949, 0.082994, 0.132643, 1.0],
+[0.004062, 0.086758, 0.141223, 1.0],
+[0.003198, 0.090430, 0.149913, 1.0],
+[0.002382, 0.094010, 0.158711, 1.0],
+[0.001643, 0.097494, 0.167612, 1.0],
+[0.001009, 0.100883, 0.176612, 1.0],
+[0.000514, 0.104174, 0.185704, 1.0],
+[0.000187, 0.107366, 0.194886, 1.0],
+[0.000066, 0.110457, 0.204151, 1.0],
+[0.000186, 0.113445, 0.213496, 1.0],
+[0.000587, 0.116329, 0.222914, 1.0],
+[0.001309, 0.119106, 0.232397, 1.0],
+[0.002394, 0.121776, 0.241942, 1.0],
+[0.003886, 0.124336, 0.251542, 1.0],
+[0.005831, 0.126784, 0.261189, 1.0],
+[0.008276, 0.129120, 0.270876, 1.0],
+[0.011268, 0.131342, 0.280598, 1.0],
+[0.014859, 0.133447, 0.290345, 1.0],
+[0.019100, 0.135435, 0.300111, 1.0],
+[0.024043, 0.137305, 0.309888, 1.0],
+[0.029742, 0.139054, 0.319669, 1.0],
+[0.036252, 0.140683, 0.329441, 1.0],
+[0.043507, 0.142189, 0.339203, 1.0],
+[0.050922, 0.143571, 0.348942, 1.0],
+[0.058432, 0.144831, 0.358649, 1.0],
+[0.066041, 0.145965, 0.368319, 1.0],
+[0.073744, 0.146974, 0.377938, 1.0],
+[0.081541, 0.147858, 0.387501, 1.0],
+[0.089431, 0.148616, 0.396998, 1.0],
+[0.097411, 0.149248, 0.406419, 1.0],
+[0.105479, 0.149754, 0.415755, 1.0],
+[0.113634, 0.150134, 0.424998, 1.0],
+[0.121873, 0.150389, 0.434139, 1.0],
+[0.130192, 0.150521, 0.443167, 1.0],
+[0.138591, 0.150528, 0.452075, 1.0],
+[0.147065, 0.150413, 0.460852, 1.0],
+[0.155614, 0.150175, 0.469493, 1.0],
+[0.164232, 0.149818, 0.477985, 1.0],
+[0.172917, 0.149343, 0.486322, 1.0],
+[0.181666, 0.148751, 0.494494, 1.0],
+[0.190476, 0.148046, 0.502493, 1.0],
+[0.199344, 0.147229, 0.510313, 1.0],
+[0.208267, 0.146302, 0.517944, 1.0],
+[0.217242, 0.145267, 0.525380, 1.0],
+[0.226264, 0.144131, 0.532613, 1.0],
+[0.235331, 0.142894, 0.539635, 1.0],
+[0.244440, 0.141559, 0.546442, 1.0],
+[0.253587, 0.140131, 0.553026, 1.0],
+[0.262769, 0.138615, 0.559381, 1.0],
+[0.271981, 0.137016, 0.565500, 1.0],
+[0.281222, 0.135335, 0.571381, 1.0],
+[0.290487, 0.133581, 0.577017, 1.0],
+[0.299774, 0.131757, 0.582404, 1.0],
+[0.309080, 0.129867, 0.587538, 1.0],
+[0.318399, 0.127920, 0.592415, 1.0],
+[0.327730, 0.125921, 0.597032, 1.0],
+[0.337069, 0.123877, 0.601385, 1.0],
+[0.346413, 0.121793, 0.605474, 1.0],
+[0.355758, 0.119678, 0.609295, 1.0],
+[0.365102, 0.117540, 0.612846, 1.0],
+[0.374443, 0.115386, 0.616127, 1.0],
+[0.383774, 0.113226, 0.619138, 1.0],
+[0.393096, 0.111066, 0.621876, 1.0],
+[0.402404, 0.108918, 0.624343, 1.0],
+[0.411694, 0.106794, 0.626540, 1.0],
+[0.420967, 0.104698, 0.628466, 1.0],
+[0.430217, 0.102645, 0.630123, 1.0],
+[0.439442, 0.100647, 0.631513, 1.0],
+[0.448637, 0.098717, 0.632638, 1.0],
+[0.457805, 0.096861, 0.633499, 1.0],
+[0.466940, 0.095095, 0.634100, 1.0],
+[0.476040, 0.093433, 0.634443, 1.0],
+[0.485102, 0.091885, 0.634532, 1.0],
+[0.494125, 0.090466, 0.634370, 1.0],
+[0.503104, 0.089190, 0.633962, 1.0],
+[0.512041, 0.088067, 0.633311, 1.0],
+[0.520931, 0.087108, 0.632420, 1.0],
+[0.529773, 0.086329, 0.631297, 1.0],
+[0.538564, 0.085738, 0.629944, 1.0],
+[0.547302, 0.085346, 0.628367, 1.0],
+[0.555986, 0.085162, 0.626572, 1.0],
+[0.564615, 0.085190, 0.624563, 1.0],
+[0.573187, 0.085439, 0.622345, 1.0],
+[0.581698, 0.085913, 0.619926, 1.0],
+[0.590149, 0.086615, 0.617311, 1.0],
+[0.598538, 0.087543, 0.614503, 1.0],
+[0.606862, 0.088700, 0.611511, 1.0],
+[0.615120, 0.090084, 0.608343, 1.0],
+[0.623312, 0.091690, 0.605001, 1.0],
+[0.631438, 0.093511, 0.601489, 1.0],
+[0.639492, 0.095546, 0.597821, 1.0],
+[0.647476, 0.097787, 0.593999, 1.0],
+[0.655389, 0.100226, 0.590028, 1.0],
+[0.663230, 0.102856, 0.585914, 1.0],
+[0.670995, 0.105669, 0.581667, 1.0],
+[0.678686, 0.108658, 0.577291, 1.0],
+[0.686302, 0.111813, 0.572790, 1.0],
+[0.693840, 0.115129, 0.568175, 1.0],
+[0.701300, 0.118597, 0.563449, 1.0],
+[0.708682, 0.122209, 0.558616, 1.0],
+[0.715984, 0.125959, 0.553687, 1.0],
+[0.723206, 0.129840, 0.548666, 1.0],
+[0.730346, 0.133846, 0.543558, 1.0],
+[0.737406, 0.137970, 0.538366, 1.0],
+[0.744382, 0.142209, 0.533101, 1.0],
+[0.751274, 0.146556, 0.527767, 1.0],
+[0.758082, 0.151008, 0.522369, 1.0],
+[0.764805, 0.155559, 0.516912, 1.0],
+[0.771443, 0.160206, 0.511402, 1.0],
+[0.777995, 0.164946, 0.505845, 1.0],
+[0.784459, 0.169774, 0.500246, 1.0],
+[0.790836, 0.174689, 0.494607, 1.0],
+[0.797125, 0.179688, 0.488935, 1.0],
+[0.803325, 0.184767, 0.483238, 1.0],
+[0.809435, 0.189925, 0.477518, 1.0],
+[0.815455, 0.195160, 0.471781, 1.0],
+[0.821384, 0.200471, 0.466028, 1.0],
+[0.827222, 0.205854, 0.460267, 1.0],
+[0.832968, 0.211308, 0.454505, 1.0],
+[0.838621, 0.216834, 0.448738, 1.0],
+[0.844181, 0.222428, 0.442979, 1.0],
+[0.849647, 0.228090, 0.437230, 1.0],
+[0.855019, 0.233819, 0.431491, 1.0],
+[0.860295, 0.239613, 0.425771, 1.0],
+[0.865475, 0.245471, 0.420074, 1.0],
+[0.870558, 0.251393, 0.414403, 1.0],
+[0.875545, 0.257380, 0.408759, 1.0],
+[0.880433, 0.263427, 0.403152, 1.0],
+[0.885223, 0.269535, 0.397585, 1.0],
+[0.889913, 0.275705, 0.392058, 1.0],
+[0.894503, 0.281934, 0.386578, 1.0],
+[0.898993, 0.288222, 0.381152, 1.0],
+[0.903381, 0.294569, 0.375781, 1.0],
+[0.907667, 0.300974, 0.370469, 1.0],
+[0.911849, 0.307435, 0.365223, 1.0],
+[0.915928, 0.313953, 0.360048, 1.0],
+[0.919902, 0.320527, 0.354948, 1.0],
+[0.923771, 0.327155, 0.349928, 1.0],
+[0.927533, 0.333838, 0.344994, 1.0],
+[0.931188, 0.340576, 0.340149, 1.0],
+[0.934736, 0.347366, 0.335403, 1.0],
+[0.938175, 0.354207, 0.330762, 1.0],
+[0.941504, 0.361101, 0.326229, 1.0],
+[0.944723, 0.368045, 0.321814, 1.0],
+[0.947831, 0.375039, 0.317523, 1.0],
+[0.950826, 0.382083, 0.313364, 1.0],
+[0.953709, 0.389175, 0.309345, 1.0],
+[0.956478, 0.396314, 0.305477, 1.0],
+[0.959133, 0.403499, 0.301766, 1.0],
+[0.961671, 0.410731, 0.298221, 1.0],
+[0.964093, 0.418008, 0.294853, 1.0],
+[0.966399, 0.425327, 0.291676, 1.0],
+[0.968586, 0.432690, 0.288696, 1.0],
+[0.970654, 0.440095, 0.285926, 1.0],
+[0.972603, 0.447540, 0.283380, 1.0],
+[0.974431, 0.455025, 0.281067, 1.0],
+[0.976139, 0.462547, 0.279003, 1.0],
+[0.977725, 0.470107, 0.277198, 1.0],
+[0.979188, 0.477703, 0.275666, 1.0],
+[0.980529, 0.485332, 0.274422, 1.0],
+[0.981747, 0.492995, 0.273476, 1.0],
+[0.982840, 0.500690, 0.272842, 1.0],
+[0.983808, 0.508415, 0.272532, 1.0],
+[0.984653, 0.516168, 0.272560, 1.0],
+[0.985373, 0.523948, 0.272937, 1.0],
+[0.985966, 0.531754, 0.273673, 1.0],
+[0.986436, 0.539582, 0.274779, 1.0],
+[0.986780, 0.547434, 0.276264, 1.0],
+[0.986998, 0.555305, 0.278135, 1.0],
+[0.987091, 0.563195, 0.280401, 1.0],
+[0.987061, 0.571100, 0.283066, 1.0],
+[0.986907, 0.579019, 0.286137, 1.0],
+[0.986629, 0.586950, 0.289615, 1.0],
+[0.986229, 0.594891, 0.293503, 1.0],
+[0.985709, 0.602839, 0.297802, 1.0],
+[0.985069, 0.610792, 0.302512, 1.0],
+[0.984310, 0.618748, 0.307632, 1.0],
+[0.983435, 0.626704, 0.313159, 1.0],
+[0.982445, 0.634657, 0.319089, 1.0],
+[0.981341, 0.642606, 0.325420, 1.0],
+[0.980130, 0.650546, 0.332144, 1.0],
+[0.978812, 0.658475, 0.339257, 1.0],
+[0.977392, 0.666391, 0.346753, 1.0],
+[0.975870, 0.674290, 0.354625, 1.0],
+[0.974252, 0.682170, 0.362865, 1.0],
+[0.972545, 0.690026, 0.371466, 1.0],
+[0.970750, 0.697856, 0.380419, 1.0],
+[0.968873, 0.705658, 0.389718, 1.0],
+[0.966921, 0.713426, 0.399353, 1.0],
+[0.964901, 0.721157, 0.409313, 1.0],
+[0.962815, 0.728851, 0.419594, 1.0],
+[0.960677, 0.736500, 0.430181, 1.0],
+[0.958490, 0.744103, 0.441070, 1.0],
+[0.956263, 0.751656, 0.452248, 1.0],
+[0.954009, 0.759153, 0.463702, 1.0],
+[0.951732, 0.766595, 0.475429, 1.0],
+[0.949445, 0.773974, 0.487414, 1.0],
+[0.947158, 0.781289, 0.499647, 1.0],
+[0.944885, 0.788535, 0.512116, 1.0],
+[0.942634, 0.795709, 0.524811, 1.0],
+[0.940423, 0.802807, 0.537717, 1.0],
+[0.938261, 0.809825, 0.550825, 1.0],
+[0.936163, 0.816760, 0.564121, 1.0],
+[0.934146, 0.823608, 0.577591, 1.0],
+[0.932224, 0.830366, 0.591220, 1.0],
+[0.930412, 0.837031, 0.604997, 1.0],
+[0.928727, 0.843599, 0.618904, 1.0],
+[0.927187, 0.850066, 0.632926, 1.0],
+[0.925809, 0.856432, 0.647047, 1.0],
+[0.924610, 0.862691, 0.661249, 1.0],
+[0.923607, 0.868843, 0.675517, 1.0],
+[0.922820, 0.874884, 0.689832, 1.0],
+[0.922265, 0.880812, 0.704174, 1.0],
+[0.921962, 0.886626, 0.718523, 1.0],
+[0.921930, 0.892323, 0.732859, 1.0],
+[0.922183, 0.897903, 0.747163, 1.0],
+[0.922741, 0.903364, 0.761410, 1.0],
+[0.923620, 0.908706, 0.775580, 1.0],
+[0.924837, 0.913928, 0.789648, 1.0],
+[0.926405, 0.919031, 0.803590, 1.0],
+[0.928340, 0.924015, 0.817381, 1.0],
+[0.930655, 0.928881, 0.830995, 1.0],
+[0.933360, 0.933631, 0.844405, 1.0],
+[0.936466, 0.938267, 0.857583, 1.0],
+[0.939982, 0.942791, 0.870499, 1.0],
+[0.943914, 0.947207, 0.883122, 1.0],
+[0.948267, 0.951519, 0.895421, 1.0],
+[0.953044, 0.955732, 0.907359, 1.0],
+[0.958246, 0.959852, 0.918901, 1.0],
+[0.963869, 0.963887, 0.930004, 1.0],
+[0.969909, 0.967845, 0.940623, 1.0],
+[0.976355, 0.971737, 0.950704, 1.0],
+[0.983195, 0.975580, 0.960181, 1.0],
+[0.990402, 0.979395, 0.968966, 1.0],
+[0.997930, 0.983217, 0.976920, 1.0]
+];
+
+  console.log('[WaveSurfer HTML] 🎨 Loaded official ROSEUS_COLORMAP with ' + ROSEUS_COLORMAP.length + ' colors');
+
+
+  // Export colormap globally
+  window.WaveSurferSpectrogramColormap = ROSEUS_COLORMAP;
+
+  var ERB_A = (1000 * Math.log(10)) / (24.7 * 4.37);
+
+  // ============ Spectrogram Plugin Class ============
+
+  function SpectrogramPlugin(options) {
+    options = options || {};
+
+    // Configuration
+    this.container = typeof options.container === 'string'
+      ? document.querySelector(options.container)
+      : options.container;
+
+    this.fftSamples = options.fftSamples || 512;
+    this.height = options.height || 200;
+    this.noverlap = options.noverlap || null;
+    this.windowFunc = options.windowFunc || 'hann';
+    this.alpha = options.alpha;
+    this.frequencyMin = options.frequencyMin || 0;
+    this.frequencyMax = options.frequencyMax || 0;
+    this.gainDB = options.gainDB != null ? options.gainDB : 20;
+    this.rangeDB = options.rangeDB != null ? options.rangeDB : 80;
+    this.scale = options.scale || 'mel';
+    this.labels = options.labels || false;
+    this.labelsBackground = options.labelsBackground;
+    this.labelsColor = options.labelsColor;
+    this.labelsHzColor = options.labelsHzColor || options.labelsColor;
+
+    // Color map
+    if (options.colorMap && typeof options.colorMap !== 'string') {
+      this.colorMap = options.colorMap;
+    } else {
+      this.colorMap = this.getColorMap(options.colorMap || 'roseus');
+    }
+
+    // Filter banks
+    this.numMelFilters = this.fftSamples / 2;
+    this.numLogFilters = this.fftSamples / 2;
+    this.numBarkFilters = this.fftSamples / 2;
+    this.numErbFilters = this.fftSamples / 2;
+
+    // State
+    this.buffer = null;
+    this.frequencies = null;
+
+    // Create UI
+    this.createWrapper();
+    this.createCanvas();
+  }
+
+  SpectrogramPlugin.prototype.getColorMap = function(name) {
+    if (name === 'gray') {
+      var map = [];
+      for (var i = 0; i < 256; i++) {
+        var val = (255 - i) / 256;
+        map.push([val, val, val, 1]);
+      }
+      return map;
+    } else if (name === 'igray') {
+      var map = [];
+      for (var i = 0; i < 256; i++) {
+        var val = i / 256;
+        map.push([val, val, val, 1]);
+      }
+      return map;
+    } else {
+      // Return roseus colormap (already defined globally)
+      return window.WaveSurferSpectrogramColormap;
+    }
+  };
+
+  SpectrogramPlugin.prototype.createWrapper = function() {
+    this.wrapper = createElement('div', {
+      style: {
+        display: 'block',
+        position: 'relative',
+        userSelect: 'none',
+        width: '100%',
+        height: this.height + 'px'
+      }
+    });
+
+    if (this.labels) {
+      this.labelsEl = createElement('canvas', {
+        part: 'spec-labels',
+        style: {
+          position: 'absolute',
+          zIndex: '9',
+          width: '55px',
+          height: '100%'
+        }
+      }, this.wrapper);
+    }
+
+    if (this.container) {
+      this.container.appendChild(this.wrapper);
+    }
+  };
+
+  SpectrogramPlugin.prototype.createCanvas = function() {
+    this.canvas = createElement('canvas', {
+      style: {
+        position: 'absolute',
+        left: '0',
+        top: '0',
+        width: '100%',
+        height: '100%',
+        zIndex: '4'
+      }
+    }, this.wrapper);
+
+    this.spectrCc = this.canvas.getContext('2d');
+  };
+
+  SpectrogramPlugin.prototype.getWidth = function() {
+    // Try multiple methods to get width
+    var width = this.canvas.offsetWidth ||
+                this.wrapper.offsetWidth ||
+                this.container.offsetWidth ||
+                this.container.clientWidth;
+
+    // Ensure minimum width to avoid division by zero
+    return Math.max(width, 300);
+  };
+
+  // ============ Frequency Scale Conversions ============
+
+  SpectrogramPlugin.prototype.hzToMel = function(hz) {
+    return 2595 * Math.log10(1 + hz / 700);
+  };
+
+  SpectrogramPlugin.prototype.melToHz = function(mel) {
+    return 700 * (Math.pow(10, mel / 2595) - 1);
+  };
+
+  SpectrogramPlugin.prototype.hzToLog = function(hz) {
+    return Math.log10(Math.max(1, hz));
+  };
+
+  SpectrogramPlugin.prototype.logToHz = function(log) {
+    return Math.pow(10, log);
+  };
+
+  SpectrogramPlugin.prototype.hzToBark = function(hz) {
+    var bark = (26.81 * hz) / (1960 + hz) - 0.53;
+    if (bark < 2) bark += 0.15 * (2 - bark);
+    if (bark > 20.1) bark += 0.22 * (bark - 20.1);
+    return bark;
+  };
+
+  SpectrogramPlugin.prototype.barkToHz = function(bark) {
+    if (bark < 2) bark = (bark - 0.3) / 0.85;
+    if (bark > 20.1) bark = (bark + 4.422) / 1.22;
+    return 1960 * ((bark + 0.53) / (26.28 - bark));
+  };
+
+  SpectrogramPlugin.prototype.hzToErb = function(hz) {
+    return ERB_A * Math.log10(1 + hz * 0.00437);
+  };
+
+  SpectrogramPlugin.prototype.erbToHz = function(erb) {
+    return (Math.pow(10, erb / ERB_A) - 1) / 0.00437;
+  };
+
+  SpectrogramPlugin.prototype.hzToScale = function(hz) {
+    switch (this.scale) {
+      case 'mel': return this.hzToMel(hz);
+      case 'logarithmic': return this.hzToLog(hz);
+      case 'bark': return this.hzToBark(hz);
+      case 'erb': return this.hzToErb(hz);
+      default: return hz;
+    }
+  };
+
+  SpectrogramPlugin.prototype.scaleToHz = function(scale) {
+    switch (this.scale) {
+      case 'mel': return this.melToHz(scale);
+      case 'logarithmic': return this.logToHz(scale);
+      case 'bark': return this.barkToHz(scale);
+      case 'erb': return this.erbToHz(scale);
+      default: return scale;
+    }
+  };
+
+  // ============ Filter Banks ============
+
+  SpectrogramPlugin.prototype.createFilterBank = function(numFilters, sampleRate, hzToScale, scaleToHz) {
+    var filterMin = hzToScale(0);
+    var filterMax = hzToScale(sampleRate / 2);
+    var filterBank = [];
+
+    for (var i = 0; i < numFilters; i++) {
+      filterBank.push(new Array(this.fftSamples / 2 + 1).fill(0));
+    }
+
+    var scale = sampleRate / this.fftSamples;
+
+    for (var i = 0; i < numFilters; i++) {
+      var hz = scaleToHz(filterMin + (i / numFilters) * (filterMax - filterMin));
+      var j = Math.floor(hz / scale);
+      var hzLow = j * scale;
+      var hzHigh = (j + 1) * scale;
+      var r = (hz - hzLow) / (hzHigh - hzLow);
+      filterBank[i][j] = 1 - r;
+      filterBank[i][j + 1] = r;
+    }
+
+    return filterBank;
+  };
+
+  SpectrogramPlugin.prototype.applyFilterBank = function(fftPoints, filterBank) {
+    var numFilters = filterBank.length;
+    var logSpectrum = new Float32Array(numFilters);
+
+    for (var i = 0; i < numFilters; i++) {
+      for (var j = 0; j < fftPoints.length; j++) {
+        logSpectrum[i] += fftPoints[j] * filterBank[i][j];
+      }
+    }
+
+    return logSpectrum;
+  };
+
+  // ============ Main Processing ============
+
+  SpectrogramPlugin.prototype.getFrequencies = function(buffer) {
+    var fftSamples = this.fftSamples;
+    var sampleRate = buffer.sampleRate;
+
+    console.log('[WaveSurfer HTML] 🎼 getFrequencies: fftSamples=' + fftSamples + ', sampleRate=' + sampleRate + ', bufferLength=' + buffer.length);
+
+    this.frequencyMax = this.frequencyMax || sampleRate / 2;
+    this.buffer = buffer;
+
+    var noverlap = this.noverlap;
+    if (!noverlap) {
+      var width = this.getWidth();
+      var uniqueSamplesPerPx = buffer.length / width;
+      noverlap = Math.max(0, Math.round(fftSamples - uniqueSamplesPerPx));
+      console.log('[WaveSurfer HTML] 📊 Calculated noverlap: ' + noverlap + ' (width=' + width + ', samplesPerPx=' + uniqueSamplesPerPx + ')');
+    }
+
+    var fft = new WaveSurferFFT(fftSamples, sampleRate, this.windowFunc, this.alpha);
+
+    var filterBank = null;
+    switch (this.scale) {
+      case 'mel':
+        filterBank = this.createFilterBank(
+          this.numMelFilters,
+          sampleRate,
+          this.hzToMel.bind(this),
+          this.melToHz.bind(this)
+        );
+        break;
+      case 'logarithmic':
+        filterBank = this.createFilterBank(
+          this.numLogFilters,
+          sampleRate,
+          this.hzToLog.bind(this),
+          this.logToHz.bind(this)
+        );
+        break;
+      case 'bark':
+        filterBank = this.createFilterBank(
+          this.numBarkFilters,
+          sampleRate,
+          this.hzToBark.bind(this),
+          this.barkToHz.bind(this)
+        );
+        break;
+      case 'erb':
+        filterBank = this.createFilterBank(
+          this.numErbFilters,
+          sampleRate,
+          this.hzToErb.bind(this),
+          this.erbToHz.bind(this)
+        );
+        break;
+    }
+
+    var channelData = buffer.getChannelData(0);
+    var channelFreq = [];
+    var currentOffset = 0;
+
+    console.log('[WaveSurfer HTML] 🔄 Starting FFT loop: channelDataLength=' + channelData.length + ', fftSamples=' + fftSamples);
+
+    while (currentOffset + fftSamples < channelData.length) {
+      var segment = channelData.slice(currentOffset, currentOffset + fftSamples);
+      var spectrum = fft.calculateSpectrum(segment);
+
+      if (filterBank) {
+        spectrum = this.applyFilterBank(spectrum, filterBank);
+      }
+
+      var array = new Uint8Array(spectrum.length);
+      for (var j = 0; j < spectrum.length; j++) {
+        var magnitude = spectrum[j] > 1e-12 ? spectrum[j] : 1e-12;
+        var valueDB = 20 * Math.log10(magnitude);
+
+        if (valueDB < -this.gainDB - this.rangeDB) {
+          array[j] = 0;
+        } else if (valueDB > -this.gainDB) {
+          array[j] = 255;
+        } else {
+          array[j] = Math.round(((valueDB + this.gainDB) / this.rangeDB) * 255);
+        }
+      }
+
+      channelFreq.push(array);
+      currentOffset += fftSamples - noverlap;
+    }
+
+    console.log('[WaveSurfer HTML] ✅ FFT loop complete: collected ' + channelFreq.length + ' frames');
+
+    if (channelFreq.length === 0) {
+      console.error('[WaveSurfer HTML] ❌ No FFT frames collected! channelDataLength=' + channelData.length + ', fftSamples=' + fftSamples);
+    }
+
+    this.frequencies = [channelFreq]; // Wrap in array for consistency
+    return this.frequencies;
+  };
+
+  // ============ Drawing ============
+
+  SpectrogramPlugin.prototype.resample = function(oldMatrix) {
+    var columnsNumber = this.getWidth();
+    var newMatrix = [];
+    var oldPiece = 1 / oldMatrix.length;
+    var newPiece = 1 / columnsNumber;
+
+    for (var i = 0; i < columnsNumber; i++) {
+      var column = new Array(oldMatrix[0].length);
+
+      for (var j = 0; j < oldMatrix.length; j++) {
+        var oldStart = j * oldPiece;
+        var oldEnd = oldStart + oldPiece;
+        var newStart = i * newPiece;
+        var newEnd = newStart + newPiece;
+        var overlap = Math.max(0, Math.min(oldEnd, newEnd) - Math.max(oldStart, newStart));
+
+        if (overlap > 0) {
+          for (var k = 0; k < oldMatrix[0].length; k++) {
+            if (column[k] == null) column[k] = 0;
+            column[k] += (overlap / newPiece) * oldMatrix[j][k];
+          }
+        }
+      }
+
+      var intColumn = new Uint8Array(oldMatrix[0].length);
+      for (var m = 0; m < oldMatrix[0].length; m++) {
+        intColumn[m] = column[m];
+      }
+
+      newMatrix.push(intColumn);
+    }
+
+    return newMatrix;
+  };
+
+  SpectrogramPlugin.prototype.render = function(buffer) {
+    if (!buffer) return;
+
+    var frequencies = this.getFrequencies(buffer);
+    this.drawSpectrogram(frequencies);
+  };
+
+  SpectrogramPlugin.prototype.drawSpectrogram = function(frequenciesData) {
+    if (!frequenciesData || frequenciesData.length === 0) {
+      console.error('[WaveSurfer HTML] ❌ drawSpectrogram: frequenciesData is empty or undefined');
+      return;
+    }
+
+    // Ensure correct format
+    if (!isNaN(frequenciesData[0][0])) {
+      frequenciesData = [frequenciesData];
+    }
+
+    var width = this.getWidth();
+    var height = this.height;
+
+    console.log('[WaveSurfer HTML] 📐 drawSpectrogram: width=' + width + ', height=' + height + ', channels=' + frequenciesData.length);
+
+    this.canvas.width = width;
+    this.canvas.height = height;
+
+    var spectrCc = this.spectrCc;
+    var freqFrom = this.buffer.sampleRate / 2;
+    var freqMin = this.frequencyMin;
+    var freqMax = this.frequencyMax;
+
+    if (freqMax > freqFrom) {
+      var bgColor = this.colorMap[this.colorMap.length - 1];
+      spectrCc.fillStyle = 'rgba(' +
+        Math.round(bgColor[0] * 255) + ',' +
+        Math.round(bgColor[1] * 255) + ',' +
+        Math.round(bgColor[2] * 255) + ',' +
+        bgColor[3] + ')';
+      spectrCc.fillRect(0, 0, width, height);
+    }
+
+    for (var c = 0; c < frequenciesData.length; c++) {
+      console.log('[WaveSurfer HTML] 🎵 Processing channel ' + c + ', data length: ' + frequenciesData[c].length);
+
+      var pixels = this.resample(frequenciesData[c]);
+
+      if (!pixels || pixels.length === 0) {
+        console.error('[WaveSurfer HTML] ❌ resample returned empty pixels for channel ' + c);
+        continue;
+      }
+
+      if (!pixels[0]) {
+        console.error('[WaveSurfer HTML] ❌ pixels[0] is undefined for channel ' + c);
+        continue;
+      }
+
+      var bitmapHeight = pixels[0].length;
+      console.log('[WaveSurfer HTML] 📊 Resampled: width=' + pixels.length + ', height=' + bitmapHeight);
+
+      var imageData = new ImageData(width, bitmapHeight);
+
+      for (var i = 0; i < pixels.length; i++) {
+        for (var j = 0; j < pixels[i].length; j++) {
+          var pixelValue = pixels[i][j];
+          var colorMap = this.colorMap[pixelValue];
+
+          if (!colorMap) {
+            console.error('[WaveSurfer HTML] ❌ colorMap[' + pixelValue + '] is undefined (max: 255)');
+            colorMap = this.colorMap[0]; // Fallback to first color
+          }
+
+          var redIndex = ((bitmapHeight - j - 1) * width + i) * 4;
+          imageData.data[redIndex] = colorMap[0] * 255;
+          imageData.data[redIndex + 1] = colorMap[1] * 255;
+          imageData.data[redIndex + 2] = colorMap[2] * 255;
+          imageData.data[redIndex + 3] = colorMap[3] * 255;
+        }
+      }
+
+      var rMin = this.hzToScale(freqMin) / this.hzToScale(freqFrom);
+      var rMax = this.hzToScale(freqMax) / this.hzToScale(freqFrom);
+      var rMax1 = Math.min(1, rMax);
+
+      // Use putImageData directly (synchronous) instead of createImageBitmap (async)
+      // Create temporary canvas for frequency range cropping
+      var tempCanvas = document.createElement('canvas');
+      var sourceY = Math.round(bitmapHeight * (1 - rMax1));
+      var sourceHeight = Math.round(bitmapHeight * (rMax1 - rMin));
+
+      tempCanvas.width = width;
+      tempCanvas.height = sourceHeight;
+      var tempCtx = tempCanvas.getContext('2d');
+
+      // Put image data on temp canvas
+      tempCtx.putImageData(imageData, 0, -sourceY);
+
+      // Draw temp canvas to main canvas with scaling
+      var destY = height * (c + 1 - rMax1 / rMax);
+      var destHeight = (height * rMax1) / rMax;
+
+      spectrCc.drawImage(
+        tempCanvas,
+        0, 0, width, sourceHeight,
+        0, destY, width, destHeight
+      );
+
+      console.log('[WaveSurfer HTML] 🖼️ Drew spectrogram channel ' + c + ' at y=' + destY + ', height=' + destHeight);
+    }
+
+    if (this.labels) {
+      this.loadLabels();
+    }
+  };
+
+  SpectrogramPlugin.prototype.loadLabels = function() {
+    if (!this.labelsEl) return;
+
+    var ctx = this.labelsEl.getContext('2d');
+    var height = this.height;
+    var bgWidth = 55;
+    var labelIndex = 5 * (height / 256);
+
+    var dispScale = window.devicePixelRatio || 1;
+    this.labelsEl.height = height * dispScale;
+    this.labelsEl.width = bgWidth * dispScale;
+    ctx.scale(dispScale, dispScale);
+
+    ctx.fillStyle = this.labelsBackground || 'rgba(68,68,68,0)';
+    ctx.fillRect(0, 0, bgWidth, height);
+
+    for (var i = 0; i <= labelIndex; i++) {
+      var filterMin = this.hzToScale(this.frequencyMin);
+      var filterMax = this.hzToScale(this.frequencyMax);
+      var freq = this.scaleToHz(filterMin + (i / labelIndex) * (filterMax - filterMin));
+
+      var label = freq >= 1000 ? (freq / 1000).toFixed(1) : Math.round(freq);
+      var units = freq >= 1000 ? 'kHz' : 'Hz';
+
+      var x = 16;
+      var y = height - (i / labelIndex) * height;
+      y = Math.min(Math.max(y, 10), height - 10);
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      ctx.fillStyle = this.labelsHzColor || '#fff';
+      ctx.font = '12px Helvetica';
+      ctx.fillText(units, x + 24, y);
+
+      ctx.fillStyle = this.labelsColor || '#fff';
+      ctx.font = '12px Helvetica';
+      ctx.fillText(label, x, y);
+    }
+  };
+
+  SpectrogramPlugin.prototype.destroy = function() {
+    if (this.wrapper) {
+      this.wrapper.remove();
+    }
+    this.buffer = null;
+    this.frequencies = null;
+  };
+
+  // ============ Export ============
+
+  window.SpectrogramPlugin = SpectrogramPlugin;
+
+})();
+    </script>
 
     <style>
       * {
@@ -491,16 +1567,16 @@
               "[WaveSurfer HTML] 🎨 Spectrogram tab activated, redrawing canvases..."
             );
             setTimeout(() => {
-              if (spectrogramResults.user) {
+              if (spectrogramBuffers.user) {
                 drawSpectrogram(
                   "spectrogram-user-canvas",
-                  spectrogramResults.user
+                  spectrogramBuffers.user
                 );
               }
-              if (spectrogramResults.ref) {
+              if (spectrogramBuffers.ref) {
                 drawSpectrogram(
                   "spectrogram-ref-canvas",
-                  spectrogramResults.ref
+                  spectrogramBuffers.ref
                 );
               }
             }, 100); // Small delay to ensure tab is visible
@@ -547,11 +1623,11 @@
         const ctx = canvas.getContext("2d");
         const container = canvas.parentElement;
 
-        // Canvas width = frequencies 길이 (1:1 매핑)
+        // Canvas size = frequencies length (웹 코드와 동일)
         canvas.width = frequencies.length;
-        canvas.height = 150;
+        canvas.height = 200; // 웹과 동일한 높이
         canvas.style.width = "100%";
-        canvas.style.height = "150px";
+        canvas.style.height = "200px";
 
         const height = canvas.height;
         const width = canvas.width;
@@ -563,182 +1639,188 @@
             width +
             ", height=" +
             height +
-            ", containerWidth=" +
-            container.offsetWidth +
-            ", freqCount=" +
-            frequencies.length +
             ", baseFreq=" +
             baseFrequency +
             "Hz"
         );
 
+        // 배경 클리어
         ctx.clearRect(0, 0, width, height);
 
-        const pitchUpColor = "#385587"; // Blue (rising)
-        const pitchDownColor = "#C26351"; // Red (falling)
-        const lineColor = "#4A90E2"; // Line color
+        const pitchUpColor = "#385587"; // Blue (rising) - 웹과 동일
+        const pitchDownColor = "#C26351"; // Red (falling) - 웹과 동일
 
-        // Step 1: 실제 음정 범위(min/max) 계산
-        const validFrequencies = frequencies.filter((f) => f && f > 0);
+        // 각 주파수를 점으로 그리기 (웹/공식 문서 방식)
+        const pointSize = window.devicePixelRatio || 1; // 공식 코드와 동일
+        let prevY = 0;
+        let drawnCount = 0;
 
-        if (validFrequencies.length === 0) {
-          console.log("[WaveSurfer HTML] ⚠️ No valid pitch points to draw");
-          return;
-        }
-
-        const minFreq = Math.min(...validFrequencies);
-        const maxFreq = Math.max(...validFrequencies);
-        const freqRange = maxFreq - minFreq;
-
-        console.log(
-          "[WaveSurfer HTML] 🎼 Frequency range: min=" +
-            minFreq.toFixed(1) +
-            "Hz, max=" +
-            maxFreq.toFixed(1) +
-            "Hz, range=" +
-            freqRange.toFixed(1) +
-            "Hz"
-        );
-
-        // Step 2: Canvas 여유 공간 설정 (상하 10px margin)
-        const margin = 25;
-        const drawableHeight = height - 2 * margin;
-
-        // Step 3: 음정 데이터를 Canvas 높이에 정규화하여 validPoints 생성
-        const validPoints = [];
         frequencies.forEach((frequency, index) => {
-          if (frequency && frequency > 0) {
-            // 주파수 범위를 0~1로 정규화
-            let normalized = 0;
-            if (freqRange > 0) {
-              normalized = (frequency - minFreq) / freqRange;
-            }
+          if (!frequency) return;  // 0 또는 null 무시
 
-            // Canvas 좌표로 변환 (높은 주파수 = 위쪽 = 작은 y값)
-            // normalized 0 (최소 주파수) → y = height - margin (아래쪽)
-            // normalized 1 (최대 주파수) → y = margin (위쪽)
-            const y = Math.round(margin + (1 - normalized) * drawableHeight);
+          // 웹/공식 문서와 동일한 Y 위치 계산
+          let y = Math.round(height - (frequency / (baseFrequency * 2)) * height);
 
-            validPoints.push({ x: index, y: y, freq: frequency });
-          }
-        });
+          // Y값을 캔버스 범위로 클리핑
+          y = Math.max(0, Math.min(height - 1, y));
 
-        // Step 2: Draw connecting line
-        ctx.beginPath();
-        ctx.strokeStyle = lineColor;
-        ctx.lineWidth = 0.5;
+          // 색상 결정 (음정 상승/하강)
+          ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
 
-        validPoints.forEach((point, idx) => {
-          if (idx === 0) {
-            ctx.moveTo(point.x, point.y);
-          } else {
-            const prevPoint = validPoints[idx - 1];
-            // If gap is too large (>5px), start new line segment
-            if (point.x - prevPoint.x > 5) {
-              ctx.moveTo(point.x, point.y);
-            } else {
-              ctx.lineTo(point.x, point.y);
-            }
-          }
-        });
-        ctx.stroke();
+          // 점 그리기 (웹과 동일)
+          ctx.fillRect(index, y, pointSize, pointSize);
 
-        // Step 3: Draw circular points with color coding
-        let prevY = validPoints[0].y;
-        validPoints.forEach((point, idx) => {
-          // Determine color based on pitch direction
-          const isRising = idx > 0 && point.y < prevY;
-          const color = isRising ? pitchUpColor : pitchDownColor;
-
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.arc(point.x, point.y, 1, 0, 2 * Math.PI);
-          ctx.fill();
-          ctx.strokeStyle = "rgba(0, 0, 0, 0)"; // 가시성 올라가게
-          ctx.lineWidth = 0.3;
-          ctx.stroke();
-
-          prevY = point.y;
+          prevY = y;
+          drawnCount++;
         });
 
         console.log(
-          "[WaveSurfer HTML] 🎨 Drew",
-          validPoints.length,
-          "pitch points with lines on canvas (out of",
-          frequencies.length,
-          "frequencies)"
+          "[WaveSurfer HTML] ✅ Drew " +
+            drawnCount +
+            " pitch points out of " +
+            frequencies.length
         );
       }
 
-      // Detect pitch using autocorrelation
+      // Detect pitch using official Pitchfinder.js library (AMDF algorithm)
       function detectPitchSimple(audioBuffer, sampleRate = 16000) {
-        const audioData = audioBuffer.getChannelData(0);
-        const frameSize = 2048;
-        const hopSize = 256;
-        const frequencies = [];
+        console.log(
+          "[WaveSurfer HTML] 🎼 Starting pitch detection with Pitchfinder.js..."
+        );
 
-        for (let i = 0; i < audioData.length - frameSize; i += hopSize) {
-          const frame = audioData.slice(i, i + frameSize);
-          const pitch = autoCorrelation(frame, sampleRate);
-          frequencies.push(pitch);
+        // Check if Pitchfinder is loaded
+        if (typeof Pitchfinder === "undefined") {
+          console.error(
+            "[WaveSurfer HTML] ❌ Pitchfinder.js not loaded! Falling back to empty result."
+          );
+          return {
+            frequencies: [],
+            baseFrequency: 0,
+            averagePitch: 0,
+            minPitch: 0,
+            maxPitch: 0,
+          };
         }
 
+        const audioData = audioBuffer.getChannelData(0);
+
+        // Create AMDF pitch detector (like official example)
+        const detectPitch = Pitchfinder.AMDF({ sampleRate: sampleRate });
+
+        // Calculate tempo/quantization dynamically (공식 코드와 동일)
+        const duration = audioData.length / sampleRate;
+        const bpm = audioData.length / duration / 60;
+
+        console.log(
+          "[WaveSurfer HTML] 🎵 Audio info: length=" +
+            audioData.length +
+            ", sampleRate=" +
+            sampleRate +
+            ", duration=" +
+            duration.toFixed(2) +
+            "s, bpm=" +
+            bpm.toFixed(2)
+        );
+
+        // Use Pitchfinder.frequencies helper (like official docs)
+        const frequencies = Pitchfinder.frequencies(detectPitch, audioData, {
+          tempo: bpm,
+          quantization: bpm,
+        });
+
+        console.log(
+          "[WaveSurfer HTML] 🎵 Total frames detected: " + frequencies.length
+        );
+
+        // 디버그: null vs 유효한 값 카운트
+        const nullCount = frequencies.filter(f => !f || f <= 0).length;
+        const validCount = frequencies.filter(f => f > 0).length;
+        console.log(
+          "[WaveSurfer HTML] 📊 Valid: " + validCount + ", Null/Zero: " + nullCount
+        );
+
+        // 디버그: 처음 20개 주파수 값 출력
+        const first20 = frequencies.slice(0, 20);
+        console.log(
+          "[WaveSurfer HTML] 🔍 First 20 frequencies: " +
+            first20.map(f => f ? Math.round(f) + "Hz" : "null").join(", ")
+        );
+
+        // 디버그: 유효한 주파수들의 분포
         const validFreqs = frequencies.filter((f) => f > 0);
-        const baseFrequency =
+        if (validFreqs.length > 0) {
+          const sorted = validFreqs.slice().sort((a, b) => a - b);
+          const median = sorted[Math.floor(sorted.length / 2)];
+          console.log(
+            "[WaveSurfer HTML] 📊 Frequency distribution: min=" +
+              Math.round(sorted[0]) +
+              "Hz, median=" +
+              Math.round(median) +
+              "Hz, max=" +
+              Math.round(sorted[sorted.length - 1]) +
+              "Hz"
+          );
+        }
+
+        // Calculate baseFrequency as MODE (most frequent) - like official example
+        const frequencyMap = {};
+        let maxAmount = 0;
+        let baseFrequency = 0;
+
+        frequencies.forEach((frequency) => {
+          if (!frequency || frequency <= 0) return;
+
+          // 10Hz tolerance (like official example: Math.round(frequency * 10) / 10)
+          const tolerance = 10;
+          const rounded = Math.round(frequency * tolerance) / tolerance;
+
+          if (!frequencyMap[rounded]) frequencyMap[rounded] = 0;
+          frequencyMap[rounded] += 1;
+
+          // Find mode (most frequent)
+          if (frequencyMap[rounded] > maxAmount) {
+            maxAmount = frequencyMap[rounded];
+            baseFrequency = rounded;
+          }
+        });
+
+        // Calculate statistics (validFreqs 이미 위에서 계산됨)
+        const averagePitch =
           validFreqs.length > 0
             ? validFreqs.reduce((a, b) => a + b, 0) / validFreqs.length
-            : 0;
+            : baseFrequency;
 
         const minFreq = validFreqs.length > 0 ? Math.min(...validFreqs) : 0;
         const maxFreq = validFreqs.length > 0 ? Math.max(...validFreqs) : 0;
 
+        console.log(
+          "[WaveSurfer HTML] 🎼 Pitch detection (Pitchfinder AMDF):"
+        );
+        console.log(
+          "  - Base (mode): " + Math.round(baseFrequency) + "Hz"
+        );
+        console.log("  - Average: " + Math.round(averagePitch) + "Hz");
+        console.log(
+          "  - Range: " +
+            Math.round(minFreq) +
+            "-" +
+            Math.round(maxFreq) +
+            "Hz"
+        );
+        console.log(
+          "  - Valid frequencies: " +
+            validFreqs.length +
+            " / " +
+            frequencies.length
+        );
+
         return {
           frequencies,
-          baseFrequency,
-          averagePitch: baseFrequency,
+          baseFrequency, // MODE (most frequent)
+          averagePitch,
           minPitch: minFreq,
           maxPitch: maxFreq,
         };
-      }
-
-      function autoCorrelation(buffer, sampleRate) {
-        const SIZE = buffer.length;
-        const MAX_SAMPLES = Math.floor(SIZE / 2);
-        let best_offset = -1;
-        let best_correlation = 0;
-        let rms = 0;
-
-        for (let i = 0; i < SIZE; i++) {
-          const val = buffer[i];
-          rms += val * val;
-        }
-        rms = Math.sqrt(rms / SIZE);
-
-        if (rms < 0.01) return 0;
-
-        let lastCorrelation = 1;
-        for (let offset = 1; offset < MAX_SAMPLES; offset++) {
-          let correlation = 0;
-
-          for (let i = 0; i < MAX_SAMPLES; i++) {
-            correlation += Math.abs(buffer[i] - buffer[i + offset]);
-          }
-
-          correlation = 1 - correlation / MAX_SAMPLES;
-
-          if (correlation > 0.9 && correlation > lastCorrelation) {
-            const foundGoodCorrelation = correlation > best_correlation;
-            if (foundGoodCorrelation) {
-              best_correlation = correlation;
-              best_offset = offset;
-            }
-          }
-          lastCorrelation = correlation;
-        }
-
-        if (best_offset === -1) return 0;
-        const fundamental = sampleRate / best_offset;
-        return fundamental;
       }
 
       function displayPitchInfo(containerId, pitchResult) {
@@ -753,138 +1835,130 @@
       }
 
       // ==================== Spectrogram Functions ====================
+      // Using WaveSurfer Spectrogram Plugin for high-quality visualization
 
-      // Simple DFT (Discrete Fourier Transform) for spectrogram
-      function computeDFT(frame, fftSize) {
-        const magnitudes = new Array(fftSize / 2);
+      // Store plugin instances
+      let spectrogramPlugins = {
+        user: null,
+        ref: null
+      };
 
-        for (let k = 0; k < fftSize / 2; k++) {
-          let real = 0;
-          let imag = 0;
+      // Store audio buffers for redrawing
+      let spectrogramBuffers = {
+        user: null,
+        ref: null
+      };
 
-          for (let n = 0; n < frame.length; n++) {
-            const angle = (-2 * Math.PI * k * n) / fftSize;
-            real += frame[n] * Math.cos(angle);
-            imag += frame[n] * Math.sin(angle);
-          }
+      // Store containers for reuse (since plugin will replace canvas)
+      let spectrogramContainers = {
+        user: null,
+        ref: null
+      };
 
-          magnitudes[k] = Math.sqrt(real * real + imag * imag);
-        }
-
-        return magnitudes;
-      }
-
-      // Generate spectrogram data from audio buffer
-      function generateSpectrogramData(audioBuffer, fftSize = 512) {
-        const audioData = audioBuffer.getChannelData(0);
-        const sampleRate = audioBuffer.sampleRate;
-        const hopSize = fftSize / 4; // 75% overlap
-
-        const spectrogramData = [];
-
-        for (let i = 0; i < audioData.length - fftSize; i += hopSize) {
-          const frame = audioData.slice(i, i + fftSize);
-
-          // Apply Hamming window
-          const windowedFrame = frame.map((val, idx) => {
-            const hamming =
-              0.54 - 0.46 * Math.cos((2 * Math.PI * idx) / (fftSize - 1));
-            return val * hamming;
-          });
-
-          const magnitudes = computeDFT(windowedFrame, fftSize);
-          spectrogramData.push(magnitudes);
-        }
-
-        return {
-          data: spectrogramData,
-          freqResolution: sampleRate / fftSize,
-          timeResolution: hopSize / sampleRate,
-        };
-      }
-
-      // Draw spectrogram on canvas
+      // Create and render spectrogram using plugin
       function drawSpectrogram(canvasId, audioBuffer) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) {
-          console.log(
-            "[WaveSurfer HTML] ❌ Spectrogram canvas not found:",
-            canvasId
-          );
-          return;
-        }
-
-        const container = canvas.parentElement;
-
         console.log(
-          "[WaveSurfer HTML] 🎨 Generating spectrogram for:",
+          "[WaveSurfer HTML] 🎨 Generating spectrogram with plugin for:",
           canvasId
         );
 
-        const fftSize = 512;
-        const spectrogramResult = generateSpectrogramData(audioBuffer, fftSize);
-        const { data: spectrogramData, freqResolution } = spectrogramResult;
+        // Determine which plugin instance to use
+        const pluginKey = canvasId.includes('user') ? 'user' : 'ref';
 
-        if (spectrogramData.length === 0) {
-          console.log("[WaveSurfer HTML] ❌ No spectrogram data generated");
-          return;
+        // Get or retrieve container
+        let container = spectrogramContainers[pluginKey];
+
+        if (!container) {
+          // First call: find container by canvas id
+          const canvas = document.getElementById(canvasId);
+          if (!canvas) {
+            console.error(
+              "[WaveSurfer HTML] ❌ Spectrogram canvas not found:",
+              canvasId
+            );
+            return;
+          }
+          container = canvas.parentElement;
+          spectrogramContainers[pluginKey] = container;
+          console.log(
+            "[WaveSurfer HTML] 📦 Container saved for:",
+            pluginKey
+          );
         }
 
-        // Canvas dimensions
-        canvas.width = spectrogramData.length;
-        canvas.height = fftSize / 2; // Half of FFT size (Nyquist)
-        canvas.style.width = "100%";
-        canvas.style.height = "120px";
+        // Destroy existing plugin
+        if (spectrogramPlugins[pluginKey]) {
+          console.log(
+            "[WaveSurfer HTML] 🗑️ Destroying existing plugin:",
+            pluginKey
+          );
+          spectrogramPlugins[pluginKey].destroy();
+        }
 
-        const ctx = canvas.getContext("2d");
-        const width = canvas.width;
-        const height = canvas.height;
+        // Clear container completely (plugin will create its own elements)
+        container.innerHTML = '';
 
         console.log(
-          "[WaveSurfer HTML] 🎨 Spectrogram canvas: width=" +
-            width +
-            ", height=" +
-            height +
-            ", frames=" +
-            spectrogramData.length
+          "[WaveSurfer HTML] 📦 Container cleared, creating plugin with config:",
+          {
+            fftSamples: 512,
+            height: 120,
+            scale: 'mel',
+            frequencyMax: 8000
+          }
         );
 
-        // Find max magnitude for normalization
-        let maxMagnitude = 0;
-        spectrogramData.forEach((frame) => {
-          frame.forEach((mag) => {
-            if (mag > maxMagnitude) maxMagnitude = mag;
-          });
+        // Create plugin with advanced settings
+        // IMPORTANT: frequencyMax must be <= sampleRate/2 (Nyquist frequency)
+        // For 8kHz audio, max is 4000Hz
+        const nyquistFreq = audioBuffer.sampleRate / 2;
+        const maxFreq = Math.min(8000, nyquistFreq);
+
+        console.log(
+          "[WaveSurfer HTML] 🔊 Frequency range: 0-" + maxFreq + "Hz (Nyquist: " + nyquistFreq + "Hz)"
+        );
+
+        spectrogramPlugins[pluginKey] = new SpectrogramPlugin({
+          container: container,
+          fftSamples: 512,
+          height: 120,
+          windowFunc: 'hann', // Hann window for better frequency resolution
+          scale: 'mel', // Mel scale (perceptually accurate)
+          colorMap: 'roseus', // Beautiful roseus colormap
+          gainDB: 25, // Brightness boost
+          rangeDB: 80, // Dynamic range
+          frequencyMin: 0,
+          frequencyMax: maxFreq, // Don't exceed Nyquist frequency!
+          labels: false // Disable labels for cleaner look
         });
 
-        // Draw spectrogram
-        for (let x = 0; x < width; x++) {
-          const frame = spectrogramData[x];
-          if (!frame) continue;
-
-          for (let y = 0; y < height; y++) {
-            const magnitude = frame[y] || 0;
-            const normalizedMag = magnitude / maxMagnitude;
-
-            // Color mapping: blue (low) -> yellow -> red (high)
-            const intensity = Math.pow(normalizedMag, 0.5); // Gamma correction
-            const hue = (1 - intensity) * 240; // Blue to red
-            const saturation = intensity * 100;
-            const lightness = 20 + intensity * 60;
-
-            ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-            ctx.fillRect(x, height - y - 1, 1, 1); // Flip Y axis
+        console.log(
+          "[WaveSurfer HTML] 🎵 Plugin created, rendering audio buffer...",
+          {
+            duration: audioBuffer.duration,
+            sampleRate: audioBuffer.sampleRate,
+            channels: audioBuffer.numberOfChannels
           }
-        }
+        );
 
-        console.log("[WaveSurfer HTML] ✅ Spectrogram drawn successfully");
+        // Render spectrogram after DOM updates (wait for layout)
+        // Use requestAnimationFrame to ensure DOM is fully rendered
+        requestAnimationFrame(() => {
+          try {
+            spectrogramPlugins[pluginKey].render(audioBuffer);
+            console.log(
+              "[WaveSurfer HTML] ✅ Spectrogram rendered with plugin:",
+              canvasId
+            );
+          } catch (error) {
+            console.error(
+              "[WaveSurfer HTML] ❌ Spectrogram render error:",
+              error,
+              error.stack
+            );
+          }
+        });
       }
-
-      // Store spectrogram results for redrawing
-      let spectrogramResults = {
-        user: null,
-        ref: null,
-      };
 
       // Process spectrogram
       async function processSpectrogram(wavesurfer, canvasId) {
@@ -893,16 +1967,15 @@
             "[WaveSurfer HTML] 🎵 Processing spectrogram for canvas:",
             canvasId
           );
+
           const audioBuffer = wavesurfer.getDecodedData();
 
-          // Store audio buffer for redrawing
-          if (canvasId === "spectrogram-user") {
-            spectrogramResults.user = audioBuffer;
-          } else if (canvasId === "spectrogram-ref") {
-            spectrogramResults.ref = audioBuffer;
-          }
+          // Store audio buffer
+          const bufferKey = canvasId.includes('user') ? 'user' : 'ref';
+          spectrogramBuffers[bufferKey] = audioBuffer;
 
           drawSpectrogram(canvasId, audioBuffer);
+
           console.log(
             "[WaveSurfer HTML] ✅ Spectrogram processing complete for",
             canvasId
@@ -1180,10 +2253,10 @@
       // Check WaveSurfer loaded
       if (typeof WaveSurfer === "undefined") {
         console.error(
-          "[WaveSurfer HTML] ❌ WaveSurfer.js not loaded! CDN might have failed."
+          "[WaveSurfer HTML] ❌ WaveSurfer.js not loaded! Script execution failed."
         );
         showError(
-          "WaveSurfer.js 라이브러리 로드 실패 (인터넷 연결을 확인하세요)"
+          "WaveSurfer.js 라이브러리 로드 실패 (스크립트 실행 오류)"
         );
       } else {
         console.log("[WaveSurfer HTML] ✅ WaveSurfer.js loaded successfully");

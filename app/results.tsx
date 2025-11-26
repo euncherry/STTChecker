@@ -1,4 +1,5 @@
 // app/results.tsx
+import type { ResultsScreenParams } from "@/types/navigation";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -23,7 +24,7 @@ import { calculateCER, calculateWER } from "../utils/stt/metrics";
 export default function ResultsScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<ResultsScreenParams>();
   const { modelInfo, vocabInfo, isLoading: modelLoading } = useONNX();
 
   // 파라미터 추출
@@ -372,7 +373,9 @@ export default function ResultsScreen() {
                 <WaveSurferWebView
                   userAudioPath={audioUri}
                   onReady={() => {
-                    console.log("[ResultsScreen] ✅ WaveSurfer 그래프 준비 완료");
+                    console.log(
+                      "[ResultsScreen] ✅ WaveSurfer 그래프 준비 완료"
+                    );
                   }}
                   onError={(error) => {
                     console.error("[ResultsScreen] ❌ WaveSurfer 에러:", error);
