@@ -153,13 +153,13 @@ export function useHybridSpeechRecognition(): UseHybridSpeechRecognitionReturn {
   });
 
   useSpeechRecognitionEvent('error', (event) => {
-    console.error('[HybridSTT] ❌ 에러:', event.error, event.message);
     // 무시해도 되는 에러는 정상 종료로 처리 (녹음 파일은 정상 생성됨)
-    if (!IGNORABLE_ERRORS.includes(event.error)) {
+    if (IGNORABLE_ERRORS.includes(event.error)) {
+      console.log('[HybridSTT] ⚠️ 무시 가능한 에러:', event.error, event.message);
+    } else {
+      console.error('[HybridSTT] ❌ 에러:', event.error, event.message);
       setError(event.message || event.error);
       setStatus('error');
-    } else {
-      console.log('[HybridSTT] ⚠️ 무시 가능한 에러:', event.error);
     }
     stopTimer();
   });
