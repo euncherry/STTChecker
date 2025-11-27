@@ -10,7 +10,6 @@ import {
   Text,
   useTheme,
 } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import CustomHeader from "../../components/CustomHeader";
 import WaveSurferWebView from "../../components/WaveSurferWebView";
 import { useONNX } from "../../utils/onnx/onnxContext";
@@ -98,12 +97,12 @@ export default function TestScreen() {
 
   if (modelLoading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <View style={styles.wrapper}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" />
           <Text style={styles.loadingText}>모델 로딩 중...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -111,7 +110,7 @@ export default function TestScreen() {
     <>
       <CustomHeader title="ONNX 모델 테스트" />
 
-      <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <View style={styles.wrapper}>
         <ScrollView style={styles.container}>
           <Card style={styles.card}>
             <Card.Title title="🤖 ONNX 모델 테스트" />
@@ -239,15 +238,16 @@ export default function TestScreen() {
             </Card>
           )}
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  wrapper: {
     backgroundColor: "#E8E6FF",
     flex: 1,
+    paddingVertical: 15,
   },
   container: {
     flex: 1,
