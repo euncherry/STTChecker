@@ -96,7 +96,7 @@ export function useHybridSpeechRecognition(): UseHybridSpeechRecognitionReturn {
   const [error, setError] = useState<string | null>(null);
 
   // 타이머 ref
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
 
   // 비동기 이벤트에서 값을 동기적으로 추적하기 위한 ref
