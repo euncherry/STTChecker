@@ -27,15 +27,18 @@
  * ```
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react';
-import AudioRecord from 'react-native-audio-record';
-import { PermissionsAndroid, Platform, Alert } from 'react-native';
-import { Paths } from 'expo-file-system';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, PermissionsAndroid, Platform } from "react-native";
+import AudioRecord from "react-native-audio-record";
+import type {
+  AudioPermissions,
+  RecordingResult,
+  RecordingState,
+} from "../types";
 import {
   KOREAN_STT_RECORDING_CONFIG,
   generateRecordingFileName,
-} from '../utils/config';
-import type { RecordingState, RecordingResult, AudioPermissions } from '../types';
+} from "../utils/config";
 
 /**
  * useAudioRecording 훅의 반환 타입
@@ -88,7 +91,7 @@ export function useAudioRecording(): UseAudioRecordingReturn {
   const [error, setError] = useState<string | null>(null);
 
   // 녹음 시간 추적을 위한 타이머
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingStartTimeRef = useRef<number>(0);
 
   /**
@@ -120,23 +123,24 @@ export function useAudioRecording(): UseAudioRecordingReturn {
    */
   const initializeRecorder = async (): Promise<void> => {
     try {
-      console.log('[useAudioRecording] 🚀 AudioRecord 초기화 중...');
+      console.log("[useAudioRecording] 🚀 AudioRecord 초기화 중...");
 
       // 1. WAV 설정으로 AudioRecord 초기화
       const options = {
         ...KOREAN_STT_RECORDING_CONFIG,
-        wavFile: generateRecordingFileName(),  // 고유 파일명 생성
+        wavFile: generateRecordingFileName(), // 고유 파일명 생성
       };
 
       AudioRecord.init(options);
-      console.log('[useAudioRecording] ✅ WAV 설정으로 AudioRecord 초기화됨');
-      console.log('[useAudioRecording] 📋 설정:', options);
+      console.log("[useAudioRecording] ✅ WAV 설정으로 AudioRecord 초기화됨");
+      console.log("[useAudioRecording] 📋 설정:", options);
 
       // 2. 현재 권한 상태 확인
       await checkPermissions();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '알 수 없는 초기화 오류';
-      console.error('[useAudioRecording] ❌ 초기화 실패:', errorMessage);
+      const errorMessage =
+        err instanceof Error ? err.message : "알 수 없는 초기화 오류";
+      console.error("[useAudioRecording] ❌ 초기화 실패:", errorMessage);
       setError(errorMessage);
     }
   };
@@ -150,28 +154,31 @@ export function useAudioRecording(): UseAudioRecordingReturn {
    */
   const checkPermissions = async (): Promise<void> => {
     try {
-      if (Platform.OS === 'android') {
+      if (Platform.OS === "android") {
         const granted = await PermissionsAndroid.check(
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
         );
 
         setPermissions({
           granted,
-          canAskAgain: true,  // Android는 항상 요청 허용
-          status: granted ? 'granted' : 'undetermined',
+          canAskAgain: true, // Android는 항상 요청 허용
+          status: granted ? "granted" : "undetermined",
         });
 
-        console.log('[useAudioRecording] 📋 권한 상태:', granted ? '허용됨' : '허용 안 됨');
+        console.log(
+          "[useAudioRecording] 📋 권한 상태:",
+          granted ? "허용됨" : "허용 안 됨"
+        );
       } else {
         // iOS: 권한은 첫 AudioRecord.start()에서 요청됨
         setPermissions({
-          granted: true,  // iOS의 경우 허용됨으로 가정 (실행 시 실패 시 거부됨)
+          granted: true, // iOS의 경우 허용됨으로 가정 (실행 시 실패 시 거부됨)
           canAskAgain: true,
-          status: 'undetermined',
+          status: "undetermined",
         });
       }
     } catch (err) {
-      console.error('[useAudioRecording] ❌ 권한 확인 실패:', err);
+      console.error("[useAudioRecording] ❌ 권한 확인 실패:", err);
     }
   };
 
@@ -185,17 +192,17 @@ export function useAudioRecording(): UseAudioRecordingReturn {
    */
   const requestPermissions = useCallback(async (): Promise<boolean> => {
     try {
-      console.log('[useAudioRecording] 🔐 마이크 권한 요청 중...');
+      console.log("[useAudioRecording] 🔐 마이크 권한 요청 중...");
 
-      if (Platform.OS === 'android') {
+      if (Platform.OS === "android") {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
           {
-            title: '마이크 권한 필요',
-            message: '발음 연습을 위해 마이크 권한이 필요합니다.',
-            buttonNeutral: '나중에',
-            buttonNegative: '거부',
-            buttonPositive: '허용',
+            title: "마이크 권한 필요",
+            message: "발음 연습을 위해 마이크 권한이 필요합니다.",
+            buttonNeutral: "나중에",
+            buttonNegative: "거부",
+            buttonPositive: "허용",
           }
         );
 
@@ -204,18 +211,18 @@ export function useAudioRecording(): UseAudioRecordingReturn {
         setPermissions({
           granted: isGranted,
           canAskAgain: granted !== PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN,
-          status: isGranted ? 'granted' : 'denied',
+          status: isGranted ? "granted" : "denied",
         });
 
         if (!isGranted) {
-          console.warn('[useAudioRecording] ⚠️ 마이크 권한 거부됨');
+          console.warn("[useAudioRecording] ⚠️ 마이크 권한 거부됨");
           Alert.alert(
-            '마이크 권한 필요',
-            '발음 연습을 위해 마이크 권한이 필요합니다. 설정에서 권한을 허용해주세요.',
-            [{ text: '확인' }]
+            "마이크 권한 필요",
+            "발음 연습을 위해 마이크 권한이 필요합니다. 설정에서 권한을 허용해주세요.",
+            [{ text: "확인" }]
           );
         } else {
-          console.log('[useAudioRecording] ✅ 마이크 권한 허용됨');
+          console.log("[useAudioRecording] ✅ 마이크 권한 허용됨");
         }
 
         return isGranted;
@@ -224,8 +231,9 @@ export function useAudioRecording(): UseAudioRecordingReturn {
         return true;
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '권한 요청 실패';
-      console.error('[useAudioRecording] ❌ 권한 요청 오류:', errorMessage);
+      const errorMessage =
+        err instanceof Error ? err.message : "권한 요청 실패";
+      console.error("[useAudioRecording] ❌ 권한 요청 오류:", errorMessage);
       setError(errorMessage);
       return false;
     }
@@ -243,7 +251,7 @@ export function useAudioRecording(): UseAudioRecordingReturn {
     timerRef.current = setInterval(() => {
       const elapsed = (Date.now() - recordingStartTimeRef.current) / 1000;
       setCurrentTime(elapsed);
-    }, 100);  // 부드러운 표시를 위해 100ms마다 업데이트
+    }, 100); // 부드러운 표시를 위해 100ms마다 업데이트
   };
 
   /**
@@ -269,27 +277,28 @@ export function useAudioRecording(): UseAudioRecordingReturn {
       setError(null);
 
       // 1. 권한 확인
-      if (Platform.OS === 'android' && !permissions?.granted) {
-        console.log('[useAudioRecording] ⚠️ 권한 없음, 요청 중...');
+      if (Platform.OS === "android" && !permissions?.granted) {
+        console.log("[useAudioRecording] ⚠️ 권한 없음, 요청 중...");
         const granted = await requestPermissions();
         if (!granted) {
-          throw new Error('녹음을 위해 마이크 권한이 필요합니다');
+          throw new Error("녹음을 위해 마이크 권한이 필요합니다");
         }
       }
 
       // 2. AudioRecord 시작
-      console.log('[useAudioRecording] 🎤 녹음 시작 중...');
+      console.log("[useAudioRecording] 🎤 녹음 시작 중...");
       AudioRecord.start();
       setIsRecording(true);
       startTimer();
-      console.log('[useAudioRecording] ✅ 녹음 시작됨');
+      console.log("[useAudioRecording] ✅ 녹음 시작됨");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '녹음 시작 실패';
-      console.error('[useAudioRecording] ❌ 녹음 시작 오류:', errorMessage);
+      const errorMessage =
+        err instanceof Error ? err.message : "녹음 시작 실패";
+      console.error("[useAudioRecording] ❌ 녹음 시작 오류:", errorMessage);
       setError(errorMessage);
       setIsRecording(false);
       stopTimer();
-      Alert.alert('녹음 시작 실패', errorMessage);
+      Alert.alert("녹음 시작 실패", errorMessage);
     }
   }, [permissions, requestPermissions]);
 
@@ -304,46 +313,51 @@ export function useAudioRecording(): UseAudioRecordingReturn {
    *
    * @returns URI 및 메타데이터가 포함된 녹음 결과, 실패 시 null
    */
-  const stopRecording = useCallback(async (): Promise<RecordingResult | null> => {
-    try {
-      console.log('[useAudioRecording] 🛑 녹음 중지 중...');
+  const stopRecording =
+    useCallback(async (): Promise<RecordingResult | null> => {
+      try {
+        console.log("[useAudioRecording] 🛑 녹음 중지 중...");
 
-      // 1. 정확한 시간을 얻기 위해 먼저 타이머 중지
-      const finalDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
-      stopTimer();
+        // 1. 정확한 시간을 얻기 위해 먼저 타이머 중지
+        const finalDuration =
+          (Date.now() - recordingStartTimeRef.current) / 1000;
+        stopTimer();
 
-      // 2. AudioRecord 중지
-      const audioFile = await AudioRecord.stop();
+        // 2. AudioRecord 중지
+        const audioFile = await AudioRecord.stop();
 
-      // 3. 파일 URI 포맷
-      // Android는 file:// 접두사 없이 절대 경로 반환
-      let fileUri = audioFile;
-      if (Platform.OS === 'android' && !audioFile.startsWith('file://')) {
-        fileUri = `file://${audioFile}`;
+        // 3. 파일 URI 포맷
+        // Android는 file:// 접두사 없이 절대 경로 반환
+        let fileUri = audioFile;
+        if (Platform.OS === "android" && !audioFile.startsWith("file://")) {
+          fileUri = `file://${audioFile}`;
+        }
+
+        setIsRecording(false);
+        setRecordingUri(fileUri);
+        setCurrentTime(0);
+
+        console.log("[useAudioRecording] ✅ 녹음 중지됨");
+        console.log(`[useAudioRecording] 📁 파일: ${fileUri}`);
+        console.log(
+          `[useAudioRecording] ⏱️ 시간: ${finalDuration.toFixed(2)}초`
+        );
+
+        return {
+          uri: fileUri,
+          duration: finalDuration,
+        };
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "녹음 중지 실패";
+        console.error("[useAudioRecording] ❌ 녹음 중지 오류:", errorMessage);
+        setError(errorMessage);
+        setIsRecording(false);
+        stopTimer();
+        setCurrentTime(0);
+        return null;
       }
-
-      setIsRecording(false);
-      setRecordingUri(fileUri);
-      setCurrentTime(0);
-
-      console.log('[useAudioRecording] ✅ 녹음 중지됨');
-      console.log(`[useAudioRecording] 📁 파일: ${fileUri}`);
-      console.log(`[useAudioRecording] ⏱️ 시간: ${finalDuration.toFixed(2)}초`);
-
-      return {
-        uri: fileUri,
-        duration: finalDuration,
-      };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '녹음 중지 실패';
-      console.error('[useAudioRecording] ❌ 녹음 중지 오류:', errorMessage);
-      setError(errorMessage);
-      setIsRecording(false);
-      stopTimer();
-      setCurrentTime(0);
-      return null;
-    }
-  }, []);
+    }, []);
 
   // RecordingState 객체 구성
   const state: RecordingState = {

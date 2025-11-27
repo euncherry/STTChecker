@@ -1790,104 +1790,6 @@
       });
     </script>
 
-    <!-- Pitchfinder.js - Inline AMDF implementation (MIT License, 오프라인 지원) -->
-    <script>
-      // Minimal Pitchfinder.js implementation for AMDF pitch detection
-      // Based on: https://github.com/peterkhayes/pitchfinder (MIT License)
-      var Pitchfinder = (function () {
-        "use strict";
-
-        // AMDF (Average Magnitude Difference Function) pitch detector
-        function AMDF(config) {
-          config = config || {};
-          var sampleRate = config.sampleRate || 44100;
-          var minFrequency = config.minFrequency || 60; // 60Hz (더 넓은 범위)
-          var maxFrequency = config.maxFrequency || 800; // 800Hz (더 넓은 범위)
-          var sensitivity = config.sensitivity || 0.005; // 0.005 (더욱 민감하게)
-
-          var minPeriod = Math.floor(sampleRate / maxFrequency);
-          var maxPeriod = Math.floor(sampleRate / minFrequency);
-
-          return function detectPitch(float32AudioBuffer) {
-            var bufferLength = float32AudioBuffer.length;
-
-            // Calculate RMS (silence detection)
-            var rms = 0;
-            for (var i = 0; i < bufferLength; i++) {
-              rms += float32AudioBuffer[i] * float32AudioBuffer[i];
-            }
-            rms = Math.sqrt(rms / bufferLength);
-
-            if (rms < sensitivity) return null; // Silence
-
-            // Calculate AMDF for each period
-            var minAMDF = Infinity;
-            var bestPeriod = -1;
-
-            for (
-              var period = minPeriod;
-              period < maxPeriod && period < bufferLength;
-              period++
-            ) {
-              var sum = 0;
-              var count = bufferLength - period;
-
-              for (var i = 0; i < count; i++) {
-                sum += Math.abs(
-                  float32AudioBuffer[i] - float32AudioBuffer[i + period]
-                );
-              }
-
-              var amdf = sum / count;
-
-              if (amdf < minAMDF) {
-                minAMDF = amdf;
-                bestPeriod = period;
-              }
-            }
-
-            if (bestPeriod === -1) return null;
-
-            var frequency = sampleRate / bestPeriod;
-
-            // Validate frequency range
-            if (frequency < minFrequency || frequency > maxFrequency) {
-              return null;
-            }
-
-            return frequency;
-          };
-        }
-
-        // Helper function: detect pitch for windowed audio data
-        function frequencies(detectPitchFunc, audioData, options) {
-          options = options || {};
-          var tempo = options.tempo || 120;
-          var quantization = options.quantization || tempo;
-
-          // 더 작은 윈도우로 더 많은 디테일 감지
-          var windowSize = 1024; // 2048 → 1024 (더 작은 윈도우)
-          var hopSize = 64; // 128 → 64 (더욱 촘촘한 포인트)
-
-          var results = [];
-
-          for (var i = 0; i + windowSize < audioData.length; i += hopSize) {
-            var frame = audioData.slice(i, i + windowSize);
-            var pitch = detectPitchFunc(frame);
-            results.push(pitch);
-          }
-
-          return results;
-        }
-
-        // Public API
-        return {
-          AMDF: AMDF,
-          frequencies: frequencies,
-        };
-      })();
-    </script>
-
     <!-- WaveSurfer.js FFT & Full Spectrogram Plugin (인라인) -->
     <script>
       // WaveSurfer.js Full Spectrogram Plugin
@@ -3540,7 +3442,7 @@
         canvas.width = frequencies.length;
         canvas.height = 200; // 웹과 동일한 높이
         canvas.style.width = "100%";
-        canvas.style.height = "200px";
+        canvas.style.height = "150px";
 
         const height = canvas.height;
         const width = canvas.width;
@@ -3564,173 +3466,103 @@
         const pitchDownColor = "#C26351"; // Red (falling) - 웹과 동일
 
         // 각 주파수를 점으로 그리기 (웹/공식 문서 방식)
-        const pointSize = window.devicePixelRatio || 1; // 공식 코드와 동일
+        const pointSize = 2; // 웹 코드와 동일
         let prevY = 0;
-        let drawnCount = 0;
 
         frequencies.forEach((frequency, index) => {
-          if (!frequency) return; // 0 또는 null 무시
+          if (!frequency) return;
 
-          // 웹/공식 문서와 동일한 Y 위치 계산
-          let y = Math.round(
+          // ✅ 웹/공식 문서와 동일한 Y 위치 계산
+          // baseFrequency * 2를 최대값으로 사용
+          const y = Math.round(
             height - (frequency / (baseFrequency * 2)) * height
           );
-
-          // Y값을 캔버스 범위로 클리핑
-          y = Math.max(0, Math.min(height - 1, y));
 
           // 색상 결정 (음정 상승/하강)
           ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
 
-          // 점 그리기 (웹과 동일)
+          // 점 그리기 (웹은 fillRect, 공식 문서도 fillRect)
           ctx.fillRect(index, y, pointSize, pointSize);
 
           prevY = y;
-          drawnCount++;
         });
 
         console.log(
-          "[WaveSurfer HTML] ✅ Drew " +
-            drawnCount +
-            " pitch points out of " +
-            frequencies.length
+          "[WaveSurfer HTML] ✅ Drew",
+          frequencies.length,
+          "pitch points (baseFreq method)"
         );
       }
 
-      // Detect pitch using official Pitchfinder.js library (AMDF algorithm)
+      // Detect pitch using autocorrelation
       function detectPitchSimple(audioBuffer, sampleRate = 16000) {
-        console.log(
-          "[WaveSurfer HTML] 🎼 Starting pitch detection with Pitchfinder.js..."
-        );
-
-        // Check if Pitchfinder is loaded
-        if (typeof Pitchfinder === "undefined") {
-          console.error(
-            "[WaveSurfer HTML] ❌ Pitchfinder.js not loaded! Falling back to empty result."
-          );
-          return {
-            frequencies: [],
-            baseFrequency: 0,
-            averagePitch: 0,
-            minPitch: 0,
-            maxPitch: 0,
-          };
-        }
-
         const audioData = audioBuffer.getChannelData(0);
+        const frameSize = 2048;
+        const hopSize = 256;
+        const frequencies = [];
 
-        // Create AMDF pitch detector (like official example)
-        const detectPitch = Pitchfinder.AMDF({ sampleRate: sampleRate });
-
-        // Calculate tempo/quantization dynamically (공식 코드와 동일)
-        const duration = audioData.length / sampleRate;
-        const bpm = audioData.length / duration / 60;
-
-        console.log(
-          "[WaveSurfer HTML] 🎵 Audio info: length=" +
-            audioData.length +
-            ", sampleRate=" +
-            sampleRate +
-            ", duration=" +
-            duration.toFixed(2) +
-            "s, bpm=" +
-            bpm.toFixed(2)
-        );
-
-        // Use Pitchfinder.frequencies helper (like official docs)
-        const frequencies = Pitchfinder.frequencies(detectPitch, audioData, {
-          tempo: bpm,
-          quantization: bpm,
-        });
-
-        console.log(
-          "[WaveSurfer HTML] 🎵 Total frames detected: " + frequencies.length
-        );
-
-        // 디버그: null vs 유효한 값 카운트
-        const nullCount = frequencies.filter((f) => !f || f <= 0).length;
-        const validCount = frequencies.filter((f) => f > 0).length;
-        console.log(
-          "[WaveSurfer HTML] 📊 Valid: " +
-            validCount +
-            ", Null/Zero: " +
-            nullCount
-        );
-
-        // 디버그: 처음 20개 주파수 값 출력
-        const first20 = frequencies.slice(0, 20);
-        console.log(
-          "[WaveSurfer HTML] 🔍 First 20 frequencies: " +
-            first20.map((f) => (f ? Math.round(f) + "Hz" : "null")).join(", ")
-        );
-
-        // 디버그: 유효한 주파수들의 분포
-        const validFreqs = frequencies.filter((f) => f > 0);
-        if (validFreqs.length > 0) {
-          const sorted = validFreqs.slice().sort((a, b) => a - b);
-          const median = sorted[Math.floor(sorted.length / 2)];
-          console.log(
-            "[WaveSurfer HTML] 📊 Frequency distribution: min=" +
-              Math.round(sorted[0]) +
-              "Hz, median=" +
-              Math.round(median) +
-              "Hz, max=" +
-              Math.round(sorted[sorted.length - 1]) +
-              "Hz"
-          );
+        for (let i = 0; i < audioData.length - frameSize; i += hopSize) {
+          const frame = audioData.slice(i, i + frameSize);
+          const pitch = autoCorrelation(frame, sampleRate);
+          frequencies.push(pitch);
         }
 
-        // Calculate baseFrequency as MODE (most frequent) - like official example
-        const frequencyMap = {};
-        let maxAmount = 0;
-        let baseFrequency = 0;
-
-        frequencies.forEach((frequency) => {
-          if (!frequency || frequency <= 0) return;
-
-          // 10Hz tolerance (like official example: Math.round(frequency * 10) / 10)
-          const tolerance = 10;
-          const rounded = Math.round(frequency * tolerance) / tolerance;
-
-          if (!frequencyMap[rounded]) frequencyMap[rounded] = 0;
-          frequencyMap[rounded] += 1;
-
-          // Find mode (most frequent)
-          if (frequencyMap[rounded] > maxAmount) {
-            maxAmount = frequencyMap[rounded];
-            baseFrequency = rounded;
-          }
-        });
-
-        // Calculate statistics (validFreqs 이미 위에서 계산됨)
-        const averagePitch =
+        const validFreqs = frequencies.filter((f) => f > 0);
+        const baseFrequency =
           validFreqs.length > 0
             ? validFreqs.reduce((a, b) => a + b, 0) / validFreqs.length
-            : baseFrequency;
+            : 0;
 
         const minFreq = validFreqs.length > 0 ? Math.min(...validFreqs) : 0;
         const maxFreq = validFreqs.length > 0 ? Math.max(...validFreqs) : 0;
 
-        console.log("[WaveSurfer HTML] 🎼 Pitch detection (Pitchfinder AMDF):");
-        console.log("  - Base (mode): " + Math.round(baseFrequency) + "Hz");
-        console.log("  - Average: " + Math.round(averagePitch) + "Hz");
-        console.log(
-          "  - Range: " + Math.round(minFreq) + "-" + Math.round(maxFreq) + "Hz"
-        );
-        console.log(
-          "  - Valid frequencies: " +
-            validFreqs.length +
-            " / " +
-            frequencies.length
-        );
-
         return {
           frequencies,
-          baseFrequency, // MODE (most frequent)
-          averagePitch,
+          baseFrequency,
+          averagePitch: baseFrequency,
           minPitch: minFreq,
           maxPitch: maxFreq,
         };
+      }
+
+      function autoCorrelation(buffer, sampleRate) {
+        const SIZE = buffer.length;
+        const MAX_SAMPLES = Math.floor(SIZE / 2);
+        let best_offset = -1;
+        let best_correlation = 0;
+        let rms = 0;
+
+        for (let i = 0; i < SIZE; i++) {
+          const val = buffer[i];
+          rms += val * val;
+        }
+        rms = Math.sqrt(rms / SIZE);
+
+        if (rms < 0.01) return 0;
+
+        let lastCorrelation = 1;
+        for (let offset = 1; offset < MAX_SAMPLES; offset++) {
+          let correlation = 0;
+
+          for (let i = 0; i < MAX_SAMPLES; i++) {
+            correlation += Math.abs(buffer[i] - buffer[i + offset]);
+          }
+
+          correlation = 1 - correlation / MAX_SAMPLES;
+
+          if (correlation > 0.9 && correlation > lastCorrelation) {
+            const foundGoodCorrelation = correlation > best_correlation;
+            if (foundGoodCorrelation) {
+              best_correlation = correlation;
+              best_offset = offset;
+            }
+          }
+          lastCorrelation = correlation;
+        }
+
+        if (best_offset === -1) return 0;
+        const fundamental = sampleRate / best_offset;
+        return fundamental;
       }
 
       function displayPitchInfo(containerId, pitchResult) {
