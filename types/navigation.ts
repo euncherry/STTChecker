@@ -39,15 +39,15 @@ export interface RecordScreenParams extends Record<string, string | string[]> {
 /**
  * /results 화면의 파라미터
  */
-export interface ResultsScreenParams extends Record<string, string | string[] | undefined> {
+export interface ResultsScreenParams extends Record<string, string | string[]> {
   /** 녹음된 오디오 파일의 URI */
   audioUri: string;
   /** 발음해야 했던 목표 텍스트 */
   targetText: string;
   /** 녹음 지속 시간(초) (URL 파라미터를 위한 문자열) */
   recordingDuration: string;
-  /** 실시간 STT 결과 (Google/Siri 자연어 처리) - Android 13+/iOS만 */
-  realtimeTranscript?: string;
+  /** 실시간 STT 결과 (Google/Siri 자연어 처리) - Android 13+/iOS만, 미지원 시 빈 문자열 */
+  realtimeTranscript: string;
 }
 
 /**
