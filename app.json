@@ -45,6 +45,14 @@
       "expo-router",
       "expo-asset",
       [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "음성 녹음 및 실시간 음성 인식을 위해 마이크 접근 권한이 필요합니다.",
+          "speechRecognitionPermission": "음성을 텍스트로 변환하기 위해 음성 인식 권한이 필요합니다.",
+          "androidSpeechServicePackages": ["com.google.android.tts"]
+        }
+      ],
+      [
         "expo-audio",
         {
           "microphonePermission": "음성 녹음을 위해 마이크 접근 권한이 필요합니다."

@@ -1,35 +1,43 @@
 /**
  * @file app/record.tsx
- * @description Recording screen with react-native-audio-record (WAV format)
+ * @description 하이브리드 음성 인식 녹음 화면
  *
- * 🔄 REFACTORED:
- * - Uses feature-based imports (@/features/audio, @/features/karaoke)
- * - Improved type safety with navigation types
- * - Cleaner separation of concerns with custom hook
+ * 🎯 하이브리드 방식:
+ * - Android 13+/iOS: expo-speech-recognition (실시간 STT + WAV 녹음)
+ * - Android 12-: react-native-audio-record (WAV 녹음만)
+ *
+ * 📊 결과:
+ * - 실시간 STT: Google/Siri 자연어 처리 결과 (Android 13+/iOS만)
+ * - WAV 파일: ONNX 모델용 16kHz 오디오
  *
  * ⚠️ IMPORTANT: WAV format recording
- * - Uses react-native-audio-record (not expo-audio)
- * - Wav2Vec2 model requires WAV format input
- * - expo-audio cannot record WAV (only m4a/aac)
- *
- * 📚 Key changes:
- * BEFORE: Direct AudioRecord.init() / AudioRecord.start() / AudioRecord.stop()
- * AFTER: useAudioRecording() hook with clean API (wraps AudioRecord)
+ * - Wav2Vec2 모델은 16kHz WAV 형식 입력 필요
+ * - expo-speech-recognition: Android 13+ 기본 16kHz WAV
+ * - react-native-audio-record: Android 12- 폴백용 16kHz WAV
  */
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, Platform, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Button, Text, useTheme } from "react-native-paper";
+import {
+  ActivityIndicator,
+  Button,
+  Text,
+  useTheme,
+  Chip,
+} from "react-native-paper";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-// ✅ NEW: Feature-based imports
+// Feature-based imports
 import KaraokeText from "@/components/KaraokeText";
-import { useAudioRecording } from "@/features/audio";
+import {
+  useHybridSpeechRecognition,
+  useSpeechRecognition,
+} from "@/features/speechRecognition";
 import {
   DEFAULT_DURATION_PER_CHARACTER,
   getTimingPreset,
@@ -41,27 +49,35 @@ export default function RecordScreen() {
   const theme = useTheme();
   const router = useRouter();
 
-  // ✅ Type-safe route params using generics
+  // Type-safe route params
   const params = useLocalSearchParams<RecordScreenParams>();
   const targetText = Array.isArray(params.text) ? params.text[0] : params.text;
 
-  // ✅ REFACTORED: Use custom audio recording hook (wraps react-native-audio-record)
-  // This provides: state, permissions, startRecording, stopRecording
+  // 음성 인식 Context (플랫폼 기능 정보)
+  const { canUseHybridMode, capabilities } = useSpeechRecognition();
+
+  // 하이브리드 음성 인식 Hook
   const {
-    state: recordingState,
-    permissions,
-    startRecording,
-    stopRecording,
-    requestPermissions,
-    error: recordingError,
-  } = useAudioRecording();
+    status,
+    realtimeTranscript,
+    finalTranscript,
+    audioUri,
+    duration,
+    error: recognitionError,
+    startRecognition,
+    stopRecognition,
+    reset,
+  } = useHybridSpeechRecognition();
 
   // Local UI state
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [timer, setTimer] = useState(0);
-  const timerRef = useRef<number | null>(null);
-  const autoStopTimerRef = useRef<number | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoStopTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 녹음 중 여부
+  const isRecording = status === 'recognizing';
 
   // Karaoke timing configuration
   const referenceTimings = targetText ? getTimingPreset(targetText) : undefined;
@@ -80,33 +96,24 @@ export default function RecordScreen() {
   const autoStopDuration = estimatedTotalDuration + 1;
 
   /**
-   * 🔍 Effect: Request permissions on mount
-   *
-   * Why this is better than the old approach:
-   * - Declarative permission check
-   * - Automatic cleanup
-   * - Centralized permission logic in the hook
+   * Effect: Cleanup on unmount
    */
   useEffect(() => {
-    // Check and request permissions if needed
-    if (permissions && !permissions.granted && permissions.canAskAgain) {
-      requestPermissions();
-    }
-
     return () => {
       stopTimer();
       clearAutoStopTimer();
+      reset();
     };
-  }, [permissions]);
+  }, []);
 
   /**
-   * 🔍 Effect: Handle recording errors
+   * Effect: Handle recognition errors
    */
   useEffect(() => {
-    if (recordingError) {
-      Alert.alert("녹음 오류", recordingError);
+    if (recognitionError) {
+      Alert.alert("녹음 오류", recognitionError);
     }
-  }, [recordingError]);
+  }, [recognitionError]);
 
   /**
    * Timer management (unchanged from original)
@@ -172,31 +179,17 @@ export default function RecordScreen() {
   };
 
   /**
-   * ✅ REFACTORED: Start recording with custom hook
+   * 녹음 시작 (하이브리드 방식)
    *
-   * 🔄 Before (direct react-native-audio-record):
-   * ```tsx
-   * AudioRecord.start();
-   * ```
-   *
-   * 🆕 After (custom hook wrapping AudioRecord):
-   * ```tsx
-   * await startRecording();
-   * ```
-   *
-   * 🎯 Benefits:
-   * - Automatic permission handling
-   * - Better error handling
-   * - Type-safe API
-   * - Automatic state management
-   * - Feature-based architecture
+   * Android 13+/iOS: expo-speech-recognition (실시간 STT + WAV 녹음)
+   * Android 12-: react-native-audio-record (WAV 녹음만)
    */
   const handleStartRecording = async () => {
     try {
       console.log("[RecordScreen] 🎙️ Starting recording...");
+      console.log("[RecordScreen] Hybrid mode:", canUseHybridMode);
 
-      // ✅ NEW: Single function call replaces AudioRecord.start()
-      await startRecording();
+      await startRecognition();
 
       startTimer();
       startAutoStopTimer();
@@ -211,28 +204,11 @@ export default function RecordScreen() {
   };
 
   /**
-   * ✅ REFACTORED: Stop recording with custom hook
+   * 녹음 중지 (하이브리드 방식)
    *
-   * 🔄 Before (direct react-native-audio-record):
-   * ```tsx
-   * const audioFile = await AudioRecord.stop();
-   * let fileUri = audioFile;
-   * if (Platform.OS === "android" && !audioFile.startsWith("file://")) {
-   *   fileUri = `file://${audioFile}`;
-   * }
-   * ```
-   *
-   * 🆕 After (custom hook wrapping AudioRecord):
-   * ```tsx
-   * const result = await stopRecording();
-   * const fileUri = result.uri;  // Already properly formatted by hook
-   * ```
-   *
-   * 🎯 Benefits:
-   * - Platform-specific URI formatting handled in hook
-   * - Returns structured result with metadata
-   * - Automatic error handling
-   * - Feature-based architecture
+   * 결과:
+   * - audioUri: WAV 파일 경로 (ONNX 처리용)
+   * - realtimeTranscript: 실시간 STT 결과 (Android 13+/iOS만)
    */
   const handleStopRecording = async (isAutoStop = false) => {
     try {
@@ -244,27 +220,25 @@ export default function RecordScreen() {
         `[RecordScreen] 🛑 Stopping recording (${isAutoStop ? "auto" : "manual"})`
       );
 
-      // ✅ NEW: stopRecording() returns RecordingResult with uri and duration
-      const result = await stopRecording();
+      const result = await stopRecognition();
 
-      if (!result) {
-        throw new Error("Failed to get recording result");
+      console.log("[RecordScreen] 📁 Recording saved:", result.audioUri);
+      console.log("[RecordScreen] ⏱️ Duration:", result.duration.toFixed(2), "s");
+      console.log("[RecordScreen] 📝 Realtime transcript:", result.realtimeTranscript);
+
+      if (!result.audioUri) {
+        throw new Error("Failed to get audio file");
       }
 
-      console.log("[RecordScreen] 📁 Recording saved:", result.uri);
-      console.log(
-        "[RecordScreen] ⏱️ Duration:",
-        result.duration.toFixed(2),
-        "s"
-      );
-
-      // Navigate to results screen with recording data
+      // 결과 화면으로 이동
       router.replace({
         pathname: "/results",
         params: {
-          audioUri: result.uri, // ✅ Already properly formatted
+          audioUri: result.audioUri,
           targetText: targetText || "입력 문장 없음",
           recordingDuration: Math.floor(result.duration).toString(),
+          // 실시간 STT 결과 전달 (Android 13+/iOS만)
+          realtimeTranscript: result.realtimeTranscript || "",
         },
       });
     } catch (error) {
@@ -286,8 +260,7 @@ export default function RecordScreen() {
           <KaraokeText
             text={targetText || "문장을 가져오는 중..."}
             referenceTimings={referenceTimings}
-            isPlaying={recordingState.isRecording}
-            //{/* ✅ NEW: Use hook state */}
+            isPlaying={isRecording}
             durationPerCharacter={DEFAULT_DURATION_PER_CHARACTER}
             textColor="#374151"
             fillColor={theme.colors.primary}
@@ -298,6 +271,19 @@ export default function RecordScreen() {
         <Text variant="bodySmall" style={styles.autoStopInfo}>
           ⏰ {autoStopDuration.toFixed(1)}초 후 자동 종료
         </Text>
+
+        {/* 하이브리드 모드 표시 */}
+        <View style={styles.modeChipContainer}>
+          {canUseHybridMode ? (
+            <Chip icon="microphone" compact style={styles.modeChip}>
+              실시간 음성 인식
+            </Chip>
+          ) : (
+            <Chip icon="microphone-off" compact style={styles.modeChipDisabled}>
+              녹음 전용 모드
+            </Chip>
+          )}
+        </View>
 
         {__DEV__ && (
           <Text variant="bodySmall" style={styles.debugInfo}>
@@ -322,7 +308,7 @@ export default function RecordScreen() {
               준비하세요...
             </Text>
           </>
-        ) : recordingState.isRecording ? (
+        ) : isRecording ? (
           <>
             <ActivityIndicator
               animating={true}
@@ -339,9 +325,29 @@ export default function RecordScreen() {
             <Text variant="bodyMedium" style={styles.remainingTime}>
               {Math.max(0, autoStopDuration - timer).toFixed(0)}초 후 자동 종료
             </Text>
-            <Text variant="bodyLarge" style={styles.recordingHint}>
-              문장을 따라 읽으세요...
-            </Text>
+
+            {/* 실시간 STT 결과 표시 (Android 13+/iOS) */}
+            {canUseHybridMode ? (
+              <View style={styles.realtimeTranscriptContainer}>
+                <Text variant="labelSmall" style={styles.realtimeLabel}>
+                  실시간 인식 결과
+                </Text>
+                <Text variant="bodyLarge" style={styles.realtimeTranscript}>
+                  {realtimeTranscript || finalTranscript || "말씀해 주세요..."}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.realtimeTranscriptContainer}>
+                <MaterialCommunityIcons
+                  name="android"
+                  size={20}
+                  color="#9CA3AF"
+                />
+                <Text variant="bodySmall" style={styles.noRealtimeMessage}>
+                  Android 13 이상에서 실시간 인식이 표시됩니다
+                </Text>
+              </View>
+            )}
           </>
         ) : (
           <>
@@ -367,28 +373,30 @@ export default function RecordScreen() {
       <Button
         mode="contained"
         onPress={
-          recordingState.isRecording
+          isRecording
             ? () => handleStopRecording(false)
             : startCountdown
         }
         style={styles.button}
         buttonColor={
-          recordingState.isRecording ? theme.colors.error : theme.colors.primary
+          isRecording ? theme.colors.error : theme.colors.primary
         }
-        icon={recordingState.isRecording ? "stop" : "microphone"}
+        icon={isRecording ? "stop" : "microphone"}
         labelStyle={styles.buttonLabel}
         contentStyle={styles.buttonContent}
-        disabled={!targetText || isCountingDown || !recordingState.canRecord}
-        // {/* ✅ NEW: Check canRecord */}
+        disabled={!targetText || isCountingDown || status === 'starting'}
       >
-        {recordingState.isRecording ? "녹음 중지 및 분석" : "녹음 시작"}
+        {isRecording ? "녹음 중지 및 분석" : "녹음 시작"}
       </Button>
 
       <Text
         variant="bodySmall"
         style={[styles.debugText, { paddingBottom: insets.bottom + 5 }]}
       >
-        {Platform.OS === "android" ? "🤖 Android (WAV)" : "🍎 iOS (WAV)"}
+        {Platform.OS === "android"
+          ? `🤖 Android ${capabilities?.androidApiLevel || ''} (WAV)`
+          : "🍎 iOS (WAV)"}
+        {canUseHybridMode ? " + 실시간 STT" : ""}
       </Text>
     </SafeAreaView>
   );
@@ -428,6 +436,16 @@ const styles = StyleSheet.create({
     color: "#F59E0B",
     fontWeight: "500",
   },
+  modeChipContainer: {
+    marginTop: 8,
+    flexDirection: "row",
+  },
+  modeChip: {
+    backgroundColor: "#E8F5E9",
+  },
+  modeChipDisabled: {
+    backgroundColor: "#F3F4F6",
+  },
   debugInfo: {
     marginTop: 4,
     opacity: 0.6,
@@ -453,6 +471,29 @@ const styles = StyleSheet.create({
   recordingHint: {
     marginTop: 10,
     color: "#6B7280",
+  },
+  realtimeTranscriptContainer: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+    minHeight: 80,
+  },
+  realtimeLabel: {
+    color: "#9CA3AF",
+    marginBottom: 8,
+  },
+  realtimeTranscript: {
+    color: "#374151",
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  noRealtimeMessage: {
+    color: "#9CA3AF",
+    marginTop: 8,
+    textAlign: "center",
   },
   countdownText: {
     fontSize: 40,
