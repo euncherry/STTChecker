@@ -202,7 +202,10 @@ export default function TestScreen() {
                           );
                         }}
                         onError={(error) => {
-                          console.error("[TestScreen] ❌ WaveSurfer 에러:", error);
+                          console.error(
+                            "[TestScreen] ❌ WaveSurfer 에러:",
+                            error
+                          );
                           Alert.alert("그래프 오류", error);
                         }}
                       />
