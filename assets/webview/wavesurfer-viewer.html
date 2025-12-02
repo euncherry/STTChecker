@@ -3575,15 +3575,18 @@
         let drawnCount = 0;
 
         frequencies.forEach((frequency, index) => {
+          console.log(index, frequency);
+
           if (!frequency) return; // 0 또는 null 무시
 
           // 웹/공식 문서와 동일한 Y 위치 계산
           let y = Math.round(
             height - (frequency / (baseFrequency * 2)) * height
           );
-
-          // Y값을 캔버스 범위로 클리핑
-          y = Math.max(0, Math.min(height - 1, y));
+          console.log("y값", y, "/", Math.max(0, Math.min(height - 1, y)));
+          // Y값을 캔버스 범위로 클리핑 -> 음정의 변화가 전혀 안보이고 그래프 상단 하단에 줄로만 그여서 의미가 없음.
+          // 주석처리
+          // y = Math.max(0, Math.min(height - 1, y));
 
           // 색상 결정 (음정 상승/하강)
           ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
@@ -3594,6 +3597,7 @@
           prevY = y;
           drawnCount++;
         });
+        8;
 
         console.log(
           "[WaveSurfer HTML] ✅ Drew " +
