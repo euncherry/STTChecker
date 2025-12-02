@@ -3567,7 +3567,7 @@
         ctx.clearRect(0, 0, width, height);
 
         const pitchUpColor = "#385587"; // Blue (rising) - 웹과 동일
-        const pitchDownColor = "#C26351"; // Red (falling) - 웹과 동일
+        const pitchDownColor = "#121212"; // Red (falling) - 웹과 동일 #C26351
 
         // 각 주파수를 점으로 그리기 (웹/공식 문서 방식)
         const pointSize = window.devicePixelRatio || 1; // 공식 코드와 동일
@@ -3584,8 +3584,7 @@
             height - (frequency / (baseFrequency * 2)) * height
           );
           console.log("y값", y, "/", Math.max(0, Math.min(height - 1, y)));
-          // Y값을 캔버스 범위로 클리핑 -> 음정의 변화가 전혀 안보이고 그래프 상단 하단에 줄로만 그여서 의미가 없음.
-          // 주석처리
+          // Y값을 캔버스 범위로 클리핑 -> 음정의 변화가 전혀 안보이고 그래프 상단 하단에 줄로만 그여서 의미가 없음. -> 다음 내용이 잡음이 잡히면서 그래프 상단에(y = 0) 그래프가 그려졌던것을 알아냄.
           // y = Math.max(0, Math.min(height - 1, y));
 
           // 색상 결정 (음정 상승/하강)
@@ -3969,7 +3968,7 @@
           );
           console.log("[WaveSurfer HTML] ✅ Pitch contour drawn for", canvasId);
 
-          // displayPitchInfo(infoId, pitchResult);
+          displayPitchInfo(infoId, pitchResult);
 
           return pitchResult;
         } catch (error) {
