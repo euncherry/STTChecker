@@ -13,7 +13,6 @@ import {
   TextInput,
   useTheme,
 } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import WaveSurferWebView from "../components/WaveSurferWebView";
 import { useONNX } from "../utils/onnx/onnxContext";
 import { saveHistory } from "../utils/storage/historyManager";
@@ -260,7 +259,7 @@ export default function ResultsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={styles.contentContainer}
@@ -503,7 +502,7 @@ export default function ResultsScreen() {
           홈으로
         </Button>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
