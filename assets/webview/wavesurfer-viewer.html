@@ -3016,6 +3016,7 @@
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         background: #f8f9fa;
         overflow-x: hidden;
+        height: 100%;
         padding: 0;
       }
 
@@ -3349,7 +3350,7 @@
             >
               <canvas
                 id="spectrogram-ref-canvas"
-                style="width: 100%; height: 120px; display: block"
+                style="width: 100%; height: 100px; display: block"
               ></canvas>
             </div>
           </div>
@@ -3375,7 +3376,7 @@
             >
               <canvas
                 id="spectrogram-user-canvas"
-                style="width: 100%; height: 120px; display: block"
+                style="width: 100%; height: 100px; display: block"
               ></canvas>
             </div>
           </div>
@@ -3516,7 +3517,7 @@
       function initPitchWaveform(containerId) {
         return WaveSurfer.create({
           container: `#${containerId}`,
-          height: 150,
+          height: 100,
           waveColor: "rgba(250, 171, 200, 0.3)",
           progressColor: "rgba(200, 255, 220, 0.5)",
           cursorColor: "rgba(0, 0, 0, 0)",
@@ -3538,9 +3539,9 @@
 
         // Canvas size = frequencies length (웹 코드와 동일)
         canvas.width = frequencies.length;
-        canvas.height = 200; // 웹과 동일한 높이
+        canvas.height = 100; // 웹과 동일한 높이
         canvas.style.width = "100%";
-        canvas.style.height = "200px";
+        canvas.style.height = "100px";
 
         const height = canvas.height;
         const width = canvas.width;
@@ -3809,7 +3810,7 @@
           "[WaveSurfer HTML] 📦 Container cleared, creating plugin with config:",
           {
             fftSamples: 512,
-            height: 120,
+            height: 100,
             scale: "mel",
             frequencyMax: 8000,
           }
@@ -3832,7 +3833,7 @@
         spectrogramPlugins[pluginKey] = new SpectrogramPlugin({
           container: container,
           fftSamples: 512,
-          height: 120,
+          height: 100,
           windowFunc: "hann", // Hann window for better frequency resolution
           scale: "mel", // Mel scale (perceptually accurate)
           colorMap: "roseus", // Beautiful roseus colormap
