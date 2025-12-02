@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   graphContainer: {
-    height: 500,
+    height: 420,
     borderRadius: 8,
     overflow: "hidden",
     backgroundColor: "#f8f9fa",
