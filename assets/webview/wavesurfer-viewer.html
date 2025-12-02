@@ -3647,13 +3647,52 @@
         );
 
         // Use Pitchfinder.frequencies helper (like official docs)
-        const frequencies = Pitchfinder.frequencies(detectPitch, audioData, {
+        const rawFrequencies = Pitchfinder.frequencies(detectPitch, audioData, {
           tempo: bpm,
           quantization: bpm,
         });
 
         console.log(
-          "[WaveSurfer HTML] 🎵 Total frames detected: " + frequencies.length
+          "[WaveSurfer HTML] 🎵 Total frames detected: " + rawFrequencies.length
+        );
+
+        // ============ Energy-based noise filtering ============
+        // Filter out pitch values from low-energy (silence) frames
+        // This prevents false pitch detection in background noise
+        const windowSize = 1024;  // Same as Pitchfinder.frequencies
+        const hopSize = 64;       // Same as Pitchfinder.frequencies
+        const energyThreshold = 0.01;  // RMS threshold for silence detection
+
+        const frequencies = rawFrequencies.map((freq, index) => {
+          if (!freq || freq <= 0) return null;
+
+          // Calculate frame position
+          const frameStart = index * hopSize;
+          const frameEnd = Math.min(frameStart + windowSize, audioData.length);
+
+          if (frameStart >= audioData.length) return null;
+
+          // Calculate RMS energy for this frame
+          let sumSquares = 0;
+          let sampleCount = 0;
+          for (let i = frameStart; i < frameEnd; i++) {
+            sumSquares += audioData[i] * audioData[i];
+            sampleCount++;
+          }
+          const rms = sampleCount > 0 ? Math.sqrt(sumSquares / sampleCount) : 0;
+
+          // Filter out low-energy frames (silence/noise)
+          if (rms < energyThreshold) {
+            return null;  // Silence - don't show pitch
+          }
+
+          return freq;
+        });
+
+        // Log filtering stats
+        const filteredCount = rawFrequencies.filter((f, i) => f > 0 && !frequencies[i]).length;
+        console.log(
+          "[WaveSurfer HTML] 🔇 Energy filter: removed " + filteredCount + " low-energy pitch points"
         );
 
         // 디버그: null vs 유효한 값 카운트
