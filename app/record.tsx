@@ -23,9 +23,9 @@ import { Alert, Platform, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
+  Chip,
   Text,
   useTheme,
-  Chip,
 } from "react-native-paper";
 import {
   SafeAreaView,
@@ -35,13 +35,13 @@ import {
 // Feature-based imports
 import KaraokeText from "@/components/KaraokeText";
 import {
-  useHybridSpeechRecognition,
-  useSpeechRecognition,
-} from "@/features/speechRecognition";
-import {
   DEFAULT_DURATION_PER_CHARACTER,
   getTimingPreset,
 } from "@/features/karaoke";
+import {
+  useHybridSpeechRecognition,
+  useSpeechRecognition,
+} from "@/features/speechRecognition";
 import type { RecordScreenParams } from "@/types/navigation";
 
 export default function RecordScreen() {
@@ -77,7 +77,7 @@ export default function RecordScreen() {
   const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 녹음 중 여부
-  const isRecording = status === 'recognizing';
+  const isRecording = status === "recognizing";
 
   // Karaoke timing configuration
   const referenceTimings = targetText ? getTimingPreset(targetText) : undefined;
@@ -135,10 +135,10 @@ export default function RecordScreen() {
   const startAutoStopTimer = () => {
     console.log(`[RecordScreen] ⏰ Auto-stop timer: ${autoStopDuration}s`);
 
-    autoStopTimerRef.current = setTimeout(() => {
-      console.log("[RecordScreen] ⏰ Auto-stopping recording");
-      handleStopRecording(true);
-    }, autoStopDuration * 1000);
+    // autoStopTimerRef.current = setTimeout(() => {
+    //   console.log("[RecordScreen] ⏰ Auto-stopping recording");
+    //   handleStopRecording(true);
+    // }, autoStopDuration * 1000);
   };
 
   const clearAutoStopTimer = () => {
@@ -223,8 +223,15 @@ export default function RecordScreen() {
       const result = await stopRecognition();
 
       console.log("[RecordScreen] 📁 Recording saved:", result.audioUri);
-      console.log("[RecordScreen] ⏱️ Duration:", result.duration.toFixed(2), "s");
-      console.log("[RecordScreen] 📝 Realtime transcript:", result.realtimeTranscript);
+      console.log(
+        "[RecordScreen] ⏱️ Duration:",
+        result.duration.toFixed(2),
+        "s"
+      );
+      console.log(
+        "[RecordScreen] 📝 Realtime transcript:",
+        result.realtimeTranscript
+      );
 
       if (!result.audioUri) {
         throw new Error("Failed to get audio file");
@@ -373,18 +380,14 @@ export default function RecordScreen() {
       <Button
         mode="contained"
         onPress={
-          isRecording
-            ? () => handleStopRecording(false)
-            : startCountdown
+          isRecording ? () => handleStopRecording(false) : startCountdown
         }
         style={styles.button}
-        buttonColor={
-          isRecording ? theme.colors.error : theme.colors.primary
-        }
+        buttonColor={isRecording ? theme.colors.error : theme.colors.primary}
         icon={isRecording ? "stop" : "microphone"}
         labelStyle={styles.buttonLabel}
         contentStyle={styles.buttonContent}
-        disabled={!targetText || isCountingDown || status === 'starting'}
+        disabled={!targetText || isCountingDown || status === "starting"}
       >
         {isRecording ? "녹음 중지 및 분석" : "녹음 시작"}
       </Button>
@@ -394,7 +397,7 @@ export default function RecordScreen() {
         style={[styles.debugText, { paddingBottom: insets.bottom + 5 }]}
       >
         {Platform.OS === "android"
-          ? `🤖 Android ${capabilities?.androidApiLevel || ''} (WAV)`
+          ? `🤖 Android ${capabilities?.androidApiLevel || ""} (WAV)`
           : "🍎 iOS (WAV)"}
         {canUseHybridMode ? " + 실시간 STT" : ""}
       </Text>
