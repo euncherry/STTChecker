@@ -8,31 +8,31 @@
  * 두 방식 모두 16kHz WAV 파일을 생성하여 ONNX 모델에서 사용할 수 있습니다.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { Paths } from "expo-file-system";
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
-import AudioRecord from 'react-native-audio-record';
-import { Paths } from 'expo-file-system';
+} from "expo-speech-recognition";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
+import AudioRecord from "react-native-audio-record";
 
-import { useSpeechRecognition as useSpeechRecognitionContext } from '../speechRecognitionContext';
-import { KOREAN_LOCALE } from '../utils/koreanModelManager';
+import { useSpeechRecognition as useSpeechRecognitionContext } from "../speechRecognitionContext";
+import { KOREAN_LOCALE } from "../utils/koreanModelManager";
 
 // 무시해도 되는 에러 타입 (녹음은 정상 완료됨)
-const IGNORABLE_ERRORS = ['client', 'aborted'];
+const IGNORABLE_ERRORS = ["client", "aborted"];
 
 /**
  * 녹음 상태
  */
 export type RecognitionStatus =
-  | 'idle'           // 대기 중
-  | 'starting'       // 시작 중
-  | 'recognizing'    // 인식 중
-  | 'stopping'       // 종료 중
-  | 'completed'      // 완료
-  | 'error';         // 오류
+  | "idle" // 대기 중
+  | "starting" // 시작 중
+  | "recognizing" // 인식 중
+  | "stopping" // 종료 중
+  | "completed" // 완료
+  | "error"; // 오류
 
 /**
  * 하이브리드 음성 인식 결과
@@ -88,9 +88,9 @@ export function useHybridSpeechRecognition(): UseHybridSpeechRecognitionReturn {
   const { canUseHybridMode, capabilities } = useSpeechRecognitionContext();
 
   // 상태
-  const [status, setStatus] = useState<RecognitionStatus>('idle');
-  const [realtimeTranscript, setRealtimeTranscript] = useState('');
-  const [finalTranscript, setFinalTranscript] = useState('');
+  const [status, setStatus] = useState<RecognitionStatus>("idle");
+  const [realtimeTranscript, setRealtimeTranscript] = useState("");
+  const [finalTranscript, setFinalTranscript] = useState("");
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -99,30 +99,41 @@ export function useHybridSpeechRecognition(): UseHybridSpeechRecognitionReturn {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
 
-  // 비동기 이벤트에서 값을 동기적으로 추적하기 위한 ref
+  // 비동기 이벤트에서 값을 동기적으로 추적하기 위한 refl;l;
   const audioUriRef = useRef<string | null>(null);
-  const transcriptRef = useRef<string>('');
+  const transcriptRef = useRef<string>("");
 
   // audioend 이벤트 대기를 위한 Promise resolver
-  const audioEndResolverRef = useRef<((uri: string | null) => void) | null>(null);
+  const audioEndResolverRef = useRef<((uri: string | null) => void) | null>(
+    null
+  );
 
   // 폴백 모드 사용 여부 (Android 12 이하)
-  const useFallbackMode = Platform.OS === 'android' && !canUseHybridMode;
+  //TODO 폴백 테스트
+  const useFallbackMode = Platform.OS === "android" && !canUseHybridMode;
 
   /**
    * expo-speech-recognition 이벤트 리스너
    */
-  useSpeechRecognitionEvent('start', () => {
-    console.log('[HybridSTT] 🎤 인식 시작');
-    setStatus('recognizing');
+  useSpeechRecognitionEvent("start", () => {
+    console.log("[HybridSTT] 🎤 인식 시작");
+    setStatus("recognizing");
   });
 
-  useSpeechRecognitionEvent('result', (event) => {
-    const transcript = event.results[0]?.transcript || '';
+  useSpeechRecognitionEvent("result", (event) => {
+    const transcript = event.results[0]?.transcript || "";
     const now = Date.now();
-    const elapsed = startTimeRef.current > 0 ? ((now - startTimeRef.current) / 1000).toFixed(2) : '0.00';
+    const elapsed =
+      startTimeRef.current > 0
+        ? ((now - startTimeRef.current) / 1000).toFixed(2)
+        : "0.00";
 
-    console.log(`[HybridSTT] 📝 결과 (${elapsed}s):`, transcript, 'isFinal:', event.isFinal);
+    console.log(
+      `[HybridSTT] 📝 결과 (${elapsed}s):`,
+      transcript,
+      "isFinal:",
+      event.isFinal
+    );
 
     if (event.isFinal) {
       console.log(`[HybridSTT] 🎯 isFinal=true 수신! (${elapsed}s)`);
@@ -138,8 +149,8 @@ export function useHybridSpeechRecognition(): UseHybridSpeechRecognitionReturn {
     }
   });
 
-  useSpeechRecognitionEvent('audioend', (event) => {
-    console.log('[HybridSTT] 🔊 오디오 종료, URI:', event.uri);
+  useSpeechRecognitionEvent("audioend", (event) => {
+    console.log("[HybridSTT] 🔊 오디오 종료, URI:", event.uri);
     const uri = event.uri || null;
 
     // ref와 state 모두 업데이트
@@ -153,23 +164,34 @@ export function useHybridSpeechRecognition(): UseHybridSpeechRecognitionReturn {
     }
   });
 
-  useSpeechRecognitionEvent('end', () => {
-    console.log('[HybridSTT] ✅ 인식 종료');
+  useSpeechRecognitionEvent("end", () => {
+    console.log("[HybridSTT] ✅ 인식 종료");
     stopTimer();
-    setStatus('completed');
+    setStatus("completed");
   });
 
-  useSpeechRecognitionEvent('error', (event) => {
+  useSpeechRecognitionEvent("error", (event) => {
     const now = Date.now();
-    const elapsed = startTimeRef.current > 0 ? ((now - startTimeRef.current) / 1000).toFixed(2) : '0.00';
+    const elapsed =
+      startTimeRef.current > 0
+        ? ((now - startTimeRef.current) / 1000).toFixed(2)
+        : "0.00";
 
     // 무시해도 되는 에러는 정상 종료로 처리 (녹음 파일은 정상 생성됨)
     if (IGNORABLE_ERRORS.includes(event.error)) {
-      console.log(`[HybridSTT] ⚠️ 무시 가능한 에러 (${elapsed}s):`, event.error, event.message);
+      console.log(
+        `[HybridSTT] ⚠️ 무시 가능한 에러 (${elapsed}s):`,
+        event.error,
+        event.message
+      );
     } else {
-      console.error(`[HybridSTT] ❌ 에러 (${elapsed}s):`, event.error, event.message);
+      console.error(
+        `[HybridSTT] ❌ 에러 (${elapsed}s):`,
+        event.error,
+        event.message
+      );
       setError(event.message || event.error);
-      setStatus('error');
+      setStatus("error");
     }
     stopTimer();
   });
@@ -212,47 +234,47 @@ export function useHybridSpeechRecognition(): UseHybridSpeechRecognitionReturn {
       audioSource: 6, // VOICE_RECOGNITION
       wavFile: fileName,
     });
-    console.log('[HybridSTT] 📼 폴백 녹음 초기화:', fileName);
+    console.log("[HybridSTT] 📼 폴백 녹음 초기화:", fileName);
   }, []);
 
   /**
    * 녹음 시작
    */
   const startRecognition = useCallback(async () => {
-    console.log('[HybridSTT] 🚀 녹음 시작 요청...');
-    console.log('[HybridSTT] 하이브리드 모드:', canUseHybridMode);
-    console.log('[HybridSTT] 폴백 모드:', useFallbackMode);
+    console.log("[HybridSTT] 🚀 녹음 시작 요청...");
+    console.log("[HybridSTT] 하이브리드 모드:", canUseHybridMode);
+    console.log("[HybridSTT] 폴백 모드:", useFallbackMode);
 
     // 상태 초기화
-    setStatus('starting');
-    setRealtimeTranscript('');
-    setFinalTranscript('');
+    setStatus("starting");
+    setRealtimeTranscript("");
+    setFinalTranscript("");
     setAudioUri(null);
     setError(null);
     setDuration(0);
 
     // ref 초기화
     audioUriRef.current = null;
-    transcriptRef.current = '';
+    transcriptRef.current = "";
     audioEndResolverRef.current = null;
 
     try {
       if (useFallbackMode) {
         // Android 12 이하: react-native-audio-record 사용
-        console.log('[HybridSTT] 📼 폴백 모드로 녹음 시작');
+        console.log("[HybridSTT] 📼 폴백 모드로 녹음 시작 - 자연어STT X ");
         initFallbackRecording();
         AudioRecord.start();
-        setStatus('recognizing');
+        setStatus("recognizing");
         startTimer();
       } else {
         // Android 13+/iOS: expo-speech-recognition 사용
-        console.log('[HybridSTT] 🎤 하이브리드 모드로 녹음 시작');
+        console.log("[HybridSTT] 🎤 하이브리드 모드로 녹음 시작 - 자연어STT O");
 
         // 권한 요청
         const permissionResult =
           await ExpoSpeechRecognitionModule.requestPermissionsAsync();
         if (!permissionResult.granted) {
-          throw new Error('마이크 권한이 필요합니다.');
+          throw new Error("마이크 권한이 필요합니다.");
         }
 
         // 녹음 시작 (실시간 STT + WAV 저장)
@@ -267,7 +289,7 @@ export function useHybridSpeechRecognition(): UseHybridSpeechRecognitionReturn {
             outputDirectory: Paths.cache.uri,
             outputFileName: `recording_${Date.now()}.wav`,
             outputSampleRate: 16000, // ONNX 모델용 16kHz
-            outputEncoding: 'pcmFormatInt16', // 16-bit PCM
+            outputEncoding: "pcmFormatInt16", // 16-bit PCM
           },
         });
 
@@ -275,100 +297,105 @@ export function useHybridSpeechRecognition(): UseHybridSpeechRecognitionReturn {
       }
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : '녹음 시작 실패';
-      console.error('[HybridSTT] ❌ 시작 실패:', errorMessage);
+        err instanceof Error ? err.message : "녹음 시작 실패";
+      console.error("[HybridSTT] ❌ 시작 실패:", errorMessage);
       setError(errorMessage);
-      setStatus('error');
+      setStatus("error");
     }
   }, [canUseHybridMode, useFallbackMode, initFallbackRecording, startTimer]);
 
   /**
    * 녹음 중지
    */
-  const stopRecognition = useCallback(async (): Promise<HybridRecognitionResult> => {
-    const now = Date.now();
-    const elapsed = startTimeRef.current > 0 ? ((now - startTimeRef.current) / 1000).toFixed(2) : '0.00';
-    console.log(`[HybridSTT] 🛑 녹음 중지 요청 (${elapsed}s)...`);
-    setStatus('stopping');
+  const stopRecognition =
+    useCallback(async (): Promise<HybridRecognitionResult> => {
+      const now = Date.now();
+      const elapsed =
+        startTimeRef.current > 0
+          ? ((now - startTimeRef.current) / 1000).toFixed(2)
+          : "0.00";
+      console.log(`[HybridSTT] 🛑 녹음 중지 요청 (${elapsed}s)...`);
+      setStatus("stopping");
 
-    const finalDuration = stopTimer();
+      const finalDuration = stopTimer();
 
-    try {
-      if (useFallbackMode) {
-        // Android 12 이하: react-native-audio-record 중지
-        const audioFile = await AudioRecord.stop();
-        let fileUri = audioFile;
-        if (Platform.OS === 'android' && !audioFile.startsWith('file://')) {
-          fileUri = `file://${audioFile}`;
+      try {
+        if (useFallbackMode) {
+          // Android 12 이하: react-native-audio-record 중지
+          const audioFile = await AudioRecord.stop();
+          let fileUri = audioFile;
+          if (Platform.OS === "android" && !audioFile.startsWith("file://")) {
+            fileUri = `file://${audioFile}`;
+          }
+
+          console.log("[HybridSTT] 📼 폴백 녹음 완료:", fileUri);
+          setAudioUri(fileUri);
+          setStatus("completed");
+
+          return {
+            realtimeTranscript: null, // 폴백 모드에서는 실시간 STT 없음
+            audioUri: fileUri,
+            duration: finalDuration,
+          };
+        } else {
+          // Android 13+/iOS: expo-speech-recognition 중지
+          ExpoSpeechRecognitionModule.stop();
+
+          // 'audioend' 이벤트 대기 (최대 3초)
+          // 이미 audioend가 도착했으면 ref에서 바로 가져옴
+          let resolvedAudioUri = audioUriRef.current;
+
+          if (!resolvedAudioUri) {
+            console.log("[HybridSTT] ⏳ audioend 이벤트 대기 중...");
+            resolvedAudioUri = await Promise.race([
+              new Promise<string | null>((resolve) => {
+                audioEndResolverRef.current = resolve;
+              }),
+              new Promise<string | null>((resolve) =>
+                setTimeout(() => resolve(null), 3000)
+              ),
+            ]);
+          }
+
+          console.log("[HybridSTT] ✅ 최종 audioUri:", resolvedAudioUri);
+          console.log("[HybridSTT] ✅ 최종 transcript:", transcriptRef.current);
+
+          return {
+            realtimeTranscript:
+              transcriptRef.current || finalTranscript || realtimeTranscript,
+            audioUri: resolvedAudioUri,
+            duration: finalDuration,
+          };
         }
-
-        console.log('[HybridSTT] 📼 폴백 녹음 완료:', fileUri);
-        setAudioUri(fileUri);
-        setStatus('completed');
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "녹음 중지 실패";
+        console.error("[HybridSTT] ❌ 중지 실패:", errorMessage);
+        setError(errorMessage);
+        setStatus("error");
 
         return {
-          realtimeTranscript: null, // 폴백 모드에서는 실시간 STT 없음
-          audioUri: fileUri,
-          duration: finalDuration,
-        };
-      } else {
-        // Android 13+/iOS: expo-speech-recognition 중지
-        ExpoSpeechRecognitionModule.stop();
-
-        // 'audioend' 이벤트 대기 (최대 3초)
-        // 이미 audioend가 도착했으면 ref에서 바로 가져옴
-        let resolvedAudioUri = audioUriRef.current;
-
-        if (!resolvedAudioUri) {
-          console.log('[HybridSTT] ⏳ audioend 이벤트 대기 중...');
-          resolvedAudioUri = await Promise.race([
-            new Promise<string | null>((resolve) => {
-              audioEndResolverRef.current = resolve;
-            }),
-            new Promise<string | null>((resolve) =>
-              setTimeout(() => resolve(null), 3000)
-            ),
-          ]);
-        }
-
-        console.log('[HybridSTT] ✅ 최종 audioUri:', resolvedAudioUri);
-        console.log('[HybridSTT] ✅ 최종 transcript:', transcriptRef.current);
-
-        return {
-          realtimeTranscript: transcriptRef.current || finalTranscript || realtimeTranscript,
-          audioUri: resolvedAudioUri,
+          realtimeTranscript: null,
+          audioUri: null,
           duration: finalDuration,
         };
       }
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : '녹음 중지 실패';
-      console.error('[HybridSTT] ❌ 중지 실패:', errorMessage);
-      setError(errorMessage);
-      setStatus('error');
-
-      return {
-        realtimeTranscript: null,
-        audioUri: null,
-        duration: finalDuration,
-      };
-    }
-  }, [
-    useFallbackMode,
-    stopTimer,
-    finalTranscript,
-    realtimeTranscript,
-    audioUri,
-  ]);
+    }, [
+      useFallbackMode,
+      stopTimer,
+      finalTranscript,
+      realtimeTranscript,
+      audioUri,
+    ]);
 
   /**
    * 상태 초기화
    */
   const reset = useCallback(() => {
-    console.log('[HybridSTT] 🔄 상태 초기화');
-    setStatus('idle');
-    setRealtimeTranscript('');
-    setFinalTranscript('');
+    console.log("[HybridSTT] 🔄 상태 초기화");
+    setStatus("idle");
+    setRealtimeTranscript("");
+    setFinalTranscript("");
     setAudioUri(null);
     setDuration(0);
     setError(null);
@@ -376,7 +403,7 @@ export function useHybridSpeechRecognition(): UseHybridSpeechRecognitionReturn {
 
     // ref 초기화
     audioUriRef.current = null;
-    transcriptRef.current = '';
+    transcriptRef.current = "";
     audioEndResolverRef.current = null;
   }, [stopTimer]);
 
