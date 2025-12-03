@@ -1802,8 +1802,8 @@
           config = config || {};
           var sampleRate = config.sampleRate || 44100;
           var minFrequency = config.minFrequency || 60; // 60Hz (더 넓은 범위)
-          var maxFrequency = config.maxFrequency || 500; // 500Hz ((일반 음성 기본 주파수: 85~400Hz)
-          var sensitivity = config.sensitivity || 0.1; // 0.005 (더욱 민감하게 : 잡음이 잡히지 않도록)
+          var maxFrequency = config.maxFrequency || 400; // 500Hz ((일반 음성 기본 주파수: 85~400Hz)
+          var sensitivity = config.sensitivity || 0.02; // 0.005 (더욱 민감하게 : 잡음이 잡히지 않도록)
 
           var minPeriod = Math.floor(sampleRate / maxFrequency);
           var maxPeriod = Math.floor(sampleRate / minFrequency);
