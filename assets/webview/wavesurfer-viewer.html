@@ -1795,42 +1795,42 @@
       // ============ Pitch Detection Configuration ============
       const PITCH_CONFIG = {
         // 🎯 대상 그룹 선택: 'CHILDREN_INCLUDED', 'ADULTS_ONLY', 'HIGH_NOISE', 'QUIET_ENV'
-        TARGET_GROUP: 'CHILDREN_INCLUDED',
+        TARGET_GROUP: "ADULTS_ONLY",
 
         // 프로파일 정의
         PROFILES: {
           CHILDREN_INCLUDED: {
             minFrequency: 60,
-            maxFrequency: 550,        // 아동 음성 포함
-            sensitivity: 0.04,         // 노이즈 차단 강화
-            energyThreshold: 0.015,    // 2차 필터
-            boundaryTolerance: 20,     // 경계값 허용 오차
-            description: '아동 포함 (60-550Hz)'
+            maxFrequency: 550, // 아동 음성 포함
+            sensitivity: 0.04, // 노이즈 차단 강화
+            energyThreshold: 0.015, // 2차 필터
+            boundaryTolerance: 20, // 경계값 허용 오차
+            description: "아동 포함 (60-500Hz)",
           },
           ADULTS_ONLY: {
             minFrequency: 60,
-            maxFrequency: 350,         // 성인만
-            sensitivity: 0.03,         // 균형잡힌 감지
-            energyThreshold: 0.015,    // 2차 필터
-            boundaryTolerance: 15,     // 경계값 허용 오차
-            description: '성인만 (60-350Hz)'
+            maxFrequency: 350, // 성인만
+            sensitivity: 0.01, // 균형잡힌 감지
+            energyThreshold: 0.005, // 2차 필터
+            boundaryTolerance: 15, // 경계값 허용 오차
+            description: "성인만 (60-350Hz)",
           },
           HIGH_NOISE: {
             minFrequency: 60,
             maxFrequency: 550,
-            sensitivity: 0.05,         // 노이즈 많은 환경
+            sensitivity: 0.1, // 노이즈 많은 환경
             energyThreshold: 0.02,
             boundaryTolerance: 20,
-            description: '시끄러운 환경'
+            description: "시끄러운 환경",
           },
           QUIET_ENV: {
             minFrequency: 60,
             maxFrequency: 550,
-            sensitivity: 0.03,         // 조용한 환경
+            sensitivity: 0.05, // 조용한 환경
             energyThreshold: 0.01,
             boundaryTolerance: 20,
-            description: '조용한 환경'
-          }
+            description: "조용한 환경",
+          },
         },
 
         // 현재 설정 가져오기
@@ -1839,22 +1839,26 @@
         },
 
         // 설정 변경
-        setProfile: function(profileName) {
+        setProfile: function (profileName) {
           if (this.PROFILES[profileName]) {
             this.TARGET_GROUP = profileName;
-            console.log('[Config] 🎯 Pitch profile changed to: ' + profileName);
-            console.log('[Config] 📊 Settings: ' + JSON.stringify(this.current));
+            console.log("[Config] 🎯 Pitch profile changed to: " + profileName);
+            console.log(
+              "[Config] 📊 Settings: " + JSON.stringify(this.current)
+            );
             return true;
           }
-          console.error('[Config] ❌ Invalid profile: ' + profileName);
+          console.error("[Config] ❌ Invalid profile: " + profileName);
           return false;
-        }
+        },
       };
 
       // 설정 출력
-      console.log('[Config] 🎼 Pitch Detection Config Loaded');
-      console.log('[Config] 📊 Current Profile: ' + PITCH_CONFIG.TARGET_GROUP);
-      console.log('[Config] 📋 Settings: ' + JSON.stringify(PITCH_CONFIG.current));
+      console.log("[Config] 🎼 Pitch Detection Config Loaded");
+      console.log("[Config] 📊 Current Profile: " + PITCH_CONFIG.TARGET_GROUP);
+      console.log(
+        "[Config] 📋 Settings: " + JSON.stringify(PITCH_CONFIG.current)
+      );
     </script>
 
     <!-- Pitchfinder.js - Inline AMDF implementation (MIT License, 오프라인 지원) -->
@@ -1870,9 +1874,10 @@
           var sampleRate = config.sampleRate || 44100;
 
           // 👇 기본값을 PITCH_CONFIG에서 가져오기
-          var defaultConfig = (typeof PITCH_CONFIG !== 'undefined')
-            ? PITCH_CONFIG.current
-            : { minFrequency: 60, maxFrequency: 550, sensitivity: 0.04 };
+          var defaultConfig =
+            typeof PITCH_CONFIG !== "undefined"
+              ? PITCH_CONFIG.current
+              : { minFrequency: 60, maxFrequency: 550, sensitivity: 0.04 };
 
           var minFrequency = config.minFrequency || defaultConfig.minFrequency;
           var maxFrequency = config.maxFrequency || defaultConfig.maxFrequency;
@@ -3649,13 +3654,15 @@
 
         frequencies.forEach((frequency, index) => {
           if (!frequency) return; // 0 또는 null 무시
-          console.log(index, frequency);
+          // if (frequency === 550) return;
+
+          // console.log(index, frequency);
 
           // 웹/공식 문서와 동일한 Y 위치 계산
           let y = Math.round(
             height - (frequency / (baseFrequency * 2)) * height
           );
-          console.log("y값", y, "/", Math.max(0, Math.min(height - 1, y)));
+          // console.log("y값", y, "/", Math.max(0, Math.min(height - 1, y)));
           // Y값을 캔버스 범위로 클리핑 -> 음정의 변화가 전혀 안보이고 그래프 상단 하단에 줄로만 그여서 의미가 없음. -> 다음 내용이 잡음이 잡히면서 그래프 상단에(y = 0) 그래프가 그려졌던것을 알아냄.
           // y = Math.max(0, Math.min(height - 1, y));
 
@@ -3704,8 +3711,10 @@
         const config = PITCH_CONFIG.current;
 
         console.log(
-          "[WaveSurfer HTML] 📊 Using profile: " + PITCH_CONFIG.TARGET_GROUP +
-          " - " + config.description
+          "[WaveSurfer HTML] 📊 Using profile: " +
+            PITCH_CONFIG.TARGET_GROUP +
+            " - " +
+            config.description
         );
 
         // AMDF 피치 감지 (Config 사용)
@@ -3713,7 +3722,7 @@
           sampleRate: sampleRate,
           minFrequency: config.minFrequency,
           maxFrequency: config.maxFrequency,
-          sensitivity: config.sensitivity
+          sensitivity: config.sensitivity,
         });
 
         // Calculate tempo/quantization dynamically (공식 코드와 동일)
@@ -3744,8 +3753,8 @@
         );
 
         // ============ Energy-based + Boundary filtering (Config 사용) ============
-        const windowSize = 1024;  // Same as Pitchfinder.frequencies
-        const hopSize = 64;       // Same as Pitchfinder.frequencies
+        const windowSize = 1024; // Same as Pitchfinder.frequencies
+        const hopSize = 64; // Same as Pitchfinder.frequencies
 
         const frequencies = rawFrequencies.map((freq, index) => {
           if (!freq || freq <= 0) return null;
@@ -3784,11 +3793,17 @@
         });
 
         // 필터링 통계
-        const filteredCount = rawFrequencies.filter((f, i) => f > 0 && !frequencies[i]).length;
+        const filteredCount = rawFrequencies.filter(
+          (f, i) => f > 0 && !frequencies[i]
+        ).length;
         console.log(
-          "[WaveSurfer HTML] 🔇 Filtered " + filteredCount +
-          " low-energy/boundary points (threshold=" + config.energyThreshold +
-          ", boundaryTolerance=" + config.boundaryTolerance + ")"
+          "[WaveSurfer HTML] 🔇 Filtered " +
+            filteredCount +
+            " low-energy/boundary points (threshold=" +
+            config.energyThreshold +
+            ", boundaryTolerance=" +
+            config.boundaryTolerance +
+            ")"
         );
 
         // 디버그: null vs 유효한 값 카운트
@@ -3832,7 +3847,11 @@
         frequencies.forEach((frequency) => {
           if (!frequency || frequency <= 0) return;
           //TODO maxFrequency 제외
-          // if (frequency === 800) return;
+          const config = PITCH_CONFIG.current;
+
+          if (frequency === config.maxFrequency) {
+            return;
+          }
 
           // 10Hz tolerance (like official example: Math.round(frequency * 10) / 10)
           const tolerance = 10;
