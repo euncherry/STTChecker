@@ -3648,9 +3648,8 @@
         const pitchDownColor = "#121212"; // Red (falling) - 웹과 동일 #C26351
 
         // 각 주파수를 점으로 그리기 (웹/공식 문서 방식)
-        const pointSize = window.devicePixelRatio || 1; // 공식 코드와 동일
+        const pointSize = 2; // 웹 코드와 동일
         let prevY = 0;
-        let drawnCount = 0;
 
         frequencies.forEach((frequency, index) => {
           if (!frequency) return; // 0 또는 null 무시
@@ -3658,8 +3657,9 @@
 
           // console.log(index, frequency);
 
-          // 웹/공식 문서와 동일한 Y 위치 계산
-          let y = Math.round(
+          // ✅ 웹/공식 문서와 동일한 Y 위치 계산
+          // baseFrequency * 2를 최대값으로 사용
+          const y = Math.round(
             height - (frequency / (baseFrequency * 2)) * height
           );
           // console.log("y값", y, "/", Math.max(0, Math.min(height - 1, y)));
@@ -3669,42 +3669,22 @@
           // 색상 결정 (음정 상승/하강)
           ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
 
-          // 점 그리기 (웹과 동일)
+          // 점 그리기 (웹은 fillRect, 공식 문서도 fillRect)
           ctx.fillRect(index, y, pointSize, pointSize);
 
           prevY = y;
-          drawnCount++;
         });
         8;
 
         console.log(
-          "[WaveSurfer HTML] ✅ Drew " +
-            drawnCount +
-            " pitch points out of " +
-            frequencies.length
+          "[WaveSurfer HTML] ✅ Drew",
+          frequencies.length,
+          "pitch points (baseFreq method)"
         );
       }
 
-      // Detect pitch using official Pitchfinder.js library (AMDF algorithm)
+      // Detect pitch using autocorrelation
       function detectPitchSimple(audioBuffer, sampleRate = 16000) {
-        console.log(
-          "[WaveSurfer HTML] 🎼 Starting pitch detection with Pitchfinder.js..."
-        );
-
-        // Check if Pitchfinder is loaded
-        if (typeof Pitchfinder === "undefined") {
-          console.error(
-            "[WaveSurfer HTML] ❌ Pitchfinder.js not loaded! Falling back to empty result."
-          );
-          return {
-            frequencies: [],
-            baseFrequency: 0,
-            averagePitch: 0,
-            minPitch: 0,
-            maxPitch: 0,
-          };
-        }
-
         const audioData = audioBuffer.getChannelData(0);
 
         // ============ Config에서 설정 가져오기 ============
@@ -3871,31 +3851,58 @@
         const averagePitch =
           validFreqs.length > 0
             ? validFreqs.reduce((a, b) => a + b, 0) / validFreqs.length
-            : baseFrequency;
+            : 0;
 
         const minFreq = validFreqs.length > 0 ? Math.min(...validFreqs) : 0;
         const maxFreq = validFreqs.length > 0 ? Math.max(...validFreqs) : 0;
 
-        console.log("[WaveSurfer HTML] 🎼 Pitch detection (Pitchfinder AMDF):");
-        console.log("  - Base (mode): " + Math.round(baseFrequency) + "Hz");
-        console.log("  - Average: " + Math.round(averagePitch) + "Hz");
-        console.log(
-          "  - Range: " + Math.round(minFreq) + "-" + Math.round(maxFreq) + "Hz"
-        );
-        console.log(
-          "  - Valid frequencies: " +
-            validFreqs.length +
-            " / " +
-            frequencies.length
-        );
-
         return {
           frequencies,
-          baseFrequency, // MODE (most frequent)
-          averagePitch,
+          baseFrequency,
+          averagePitch: baseFrequency,
           minPitch: minFreq,
           maxPitch: maxFreq,
         };
+      }
+
+      function autoCorrelation(buffer, sampleRate) {
+        const SIZE = buffer.length;
+        const MAX_SAMPLES = Math.floor(SIZE / 2);
+        let best_offset = -1;
+        let best_correlation = 0;
+        let rms = 0;
+
+        for (let i = 0; i < SIZE; i++) {
+          const val = buffer[i];
+          rms += val * val;
+        }
+        rms = Math.sqrt(rms / SIZE);
+
+        if (rms < 0.01) return 0;
+
+        let lastCorrelation = 1;
+        for (let offset = 1; offset < MAX_SAMPLES; offset++) {
+          let correlation = 0;
+
+          for (let i = 0; i < MAX_SAMPLES; i++) {
+            correlation += Math.abs(buffer[i] - buffer[i + offset]);
+          }
+
+          correlation = 1 - correlation / MAX_SAMPLES;
+
+          if (correlation > 0.9 && correlation > lastCorrelation) {
+            const foundGoodCorrelation = correlation > best_correlation;
+            if (foundGoodCorrelation) {
+              best_correlation = correlation;
+              best_offset = offset;
+            }
+          }
+          lastCorrelation = correlation;
+        }
+
+        if (best_offset === -1) return 0;
+        const fundamental = sampleRate / best_offset;
+        return fundamental;
       }
 
       function displayPitchInfo(containerId, pitchResult) {
