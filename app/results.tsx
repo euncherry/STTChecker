@@ -315,7 +315,7 @@ export default function ResultsScreen() {
             <Card.Content style={styles.scoreContainer}>
               <View style={styles.scoreBox}>
                 <Text variant="headlineLarge" style={styles.score}>
-                  {((1 - cerScore) * 100).toFixed(0)}%
+                  {((1 - cerScore) * 100).toFixed(0)}점
                 </Text>
                 <Text variant="labelLarge">문자 정확도</Text>
                 <Text variant="bodySmall" style={styles.scoreDetail}>
@@ -324,7 +324,7 @@ export default function ResultsScreen() {
               </View>
               <View style={styles.scoreBox}>
                 <Text variant="headlineLarge" style={styles.score}>
-                  {((1 - werScore) * 100).toFixed(0)}%
+                  {((1 - werScore) * 100).toFixed(0)}점
                 </Text>
                 <Text variant="labelLarge">단어 정확도</Text>
                 <Text variant="bodySmall" style={styles.scoreDetail}>
