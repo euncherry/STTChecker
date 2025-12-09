@@ -1790,6 +1790,182 @@
       });
     </script>
 
+    <!-- Pitch Detection Configuration -->
+    <script>
+      // ============ Pitch Detection Configuration ============
+      const PITCH_CONFIG = {
+        // 🎯 대상 그룹 선택: 'CHILDREN_INCLUDED', 'ADULTS_ONLY', 'HIGH_NOISE', 'QUIET_ENV'
+        TARGET_GROUP: "ADULTS_ONLY",
+
+        // 프로파일 정의
+        PROFILES: {
+          CHILDREN_INCLUDED: {
+            minFrequency: 60,
+            maxFrequency: 550, // 아동 음성 포함
+            sensitivity: 0.04, // 노이즈 차단 강화
+            energyThreshold: 0.015, // 2차 필터
+            boundaryTolerance: 20, // 경계값 허용 오차
+            description: "아동 포함 (60-500Hz)",
+          },
+          ADULTS_ONLY: {
+            minFrequency: 60,
+            maxFrequency: 350, // 성인만
+            sensitivity: 0.01, // 균형잡힌 감지
+            energyThreshold: 0.005, // 2차 필터
+            boundaryTolerance: 15, // 경계값 허용 오차
+            description: "성인만 (60-350Hz)",
+          },
+          HIGH_NOISE: {
+            minFrequency: 60,
+            maxFrequency: 550,
+            sensitivity: 0.1, // 노이즈 많은 환경
+            energyThreshold: 0.02,
+            boundaryTolerance: 20,
+            description: "시끄러운 환경",
+          },
+          QUIET_ENV: {
+            minFrequency: 60,
+            maxFrequency: 550,
+            sensitivity: 0.05, // 조용한 환경
+            energyThreshold: 0.01,
+            boundaryTolerance: 20,
+            description: "조용한 환경",
+          },
+        },
+
+        // 현재 설정 가져오기
+        get current() {
+          return this.PROFILES[this.TARGET_GROUP];
+        },
+
+        // 설정 변경
+        setProfile: function (profileName) {
+          if (this.PROFILES[profileName]) {
+            this.TARGET_GROUP = profileName;
+            console.log("[Config] 🎯 Pitch profile changed to: " + profileName);
+            console.log(
+              "[Config] 📊 Settings: " + JSON.stringify(this.current)
+            );
+            return true;
+          }
+          console.error("[Config] ❌ Invalid profile: " + profileName);
+          return false;
+        },
+      };
+
+      // 설정 출력
+      console.log("[Config] 🎼 Pitch Detection Config Loaded");
+      console.log("[Config] 📊 Current Profile: " + PITCH_CONFIG.TARGET_GROUP);
+      console.log(
+        "[Config] 📋 Settings: " + JSON.stringify(PITCH_CONFIG.current)
+      );
+    </script>
+
+    <!-- Pitchfinder.js - Inline AMDF implementation (MIT License, 오프라인 지원) -->
+    <script>
+      // Minimal Pitchfinder.js implementation for AMDF pitch detection
+      // Based on: https://github.com/peterkhayes/pitchfinder (MIT License)
+      var Pitchfinder = (function () {
+        "use strict";
+
+        // AMDF (Average Magnitude Difference Function) pitch detector
+        function AMDF(config) {
+          config = config || {};
+          var sampleRate = config.sampleRate || 44100;
+
+          // 👇 기본값을 PITCH_CONFIG에서 가져오기
+          var defaultConfig =
+            typeof PITCH_CONFIG !== "undefined"
+              ? PITCH_CONFIG.current
+              : { minFrequency: 60, maxFrequency: 550, sensitivity: 0.04 };
+
+          var minFrequency = config.minFrequency || defaultConfig.minFrequency;
+          var maxFrequency = config.maxFrequency || defaultConfig.maxFrequency;
+          var sensitivity = config.sensitivity || defaultConfig.sensitivity;
+
+          var minPeriod = Math.floor(sampleRate / maxFrequency);
+          var maxPeriod = Math.floor(sampleRate / minFrequency);
+
+          return function detectPitch(float32AudioBuffer) {
+            var bufferLength = float32AudioBuffer.length;
+
+            // Calculate RMS (silence detection)
+            var rms = 0;
+            for (var i = 0; i < bufferLength; i++) {
+              rms += float32AudioBuffer[i] * float32AudioBuffer[i];
+            }
+            rms = Math.sqrt(rms / bufferLength);
+
+            if (rms < sensitivity) return null; // Silence
+
+            // Calculate AMDF for each period
+            var minAMDF = Infinity;
+            var bestPeriod = -1;
+
+            for (
+              var period = minPeriod;
+              period < maxPeriod && period < bufferLength;
+              period++
+            ) {
+              var sum = 0;
+              var count = bufferLength - period;
+
+              for (var i = 0; i < count; i++) {
+                sum += Math.abs(
+                  float32AudioBuffer[i] - float32AudioBuffer[i + period]
+                );
+              }
+
+              var amdf = sum / count;
+
+              if (amdf < minAMDF) {
+                minAMDF = amdf;
+                bestPeriod = period;
+              }
+            }
+
+            if (bestPeriod === -1) return null;
+
+            var frequency = sampleRate / bestPeriod;
+
+            // Validate frequency range
+            if (frequency < minFrequency || frequency > maxFrequency) {
+              return null;
+            }
+
+            return frequency;
+          };
+        }
+
+        // Helper function: detect pitch for windowed audio data
+        function frequencies(detectPitchFunc, audioData, options) {
+          options = options || {};
+          var tempo = options.tempo || 120;
+          var quantization = options.quantization || tempo;
+
+          // 더 작은 윈도우로 더 많은 디테일 감지
+          var windowSize = 1024; // 2048 → 1024 (더 작은 윈도우)
+          var hopSize = 64; // 128 → 64 (더욱 촘촘한 포인트)
+
+          var results = [];
+
+          for (var i = 0; i + windowSize < audioData.length; i += hopSize) {
+            var frame = audioData.slice(i, i + windowSize);
+            var pitch = detectPitchFunc(frame);
+            results.push(pitch);
+          }
+
+          return results;
+        }
+
+        // Public API
+        return {
+          AMDF: AMDF,
+          frequencies: frequencies,
+        };
+      })();
+    </script>
+
     <!-- WaveSurfer.js FFT & Full Spectrogram Plugin (인라인) -->
     <script>
       // WaveSurfer.js Full Spectrogram Plugin
@@ -2924,6 +3100,7 @@
       .container {
         max-width: 100%;
         padding: 12px;
+        padding-bottom: 8px;
       }
 
       /* Tab Navigation */
@@ -2962,6 +3139,7 @@
         background: white;
         border-radius: 12px;
         padding: 16px;
+        padding-bottom: 12px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
       }
 
@@ -3017,6 +3195,10 @@
       /* Waveform Containers */
       .wave-section {
         margin-bottom: 20px;
+      }
+
+      .wave-section:last-child {
+        margin-bottom: 0;
       }
 
       .wave-section.hidden {
@@ -3251,7 +3433,7 @@
             >
               <canvas
                 id="spectrogram-ref-canvas"
-                style="width: 100%; height: 120px; display: block"
+                style="width: 100%; height: 100px; display: block"
               ></canvas>
             </div>
           </div>
@@ -3277,7 +3459,7 @@
             >
               <canvas
                 id="spectrogram-user-canvas"
-                style="width: 100%; height: 120px; display: block"
+                style="width: 100%; height: 100px; display: block"
               ></canvas>
             </div>
           </div>
@@ -3418,7 +3600,7 @@
       function initPitchWaveform(containerId) {
         return WaveSurfer.create({
           container: `#${containerId}`,
-          height: 150,
+          height: 100,
           waveColor: "rgba(250, 171, 200, 0.3)",
           progressColor: "rgba(200, 255, 220, 0.5)",
           cursorColor: "rgba(0, 0, 0, 0)",
@@ -3440,9 +3622,9 @@
 
         // Canvas size = frequencies length (웹 코드와 동일)
         canvas.width = frequencies.length;
-        canvas.height = 200; // 웹과 동일한 높이
+        canvas.height = 100; // 웹과 동일한 높이
         canvas.style.width = "100%";
-        canvas.style.height = "150px";
+        canvas.style.height = "100px";
 
         const height = canvas.height;
         const width = canvas.width;
@@ -3463,20 +3645,26 @@
         ctx.clearRect(0, 0, width, height);
 
         const pitchUpColor = "#385587"; // Blue (rising) - 웹과 동일
-        const pitchDownColor = "#C26351"; // Red (falling) - 웹과 동일
+        const pitchDownColor = "#121212"; // Red (falling) - 웹과 동일 #C26351
 
         // 각 주파수를 점으로 그리기 (웹/공식 문서 방식)
         const pointSize = 2; // 웹 코드와 동일
         let prevY = 0;
 
         frequencies.forEach((frequency, index) => {
-          if (!frequency) return;
+          if (!frequency) return; // 0 또는 null 무시
+          // if (frequency === 550) return;
+
+          // console.log(index, frequency);
 
           // ✅ 웹/공식 문서와 동일한 Y 위치 계산
           // baseFrequency * 2를 최대값으로 사용
           const y = Math.round(
             height - (frequency / (baseFrequency * 2)) * height
           );
+          // console.log("y값", y, "/", Math.max(0, Math.min(height - 1, y)));
+          // Y값을 캔버스 범위로 클리핑 -> 음정의 변화가 전혀 안보이고 그래프 상단 하단에 줄로만 그여서 의미가 없음. -> 다음 내용이 잡음이 잡히면서 그래프 상단에(y = 0) 그래프가 그려졌던것을 알아냄.
+          // y = Math.max(0, Math.min(height - 1, y));
 
           // 색상 결정 (음정 상승/하강)
           ctx.fillStyle = y > prevY ? pitchDownColor : pitchUpColor;
@@ -3486,6 +3674,7 @@
 
           prevY = y;
         });
+        8;
 
         console.log(
           "[WaveSurfer HTML] ✅ Drew",
@@ -3497,18 +3686,169 @@
       // Detect pitch using autocorrelation
       function detectPitchSimple(audioBuffer, sampleRate = 16000) {
         const audioData = audioBuffer.getChannelData(0);
-        const frameSize = 2048;
-        const hopSize = 256;
-        const frequencies = [];
 
-        for (let i = 0; i < audioData.length - frameSize; i += hopSize) {
-          const frame = audioData.slice(i, i + frameSize);
-          const pitch = autoCorrelation(frame, sampleRate);
-          frequencies.push(pitch);
+        // ============ Config에서 설정 가져오기 ============
+        const config = PITCH_CONFIG.current;
+
+        console.log(
+          "[WaveSurfer HTML] 📊 Using profile: " +
+            PITCH_CONFIG.TARGET_GROUP +
+            " - " +
+            config.description
+        );
+
+        // AMDF 피치 감지 (Config 사용)
+        const detectPitch = Pitchfinder.AMDF({
+          sampleRate: sampleRate,
+          minFrequency: config.minFrequency,
+          maxFrequency: config.maxFrequency,
+          sensitivity: config.sensitivity,
+        });
+
+        // Calculate tempo/quantization dynamically (공식 코드와 동일)
+        const duration = audioData.length / sampleRate;
+        const bpm = audioData.length / duration / 60;
+
+        console.log(
+          "[WaveSurfer HTML] 🎵 Audio info: length=" +
+            audioData.length +
+            ", sampleRate=" +
+            sampleRate +
+            ", duration=" +
+            duration.toFixed(2) +
+            "s, maxFreq=" +
+            config.maxFrequency +
+            "Hz, sensitivity=" +
+            config.sensitivity
+        );
+
+        // Use Pitchfinder.frequencies helper (like official docs)
+        const rawFrequencies = Pitchfinder.frequencies(detectPitch, audioData, {
+          tempo: bpm,
+          quantization: bpm,
+        });
+
+        console.log(
+          "[WaveSurfer HTML] 🎵 Raw frames detected: " + rawFrequencies.length
+        );
+
+        // ============ Energy-based + Boundary filtering (Config 사용) ============
+        const windowSize = 1024; // Same as Pitchfinder.frequencies
+        const hopSize = 64; // Same as Pitchfinder.frequencies
+
+        const frequencies = rawFrequencies.map((freq, index) => {
+          if (!freq || freq <= 0) return null;
+
+          // 경계값 필터링 (Config 사용) - AMDF의 maxFrequency 근처 아티팩트 제거
+          if (Math.abs(freq - config.maxFrequency) < config.boundaryTolerance) {
+            return null;
+          }
+
+          // minFrequency 경계값 필터링
+          if (Math.abs(freq - config.minFrequency) < config.boundaryTolerance) {
+            return null;
+          }
+
+          // 프레임 위치 계산
+          const frameStart = index * hopSize;
+          const frameEnd = Math.min(frameStart + windowSize, audioData.length);
+
+          if (frameStart >= audioData.length) return null;
+
+          // RMS 에너지 계산
+          let sumSquares = 0;
+          let sampleCount = 0;
+          for (let i = frameStart; i < frameEnd; i++) {
+            sumSquares += audioData[i] * audioData[i];
+            sampleCount++;
+          }
+          const rms = sampleCount > 0 ? Math.sqrt(sumSquares / sampleCount) : 0;
+
+          // 저에너지 프레임 필터링 (Config 사용)
+          if (rms < config.energyThreshold) {
+            return null;
+          }
+
+          return freq;
+        });
+
+        // 필터링 통계
+        const filteredCount = rawFrequencies.filter(
+          (f, i) => f > 0 && !frequencies[i]
+        ).length;
+        console.log(
+          "[WaveSurfer HTML] 🔇 Filtered " +
+            filteredCount +
+            " low-energy/boundary points (threshold=" +
+            config.energyThreshold +
+            ", boundaryTolerance=" +
+            config.boundaryTolerance +
+            ")"
+        );
+
+        // 디버그: null vs 유효한 값 카운트
+        const nullCount = frequencies.filter((f) => !f || f <= 0).length;
+        const validCount = frequencies.filter((f) => f > 0).length;
+        console.log(
+          "[WaveSurfer HTML] 📊 Valid: " +
+            validCount +
+            ", Null/Zero: " +
+            nullCount
+        );
+
+        // 디버그: 처음 20개 주파수 값 출력
+        const first20 = frequencies.slice(0, 20);
+        console.log(
+          "[WaveSurfer HTML] 🔍 First 20 frequencies: " +
+            first20.map((f) => (f ? Math.round(f) + "Hz" : "null")).join(", ")
+        );
+
+        // 디버그: 유효한 주파수들의 분포
+        const validFreqs = frequencies.filter((f) => f > 0);
+        if (validFreqs.length > 0) {
+          const sorted = validFreqs.slice().sort((a, b) => a - b);
+          const median = sorted[Math.floor(sorted.length / 2)];
+          console.log(
+            "[WaveSurfer HTML] 📊 Frequency distribution: min=" +
+              Math.round(sorted[0]) +
+              "Hz, median=" +
+              Math.round(median) +
+              "Hz, max=" +
+              Math.round(sorted[sorted.length - 1]) +
+              "Hz"
+          );
         }
 
-        const validFreqs = frequencies.filter((f) => f > 0);
-        const baseFrequency =
+        // Calculate baseFrequency as MODE (most frequent) - like official example
+        const frequencyMap = {};
+        let maxAmount = 0;
+        let baseFrequency = 0;
+
+        frequencies.forEach((frequency) => {
+          if (!frequency || frequency <= 0) return;
+          //TODO maxFrequency 제외
+          const config = PITCH_CONFIG.current;
+
+          if (frequency === config.maxFrequency) {
+            return;
+          }
+
+          // 10Hz tolerance (like official example: Math.round(frequency * 10) / 10)
+          const tolerance = 10;
+          const rounded = Math.round(frequency * tolerance) / tolerance;
+
+          if (!frequencyMap[rounded]) frequencyMap[rounded] = 0;
+          frequencyMap[rounded] += 1;
+
+          // Find mode (most frequent)
+          if (frequencyMap[rounded] > maxAmount) {
+            maxAmount = frequencyMap[rounded];
+            baseFrequency = rounded;
+          }
+        });
+
+        // Calculate statistics (validFreqs 이미 위에서 계산됨)
+        const averagePitch =
           validFreqs.length > 0
             ? validFreqs.reduce((a, b) => a + b, 0) / validFreqs.length
             : 0;
@@ -3641,7 +3981,7 @@
           "[WaveSurfer HTML] 📦 Container cleared, creating plugin with config:",
           {
             fftSamples: 512,
-            height: 120,
+            height: 100,
             scale: "mel",
             frequencyMax: 8000,
           }
@@ -3664,7 +4004,7 @@
         spectrogramPlugins[pluginKey] = new SpectrogramPlugin({
           container: container,
           fftSamples: 512,
-          height: 120,
+          height: 100,
           windowFunc: "hann", // Hann window for better frequency resolution
           scale: "mel", // Mel scale (perceptually accurate)
           colorMap: "roseus", // Beautiful roseus colormap

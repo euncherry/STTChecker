@@ -3,7 +3,7 @@ import type { ResultsScreenParams } from "@/types/navigation";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
@@ -13,7 +13,6 @@ import {
   TextInput,
   useTheme,
 } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import WaveSurferWebView from "../components/WaveSurferWebView";
 import { useONNX } from "../utils/onnx/onnxContext";
 import { saveHistory } from "../utils/storage/historyManager";
@@ -37,6 +36,13 @@ export default function ResultsScreen() {
   const recordingDuration = Array.isArray(params.recordingDuration)
     ? params.recordingDuration[0]
     : params.recordingDuration;
+  const realtimeTranscript = Array.isArray(params.realtimeTranscript)
+    ? params.realtimeTranscript[0]
+    : params.realtimeTranscript;
+
+  // 플랫폼별 음성인식 엔진 이름
+  const nativeSTTEngineName =
+    Platform.OS === "ios" ? "Siri 발음인식" : "Google 발음인식";
 
   // ✅ 오디오 플레이어 추가
   const audioPlayer = useAudioPlayer(audioUri ? { uri: audioUri } : null);
@@ -253,7 +259,7 @@ export default function ResultsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={styles.contentContainer}
@@ -309,7 +315,7 @@ export default function ResultsScreen() {
             <Card.Content style={styles.scoreContainer}>
               <View style={styles.scoreBox}>
                 <Text variant="headlineLarge" style={styles.score}>
-                  {((1 - cerScore) * 100).toFixed(0)}%
+                  {((1 - cerScore) * 100).toFixed(0)}점
                 </Text>
                 <Text variant="labelLarge">문자 정확도</Text>
                 <Text variant="bodySmall" style={styles.scoreDetail}>
@@ -318,7 +324,7 @@ export default function ResultsScreen() {
               </View>
               <View style={styles.scoreBox}>
                 <Text variant="headlineLarge" style={styles.score}>
-                  {((1 - werScore) * 100).toFixed(0)}%
+                  {((1 - werScore) * 100).toFixed(0)}점
                 </Text>
                 <Text variant="labelLarge">단어 정확도</Text>
                 <Text variant="bodySmall" style={styles.scoreDetail}>
@@ -339,7 +345,34 @@ export default function ResultsScreen() {
 
             <View style={styles.divider} />
 
-            <Text variant="titleMedium">🎤 인식된 문장</Text>
+            {/* 네이티브 음성인식 결과 (Google/Siri) */}
+            <View style={styles.sttResultHeader}>
+              <Text variant="titleMedium">
+                {Platform.OS === "ios" ? "🍎" : "🤖"} {nativeSTTEngineName}
+              </Text>
+              <Chip compact style={styles.engineChip}>
+                {Platform.OS === "ios" ? "iOS" : "Android"} 내장
+              </Chip>
+            </View>
+            <Text
+              variant="bodyLarge"
+              style={[
+                styles.sentence,
+                realtimeTranscript ? {} : styles.emptySentence,
+              ]}
+            >
+              {realtimeTranscript || "실시간 인식 결과 없음"}
+            </Text>
+
+            <View style={styles.divider} />
+
+            {/* ONNX 모델 기반 인식 결과 */}
+            <View style={styles.sttResultHeader}>
+              <Text variant="titleMedium">🧠 ONNX 모델 기반 인식결과</Text>
+              <Chip compact style={styles.engineChipOnnx}>
+                Wav2Vec2
+              </Chip>
+            </View>
             <Text
               variant="bodyLarge"
               style={[
@@ -469,7 +502,7 @@ export default function ResultsScreen() {
           홈으로
         </Button>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -553,6 +586,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0e0e0",
     marginVertical: 16,
   },
+  sttResultHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  engineChip: {
+    backgroundColor: "#E3F2FD",
+  },
+  engineChipOnnx: {
+    backgroundColor: "#FFF3E0",
+  },
   tagTitle: {
     marginBottom: 12,
   },
@@ -595,7 +640,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   graphContainer: {
-    height: 500,
+    height: 420,
     borderRadius: 8,
     overflow: "hidden",
     backgroundColor: "#f8f9fa",

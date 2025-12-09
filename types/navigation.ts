@@ -46,6 +46,8 @@ export interface ResultsScreenParams extends Record<string, string | string[]> {
   targetText: string;
   /** 녹음 지속 시간(초) (URL 파라미터를 위한 문자열) */
   recordingDuration: string;
+  /** 실시간 STT 결과 (Google/Siri 자연어 처리) - Android 13+/iOS만, 미지원 시 빈 문자열 */
+  realtimeTranscript: string;
 }
 
 /**
