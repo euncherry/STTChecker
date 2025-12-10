@@ -2,8 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Last Updated**: 2025-11-18
-**Project Version**: 1.2.0
+**Last Updated**: 2025-12-10
+**Project Version**: 1.3.0
 **Target Audience**: AI Assistants (Claude, etc.)
 
 ---
@@ -66,24 +66,49 @@ STTChecker/
 │   ├── CustomHeader.tsx           # Custom header component
 │   ├── ModelLoadingScreen.tsx     # Loading screen with progress indicator
 │   ├── KaraokeText.tsx            # Karaoke-style text animation component
-│   ├── WaveSurferWebView.tsx      # 🆕 WebView-based audio visualization
+│   ├── WaveSurferWebView.tsx      # WebView-based audio visualization
+│   ├── AndroidUpgradeModal.tsx    # Android upgrade prompt modal
 │   ├── useColorScheme.ts          # Dark/light mode hook
-│   ├── useClientOnlyValue.ts      # Client-only rendering hook
-│   └── __tests__/                 # Component tests
+│   └── useClientOnlyValue.ts      # Client-only rendering hook
 │
-├── utils/                         # Utility functions and business logic
-│   ├── onnx/                      # ONNX model management
-│   │   ├── modelLoader.ts         # Model loading from assets → cache
-│   │   ├── onnxContext.tsx        # Global model state (React Context)
-│   │   └── vocabLoader.ts         # Vocabulary loading
+├── features/                      # 🆕 Feature-based modules
+│   ├── audio/                     # Audio recording and playback
+│   │   ├── hooks/                 # useAudioRecording, useAudioPlayback
+│   │   ├── utils/config.ts        # Recording presets
+│   │   ├── types.ts
+│   │   └── index.ts
+│   ├── speechRecognition/         # 🆕 Hybrid speech recognition
+│   │   ├── hooks/                 # useHybridSpeechRecognition
+│   │   ├── utils/                 # koreanModelManager, platformCapabilities
+│   │   ├── speechRecognitionContext.tsx
+│   │   └── index.ts
 │   ├── stt/                       # Speech-to-text pipeline
-│   │   ├── audioPreprocessor.ts   # WAV parsing, resampling, normalization
-│   │   ├── inference.ts           # ONNX inference & CTC decoding
-│   │   └── metrics.ts             # CER/WER calculation
-│   ├── storage/                   # Data persistence
-│   │   └── historyManager.ts      # History CRUD, file management, sharing
-│   └── karaoke/                   # Karaoke animation utilities
-│       └── timingPresets.ts       # Syllable timing presets
+│   │   ├── utils/                 # audioPreprocessor, inference, metrics
+│   │   ├── types.ts
+│   │   └── index.ts
+│   ├── onnx/                      # ONNX model management
+│   │   ├── utils/                 # modelLoader, vocabLoader
+│   │   ├── onnxContext.tsx
+│   │   ├── types.ts
+│   │   └── index.ts
+│   ├── history/                   # Recording history
+│   │   ├── utils/historyManager.ts
+│   │   ├── types.ts
+│   │   └── index.ts
+│   └── karaoke/                   # Karaoke animation
+│       ├── utils/timingPresets.ts
+│       ├── types.ts
+│       └── index.ts
+│
+├── utils/                         # Legacy utilities (migrating to features/)
+│   ├── onnx/                      # → features/onnx
+│   ├── stt/                       # → features/stt
+│   ├── storage/                   # → features/history
+│   └── karaoke/                   # → features/karaoke
+│
+├── types/                         # 🆕 Global type definitions
+│   ├── global.ts                  # Shared types
+│   └── navigation.ts              # Route parameter types
 │
 ├── plugins/                       # Expo Config Plugins (build-time)
 │   ├── withOnnxruntime.js         # Registers ONNX Runtime native package
@@ -136,7 +161,9 @@ STTChecker/
 - **Model**: Wav2Vec2 Korean (305MB ONNX file)
 
 ### Audio
-- **Recording**: `react-native-audio-record` `^0.2.2` (Android, 16kHz WAV)
+- **Recording (Hybrid)**:
+  - `expo-speech-recognition` `^3.0.1` (Android 13+/iOS: realtime STT + WAV)
+  - `react-native-audio-record` `^0.2.2` (Android 12-: WAV only fallback)
 - **Playback**: `expo-audio` `~1.0.14` (useAudioPlayer hooks)
 
 ### 🆕 Audio Visualization
@@ -233,27 +260,53 @@ const theme = { ...MD3LightTheme, colors: customColors };
 **Purpose**: Record audio of user pronouncing target sentence
 
 **User Flow**:
-1. Request microphone permission (Android)
+1. Request microphone permission
 2. Display target text with karaoke animation
 3. **3-second countdown** before recording starts
 4. Auto-stop after estimated duration + 1 second
 5. Manual stop option
-6. Navigate to `/results` with audio file path
+6. Navigate to `/results` with audio file path + realtime transcript
 
-**Audio Recording (Android)**:
+**🆕 Hybrid Speech Recognition**:
+
+The app uses a hybrid approach based on Android version:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  Platform Detection                              │
+│                                                                  │
+│  Android 13+ / iOS:              Android 12 and below:          │
+│  ┌─────────────────┐             ┌─────────────────┐            │
+│  │ expo-speech-    │             │ react-native-   │            │
+│  │ recognition     │             │ audio-record    │            │
+│  │                 │             │                 │            │
+│  │ ✅ Realtime STT │             │ ❌ No realtime  │            │
+│  │ ✅ WAV recording│             │ ✅ WAV recording│            │
+│  │ ✅ 16kHz PCM16  │             │ ✅ 16kHz PCM16  │            │
+│  └─────────────────┘             └─────────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Usage**:
 ```typescript
-import AudioRecord from 'react-native-audio-record';
+import { useHybridSpeechRecognition } from '@/features/speechRecognition';
 
-AudioRecord.init({
-  sampleRate: 16000,      // Required by model
-  channels: 1,            // Mono
-  bitsPerSample: 16,      // 16-bit PCM
-  audioSource: 6,         // VOICE_RECOGNITION
-  wavFile: 'recording_${Date.now()}.wav'
-});
+const {
+  status,              // 'idle' | 'recognizing' | 'completed'
+  realtimeTranscript,  // Realtime STT result (Android 13+/iOS only)
+  audioUri,            // WAV file path for ONNX processing
+  duration,            // Recording duration
+  startRecognition,
+  stopRecognition,
+} = useHybridSpeechRecognition();
 
-AudioRecord.start();  // Start recording
-const path = await AudioRecord.stop();  // Returns file path
+// Start recording
+await startRecognition();
+
+// Stop and get results
+const result = await stopRecognition();
+// result.audioUri → ONNX processing
+// result.realtimeTranscript → Google/Siri STT result
 ```
 
 **File Location**: `Paths.cache/recording_*.wav` (temporary)
@@ -1289,8 +1342,22 @@ When making changes, verify:
 
 ## Changelog
 
-### v1.2.0 (Current)
-- **🆕 New Feature**: Audio visualization with WaveSurfer.js WebView
+### v1.3.0 (Current)
+- **🆕 Hybrid Speech Recognition**: Platform-adaptive recording system
+  - Android 13+/iOS: `expo-speech-recognition` with realtime STT + WAV recording
+  - Android 12-: `react-native-audio-record` fallback (WAV only)
+  - Unified `useHybridSpeechRecognition` hook for both modes
+- **New Feature**: Dual STT comparison in results screen
+  - Native STT (Google/Siri) result display
+  - ONNX model (Wav2Vec2) result display
+- **Architecture**: Feature-based module structure (`features/` directory)
+  - Migrated from utility-based to feature-based organization
+  - New modules: `speechRecognition/`, `audio/`, `stt/`, `onnx/`, `history/`, `karaoke/`
+- **New Component**: `AndroidUpgradeModal.tsx` - Prompts users to upgrade Android
+- **Documentation**: Added `ONNX_GUIDE.md` - Comprehensive ONNX model guide
+
+### v1.2.0
+- **New Feature**: Audio visualization with WaveSurfer.js WebView
   - Waveform comparison graphs
   - Pitch contour analysis (autocorrelation-based)
   - Spectrogram visualization
