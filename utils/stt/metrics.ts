@@ -2,8 +2,16 @@
 import Levenshtein from "js-levenshtein";
 
 /**
- * Character Error Rate (CER) 계산
- * 문자 단위 오류율
+ * Normalized Character Error Rate (CER) 계산
+ * 문자 단위 오류율 (0% ~ 100% 범위로 정규화)
+ *
+ * 공식: Normalized CER = (S + D + I) / (S + D + I + C)
+ *       = distance / max(len(ref), len(hyp))
+ *
+ * - S: Substitutions (치환)
+ * - D: Deletions (삭제)
+ * - I: Insertions (삽입)
+ * - C: Correct (올바른 문자)
  */
 export function calculateCER(reference: string, hypothesis: string): number {
   if (!reference) return 0;
@@ -17,18 +25,23 @@ export function calculateCER(reference: string, hypothesis: string): number {
   if (hypChars.length === 0) {
     console.log(`[CER] Reference: "${refChars}" (${refChars.length}자)`);
     console.log(`[CER] Hypothesis: (빈 문자열) - 인식 결과 없음`);
-    console.log(`[CER] ⚠️ 인식 결과 없음 → CER: 100%`);
+    console.log(`[CER] ⚠️ 인식 결과 없음 → Normalized CER: 100%`);
     return 1.0;
   }
 
   const distance = Levenshtein(hypChars, refChars);
-  const cer = distance / refChars.length;
+
+  // Normalized CER: 항상 0~1 범위 보장
+  // (S+D+I) / (S+D+I+C) = distance / max(len(ref), len(hyp))
+  const maxLen = Math.max(refChars.length, hypChars.length);
+  const normalizedCer = distance / maxLen;
 
   console.log(`[CER] Reference: "${refChars}" (${refChars.length}자)`);
   console.log(`[CER] Hypothesis: "${hypChars}" (${hypChars.length}자)`);
-  console.log(`[CER] Distance: ${distance}, CER: ${(cer * 100).toFixed(1)}%`);
+  console.log(`[CER] Distance: ${distance}, Max Length: ${maxLen}`);
+  console.log(`[CER] Normalized CER: ${(normalizedCer * 100).toFixed(1)}%`);
 
-  return cer;
+  return normalizedCer;
 }
 
 /**
