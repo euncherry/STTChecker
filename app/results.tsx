@@ -308,6 +308,19 @@ export default function ResultsScreen() {
           </Card.Content>
         </Card>
 
+        {/* 🏆 최종 점수 카드 */}
+        {cerScore !== null && werScore !== null && (
+          <Card style={styles.finalScoreCard} mode="elevated">
+            <View style={styles.finalScoreGradient}>
+              <Text style={styles.finalScoreLabel}>🏆 최종 점수</Text>
+              <Text style={styles.finalScoreValue}>0점</Text>
+              <Text style={styles.finalScoreSubtext}>
+                발음 정확도 종합 평가
+              </Text>
+            </View>
+          </Card>
+        )}
+
         {/* 점수 카드 */}
         {cerScore !== null && werScore !== null && (
           <Card style={styles.card} mode="elevated">
@@ -658,5 +671,34 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     opacity: 0.7,
+  },
+  // 🏆 최종 점수 스타일
+  finalScoreCard: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  finalScoreGradient: {
+    backgroundColor: "#4F46E5",
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  finalScoreLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.9)",
+    marginBottom: 8,
+  },
+  finalScoreValue: {
+    fontSize: 56,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    letterSpacing: -1,
+  },
+  finalScoreSubtext: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 8,
   },
 });
