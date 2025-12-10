@@ -322,7 +322,7 @@ export default function ResultsScreen() {
           return (
             <Card style={styles.finalScoreCard} mode="elevated">
               <LinearGradient
-                colors={["#E0E7FF", "#EEF2FF", "#F5F3FF"]}
+                colors={["#EADDFF", "#F3EDFF", "#FAF8FF"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.finalScoreGradient}
@@ -693,13 +693,13 @@ const styles = StyleSheet.create({
   placeholderText: {
     opacity: 0.7,
   },
-  // 🏆 최종 점수 스타일
+  // 🏆 최종 점수 스타일 (theme.ts 보라색 테마 기반)
   finalScoreCard: {
     marginBottom: 16,
     borderRadius: 16,
     overflow: "hidden",
     elevation: 4,
-    shadowColor: "#6366F1",
+    shadowColor: "#6A00FF", // primary
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -712,14 +712,14 @@ const styles = StyleSheet.create({
   finalScoreLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#6366F1",
+    color: "#6A00FF", // primary
     marginBottom: 4,
     letterSpacing: 1,
   },
   finalScoreValue: {
     fontSize: 52,
     fontWeight: "bold",
-    color: "#4338CA",
+    color: "#21005D", // onPrimaryContainer (진한 보라)
     letterSpacing: -1,
   },
   starContainer: {
@@ -728,12 +728,12 @@ const styles = StyleSheet.create({
   },
   starText: {
     fontSize: 24,
-    color: "#FBBF24",
+    color: "#FBBF24", // 골드 (별점은 노란색 유지)
     letterSpacing: 4,
   },
   finalScoreSubtext: {
     fontSize: 13,
-    color: "#6B7280",
+    color: "#49454F", // onSurfaceVariant
     marginTop: 4,
   },
 });
