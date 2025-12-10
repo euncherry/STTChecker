@@ -380,7 +380,11 @@ export default function ResultsScreen() {
                 recognizedText ? {} : styles.emptySentence,
               ]}
             >
-              {recognizedText || "처리 중..."}
+              {recognizedText === null
+                ? "처리 중..."
+                : recognizedText === ""
+                  ? "ONNX 인식 결과 없음"
+                  : recognizedText}
             </Text>
           </Card.Content>
         </Card>

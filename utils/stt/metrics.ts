@@ -13,6 +13,14 @@ export function calculateCER(reference: string, hypothesis: string): number {
 
   if (refChars.length === 0) return 0;
 
+  // 인식 결과가 없는 경우 (빈 문자열) → CER 100%
+  if (hypChars.length === 0) {
+    console.log(`[CER] Reference: "${refChars}" (${refChars.length}자)`);
+    console.log(`[CER] Hypothesis: (빈 문자열) - 인식 결과 없음`);
+    console.log(`[CER] ⚠️ 인식 결과 없음 → CER: 100%`);
+    return 1.0;
+  }
+
   const distance = Levenshtein(hypChars, refChars);
   const cer = distance / refChars.length;
 
@@ -31,6 +39,17 @@ export function calculateWER(reference: string, hypothesis: string): number {
   if (!reference || reference.trim().length === 0) return 0;
 
   const refWords = reference.trim().split(/\s+/);
+
+  // 인식 결과가 없는 경우 (빈 문자열) → WER 100%
+  if (!hypothesis || hypothesis.trim().length === 0) {
+    console.log(
+      `[WER] Reference: "${refWords.join(" ")}" (${refWords.length}단어)`
+    );
+    console.log(`[WER] Hypothesis: (빈 문자열) - 인식 결과 없음`);
+    console.log(`[WER] ⚠️ 인식 결과 없음 → WER: 100%`);
+    return 1.0;
+  }
+
   const hypWords = hypothesis.trim().split(/\s+/);
 
   const n = refWords.length;
