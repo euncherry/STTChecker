@@ -1,6 +1,7 @@
 // app/results.tsx
 import type { ResultsScreenParams } from "@/types/navigation";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, Platform, ScrollView, StyleSheet, View } from "react-native";
@@ -19,6 +20,12 @@ import { saveHistory } from "../utils/storage/historyManager";
 import { preprocessAudioFile } from "../utils/stt/audioPreprocessor";
 import { runSTTInference } from "../utils/stt/inference";
 import { calculateCER, calculateWER } from "../utils/stt/metrics";
+
+// 점수에 따른 별점 계산 (0~5개)
+const getStarRating = (score: number): { filled: number; empty: number } => {
+  const stars = Math.round(score / 20); // 0~100점 → 0~5개
+  return { filled: Math.min(5, Math.max(0, stars)), empty: 5 - Math.min(5, Math.max(0, stars)) };
+};
 
 export default function ResultsScreen() {
   const theme = useTheme();
@@ -309,17 +316,31 @@ export default function ResultsScreen() {
         </Card>
 
         {/* 🏆 최종 점수 카드 */}
-        {cerScore !== null && werScore !== null && (
-          <Card style={styles.finalScoreCard} mode="elevated">
-            <View style={styles.finalScoreGradient}>
-              <Text style={styles.finalScoreLabel}>🏆 최종 점수</Text>
-              <Text style={styles.finalScoreValue}>0점</Text>
-              <Text style={styles.finalScoreSubtext}>
-                발음 정확도 종합 평가
-              </Text>
-            </View>
-          </Card>
-        )}
+        {cerScore !== null && werScore !== null && (() => {
+          const finalScore = 0; // TODO: 실제 점수 계산 로직 연결
+          const { filled, empty } = getStarRating(finalScore);
+          return (
+            <Card style={styles.finalScoreCard} mode="elevated">
+              <LinearGradient
+                colors={["#E0E7FF", "#EEF2FF", "#F5F3FF"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.finalScoreGradient}
+              >
+                <Text style={styles.finalScoreLabel}>최종 점수</Text>
+                <Text style={styles.finalScoreValue}>{finalScore}점</Text>
+                <View style={styles.starContainer}>
+                  <Text style={styles.starText}>
+                    {"★".repeat(filled)}{"☆".repeat(empty)}
+                  </Text>
+                </View>
+                <Text style={styles.finalScoreSubtext}>
+                  발음 정확도 종합 평가
+                </Text>
+              </LinearGradient>
+            </Card>
+          );
+        })()}
 
         {/* 점수 카드 */}
         {cerScore !== null && werScore !== null && (
@@ -677,28 +698,42 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 16,
     overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
   finalScoreGradient: {
-    backgroundColor: "#4F46E5",
-    paddingVertical: 28,
+    paddingVertical: 24,
     paddingHorizontal: 24,
     alignItems: "center",
   },
   finalScoreLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
-    color: "rgba(255, 255, 255, 0.9)",
-    marginBottom: 8,
+    color: "#6366F1",
+    marginBottom: 4,
+    letterSpacing: 1,
   },
   finalScoreValue: {
-    fontSize: 56,
+    fontSize: 52,
     fontWeight: "bold",
-    color: "#FFFFFF",
+    color: "#4338CA",
     letterSpacing: -1,
   },
-  finalScoreSubtext: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.7)",
+  starContainer: {
     marginTop: 8,
+    marginBottom: 4,
+  },
+  starText: {
+    fontSize: 24,
+    color: "#FBBF24",
+    letterSpacing: 4,
+  },
+  finalScoreSubtext: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 4,
   },
 });
