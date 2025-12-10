@@ -45,8 +45,16 @@ export function calculateCER(reference: string, hypothesis: string): number {
 }
 
 /**
- * Word Error Rate (WER) 계산
- * 단어 단위 오류율
+ * Normalized Word Error Rate (WER) 계산
+ * 단어 단위 오류율 (0% ~ 100% 범위로 정규화)
+ *
+ * 공식: Normalized WER = (S + D + I) / (S + D + I + C)
+ *       = distance / max(len(ref), len(hyp))
+ *
+ * - S: Substitutions (치환)
+ * - D: Deletions (삭제)
+ * - I: Insertions (삽입)
+ * - C: Correct (올바른 단어)
  */
 export function calculateWER(reference: string, hypothesis: string): number {
   if (!reference || reference.trim().length === 0) return 0;
@@ -59,7 +67,7 @@ export function calculateWER(reference: string, hypothesis: string): number {
       `[WER] Reference: "${refWords.join(" ")}" (${refWords.length}단어)`
     );
     console.log(`[WER] Hypothesis: (빈 문자열) - 인식 결과 없음`);
-    console.log(`[WER] ⚠️ 인식 결과 없음 → WER: 100%`);
+    console.log(`[WER] ⚠️ 인식 결과 없음 → Normalized WER: 100%`);
     return 1.0;
   }
 
@@ -97,7 +105,11 @@ export function calculateWER(reference: string, hypothesis: string): number {
   }
 
   const distance = d[n][m];
-  const wer = distance / n;
+
+  // Normalized WER: 항상 0~1 범위 보장
+  // (S+D+I) / (S+D+I+C) = distance / max(len(ref), len(hyp))
+  const maxLen = Math.max(n, m);
+  const normalizedWer = distance / maxLen;
 
   console.log(
     `[WER] Reference: "${refWords.join(" ")}" (${refWords.length}단어)`
@@ -105,7 +117,8 @@ export function calculateWER(reference: string, hypothesis: string): number {
   console.log(
     `[WER] Hypothesis: "${hypWords.join(" ")}" (${hypWords.length}단어)`
   );
-  console.log(`[WER] Distance: ${distance}, WER: ${(wer * 100).toFixed(1)}%`);
+  console.log(`[WER] Distance: ${distance}, Max Length: ${maxLen}`);
+  console.log(`[WER] Normalized WER: ${(normalizedWer * 100).toFixed(1)}%`);
 
-  return wer;
+  return normalizedWer;
 }
