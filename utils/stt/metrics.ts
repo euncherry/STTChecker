@@ -2,6 +2,20 @@
 import Levenshtein from "js-levenshtein";
 
 /**
+ * 텍스트 전처리: 구두점 및 특수문자 제거
+ * CER/WER 계산 전에 호출하여 공정한 비교를 위해 사용
+ */
+function normalizeText(text: string): string {
+  return text
+    // 구두점 및 특수문자 제거
+    .replace(/[.,!?;:'""`~@#$%^&*()[\]{}<>\/\\|_+=\-—–…·•°]+/g, "")
+    // 연속된 공백을 하나로
+    .replace(/\s+/g, " ")
+    // 앞뒤 공백 제거
+    .trim();
+}
+
+/**
  * Normalized Character Error Rate (CER) 계산
  * 문자 단위 오류율 (0% ~ 100% 범위로 정규화)
  *
@@ -16,8 +30,9 @@ import Levenshtein from "js-levenshtein";
 export function calculateCER(reference: string, hypothesis: string): number {
   if (!reference) return 0;
 
-  const refChars = reference.replace(/\s+/g, "");
-  const hypChars = hypothesis.replace(/\s+/g, "");
+  // 전처리: 구두점 제거 후 공백 제거
+  const refChars = normalizeText(reference).replace(/\s+/g, "");
+  const hypChars = normalizeText(hypothesis).replace(/\s+/g, "");
 
   if (refChars.length === 0) return 0;
 
@@ -59,10 +74,16 @@ export function calculateCER(reference: string, hypothesis: string): number {
 export function calculateWER(reference: string, hypothesis: string): number {
   if (!reference || reference.trim().length === 0) return 0;
 
-  const refWords = reference.trim().split(/\s+/);
+  // 전처리: 구두점 제거 후 단어 분리
+  const normalizedRef = normalizeText(reference);
+  const normalizedHyp = normalizeText(hypothesis);
+
+  if (normalizedRef.length === 0) return 0;
+
+  const refWords = normalizedRef.split(/\s+/);
 
   // 인식 결과가 없는 경우 (빈 문자열) → WER 100%
-  if (!hypothesis || hypothesis.trim().length === 0) {
+  if (normalizedHyp.length === 0) {
     console.log(
       `[WER] Reference: "${refWords.join(" ")}" (${refWords.length}단어)`
     );
@@ -71,7 +92,7 @@ export function calculateWER(reference: string, hypothesis: string): number {
     return 1.0;
   }
 
-  const hypWords = hypothesis.trim().split(/\s+/);
+  const hypWords = normalizedHyp.split(/\s+/);
 
   const n = refWords.length;
   const m = hypWords.length;
