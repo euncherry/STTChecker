@@ -3514,9 +3514,7 @@
 
           <!-- Pitch Detection Controls -->
           <div class="pitch-controls">
-            <div class="pitch-controls-title">
-              🎛️ 피치 감지 설정
-            </div>
+            <div class="pitch-controls-title">🎛️ 피치 감지 설정</div>
 
             <!-- Sensitivity Slider -->
             <div class="slider-group">
@@ -3542,7 +3540,9 @@
             <div class="slider-group">
               <div class="slider-header">
                 <span class="slider-label">Energy Threshold (2차 필터)</span>
-                <span class="slider-value" id="energy-threshold-value">0.006</span>
+                <span class="slider-value" id="energy-threshold-value"
+                  >0.006</span
+                >
               </div>
               <input
                 type="range"
@@ -3700,7 +3700,10 @@
       // Recalculate pitch for a given wavesurfer instance
       function recalculatePitch(wavesurfer, canvasId, infoId, resultKey) {
         if (!wavesurfer) {
-          console.log("[PitchControl] ⚠️ Wavesurfer not available for", resultKey);
+          console.log(
+            "[PitchControl] ⚠️ Wavesurfer not available for",
+            resultKey
+          );
           return;
         }
 
@@ -3720,13 +3723,21 @@
           pitchResults[resultKey] = pitchResult;
 
           // Redraw the pitch contour
-          drawPitchContour(canvasId, pitchResult.frequencies, pitchResult.baseFrequency);
+          drawPitchContour(
+            canvasId,
+            pitchResult.frequencies,
+            pitchResult.baseFrequency
+          );
 
           // Update info display
           displayPitchInfo(infoId, pitchResult);
 
-          console.log("[PitchControl] ✅ Pitch recalculated for", resultKey,
-            "- Valid points:", pitchResult.frequencies.filter(f => f > 0).length);
+          console.log(
+            "[PitchControl] ✅ Pitch recalculated for",
+            resultKey,
+            "- Valid points:",
+            pitchResult.frequencies.filter((f) => f > 0).length
+          );
         } catch (error) {
           console.error("[PitchControl] ❌ Error recalculating pitch:", error);
         }
@@ -3738,20 +3749,32 @@
         if (updatingEl) updatingEl.classList.add("visible");
 
         console.log("[PitchControl] 🎛️ Recalculating all pitch graphs...");
-        console.log("[PitchControl] 📊 Current settings:",
+        console.log(
+          "[PitchControl] 📊 Current settings:",
           "sensitivity=" + PITCH_CONFIG.current.sensitivity,
-          "energyThreshold=" + PITCH_CONFIG.current.energyThreshold);
+          "energyThreshold=" + PITCH_CONFIG.current.energyThreshold
+        );
 
         // Small delay to show the updating indicator
         setTimeout(() => {
           // Recalculate user pitch
           if (wavesurfers.userPitch) {
-            recalculatePitch(wavesurfers.userPitch, "pitch-user-canvas", "pitch-user-info", "user");
+            recalculatePitch(
+              wavesurfers.userPitch,
+              "pitch-user-canvas",
+              "pitch-user-info",
+              "user"
+            );
           }
 
           // Recalculate reference pitch
           if (wavesurfers.refPitch) {
-            recalculatePitch(wavesurfers.refPitch, "pitch-ref-canvas", "pitch-ref-info", "ref");
+            recalculatePitch(
+              wavesurfers.refPitch,
+              "pitch-ref-canvas",
+              "pitch-ref-info",
+              "ref"
+            );
           }
 
           if (updatingEl) updatingEl.classList.remove("visible");
@@ -3782,7 +3805,7 @@
         energyValue.textContent = currentConfig.energyThreshold.toFixed(3);
 
         // Sensitivity slider event
-        sensitivitySlider.addEventListener("input", function() {
+        sensitivitySlider.addEventListener("input", function () {
           const value = parseFloat(this.value);
           sensitivityValue.textContent = value.toFixed(3);
 
@@ -3795,21 +3818,24 @@
         });
 
         // Energy threshold slider event
-        energySlider.addEventListener("input", function() {
+        energySlider.addEventListener("input", function () {
           const value = parseFloat(this.value);
           energyValue.textContent = value.toFixed(3);
 
           // Update PITCH_CONFIG
-          PITCH_CONFIG.PROFILES[PITCH_CONFIG.TARGET_GROUP].energyThreshold = value;
+          PITCH_CONFIG.PROFILES[PITCH_CONFIG.TARGET_GROUP].energyThreshold =
+            value;
           console.log("[PitchControl] 🎚️ Energy threshold changed to:", value);
 
           // Recalculate with debounce
           debouncedRecalculatePitch();
         });
 
-        console.log("[PitchControl] ✅ Sliders initialized with values:",
+        console.log(
+          "[PitchControl] ✅ Sliders initialized with values:",
           "sensitivity=" + currentConfig.sensitivity,
-          "energyThreshold=" + currentConfig.energyThreshold);
+          "energyThreshold=" + currentConfig.energyThreshold
+        );
 
         return true;
       }
