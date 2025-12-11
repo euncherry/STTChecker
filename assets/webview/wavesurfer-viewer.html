@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>WaveSurfer Analysis</title>
-    <!-- v1.5.0 - 피치 감지 파라미터 슬라이더 UI 추가 (sensitivity, energyThreshold) -->
+    <!-- v1.6.0 - 피치 프로필 프리셋 버튼 추가 (아동포함/성인전용/시끄러운환경/조용한환경) -->
 
     <!-- WaveSurfer.js 7.x (인라인 - 오프라인 지원) -->
     <script>
@@ -3409,6 +3409,67 @@
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       }
+
+      /* Profile Preset Buttons */
+      .profile-presets {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid #e0e0e0;
+      }
+
+      .profile-presets-title {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .profile-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .profile-button {
+        flex: 1;
+        min-width: calc(50% - 4px);
+        padding: 10px 8px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+      }
+
+      .profile-button:active {
+        transform: scale(0.98);
+      }
+
+      .profile-button.active {
+        background: #ede7f6;
+        border-color: #6750a4;
+      }
+
+      .profile-button-icon {
+        font-size: 18px;
+        margin-bottom: 4px;
+      }
+
+      .profile-button-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 2px;
+      }
+
+      .profile-button-desc {
+        font-size: 9px;
+        color: #888;
+      }
+
+      .profile-button.active .profile-button-name {
+        color: #6750a4;
+      }
     </style>
   </head>
   <body>
@@ -3561,6 +3622,39 @@
             <div class="pitch-controls-updating" id="pitch-updating">
               <div class="mini-spinner"></div>
               <span>피치 그래프 업데이트 중...</span>
+            </div>
+
+            <!-- Profile Preset Buttons -->
+            <div class="profile-presets">
+              <div class="profile-presets-title">프리셋 선택</div>
+              <div class="profile-buttons">
+                <button
+                  class="profile-button"
+                  data-profile="CHILDREN_INCLUDED"
+                >
+                  <div class="profile-button-icon">👶</div>
+                  <div class="profile-button-name">아동 포함</div>
+                  <div class="profile-button-desc">60-550Hz</div>
+                </button>
+                <button
+                  class="profile-button active"
+                  data-profile="ADULTS_ONLY"
+                >
+                  <div class="profile-button-icon">🧑</div>
+                  <div class="profile-button-name">성인 전용</div>
+                  <div class="profile-button-desc">60-350Hz</div>
+                </button>
+                <button class="profile-button" data-profile="HIGH_NOISE">
+                  <div class="profile-button-icon">🔊</div>
+                  <div class="profile-button-name">시끄러운 환경</div>
+                  <div class="profile-button-desc">노이즈 차단 강화</div>
+                </button>
+                <button class="profile-button" data-profile="QUIET_ENV">
+                  <div class="profile-button-icon">🤫</div>
+                  <div class="profile-button-name">조용한 환경</div>
+                  <div class="profile-button-desc">민감하게 감지</div>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -3836,6 +3930,43 @@
           "sensitivity=" + currentConfig.sensitivity,
           "energyThreshold=" + currentConfig.energyThreshold
         );
+
+        // Profile preset buttons event
+        const profileButtons = document.querySelectorAll(".profile-button");
+        profileButtons.forEach((button) => {
+          button.addEventListener("click", function () {
+            const profileName = this.dataset.profile;
+            if (!profileName || !PITCH_CONFIG.PROFILES[profileName]) {
+              console.error("[PitchControl] ❌ Invalid profile:", profileName);
+              return;
+            }
+
+            // Update active state
+            profileButtons.forEach((btn) => btn.classList.remove("active"));
+            this.classList.add("active");
+
+            // Change profile
+            PITCH_CONFIG.TARGET_GROUP = profileName;
+            const newConfig = PITCH_CONFIG.current;
+
+            console.log(
+              "[PitchControl] 🎯 Profile changed to:",
+              profileName,
+              newConfig
+            );
+
+            // Update slider values
+            sensitivitySlider.value = newConfig.sensitivity;
+            sensitivityValue.textContent = newConfig.sensitivity.toFixed(3);
+            energySlider.value = newConfig.energyThreshold;
+            energyValue.textContent = newConfig.energyThreshold.toFixed(3);
+
+            // Recalculate pitch graphs
+            recalculateAllPitch();
+          });
+        });
+
+        console.log("[PitchControl] ✅ Profile buttons initialized");
 
         return true;
       }
