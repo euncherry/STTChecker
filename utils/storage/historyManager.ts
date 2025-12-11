@@ -9,10 +9,16 @@ const MAX_HISTORY_ITEMS = 100;
 export interface HistoryItem {
   id: string;
   targetText: string;
+  // ONNX 모델 기반 인식 결과
   recognizedText: string;
   audioFilePath: string; // 저장된 WAV 파일 URI
   cerScore: number;
   werScore: number;
+  // 네이티브 STT (Google/Siri) 인식 결과
+  nativeRecognizedText?: string;
+  nativeCerScore?: number;
+  nativeWerScore?: number;
+  // 기타 메타데이터
   tags: string[];
   recordingDuration: number;
   processingTime: number;

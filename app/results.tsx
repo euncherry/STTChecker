@@ -60,8 +60,12 @@ export default function ResultsScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [recognizedText, setRecognizedText] = useState<string | null>(null);
   const [processingTime, setProcessingTime] = useState(0);
+  // ONNX 모델 기반 CER/WER
   const [cerScore, setCerScore] = useState<number | null>(null);
   const [werScore, setWerScore] = useState<number | null>(null);
+  // 네이티브 STT (Google/Siri) 기반 CER/WER
+  const [nativeCerScore, setNativeCerScore] = useState<number | null>(null);
+  const [nativeWerScore, setNativeWerScore] = useState<number | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [showGraphs, setShowGraphs] = useState(false); // 그래프 표시 여부
@@ -111,15 +115,32 @@ export default function ResultsScreen() {
 
       // 3. 평가 메트릭 계산
       if (targetText && targetText !== "입력 문장 없음") {
+        // ONNX 모델 기반 CER/WER
         const cer = calculateCER(targetText, transcription);
         const wer = calculateWER(targetText, transcription);
-
         setCerScore(cer);
         setWerScore(wer);
 
-        console.log("[ResultsScreen] 📊 평가 결과:");
+        console.log("[ResultsScreen] 📊 ONNX 모델 평가 결과:");
         console.log(`  - CER: ${(cer * 100).toFixed(1)}%`);
         console.log(`  - WER: ${(wer * 100).toFixed(1)}%`);
+
+        // 네이티브 STT (Google/Siri) 기반 CER/WER
+        if (realtimeTranscript) {
+          const nativeCer = calculateCER(targetText, realtimeTranscript);
+          const nativeWer = calculateWER(targetText, realtimeTranscript);
+          setNativeCerScore(nativeCer);
+          setNativeWerScore(nativeWer);
+
+          console.log("[ResultsScreen] 📊 네이티브 STT 평가 결과:");
+          console.log(`  - Native CER: ${(nativeCer * 100).toFixed(1)}%`);
+          console.log(`  - Native WER: ${(nativeWer * 100).toFixed(1)}%`);
+        } else {
+          // 네이티브 인식 결과 없음 → 100% 오류
+          setNativeCerScore(1.0);
+          setNativeWerScore(1.0);
+          console.log("[ResultsScreen] ⚠️ 네이티브 STT 결과 없음 → CER/WER 100%");
+        }
 
         // 자동 태그 제안
         suggestAutoTags(cer, wer);
@@ -223,6 +244,10 @@ export default function ResultsScreen() {
         audioFilePath: audioUri,
         cerScore,
         werScore,
+        // 네이티브 STT 데이터 추가
+        nativeRecognizedText: realtimeTranscript || undefined,
+        nativeCerScore: nativeCerScore ?? undefined,
+        nativeWerScore: nativeWerScore ?? undefined,
         tags,
         recordingDuration: parseInt(recordingDuration || "0"),
         processingTime,
@@ -345,7 +370,7 @@ export default function ResultsScreen() {
         {/* 점수 카드 */}
         {cerScore !== null && werScore !== null && (
           <Card style={styles.card} mode="elevated">
-            <Card.Title title="📊 정확도 점수" />
+            <Card.Title title="🧠 ONNX 모델 정확도" titleStyle={styles.scoreCardTitle} />
             <Card.Content style={styles.scoreContainer}>
               <View style={styles.scoreBox}>
                 <Text variant="headlineLarge" style={styles.score}>
@@ -363,6 +388,36 @@ export default function ResultsScreen() {
                 <Text variant="labelLarge">단어 정확도</Text>
                 <Text variant="bodySmall" style={styles.scoreDetail}>
                   WER: {(werScore * 100).toFixed(1)}%
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+
+        {/* 네이티브 STT 점수 카드 */}
+        {nativeCerScore !== null && nativeWerScore !== null && (
+          <Card style={styles.card} mode="elevated">
+            <Card.Title
+              title={Platform.OS === "ios" ? "🍎 Siri 발음인식 정확도" : "🤖 Google 발음인식 정확도"}
+              titleStyle={styles.scoreCardTitle}
+            />
+            <Card.Content style={styles.scoreContainer}>
+              <View style={styles.scoreBox}>
+                <Text variant="headlineLarge" style={styles.score}>
+                  {((1 - nativeCerScore) * 100).toFixed(0)}점
+                </Text>
+                <Text variant="labelLarge">문자 정확도</Text>
+                <Text variant="bodySmall" style={styles.scoreDetail}>
+                  CER: {(nativeCerScore * 100).toFixed(1)}%
+                </Text>
+              </View>
+              <View style={styles.scoreBox}>
+                <Text variant="headlineLarge" style={styles.score}>
+                  {((1 - nativeWerScore) * 100).toFixed(0)}점
+                </Text>
+                <Text variant="labelLarge">단어 정확도</Text>
+                <Text variant="bodySmall" style={styles.scoreDetail}>
+                  WER: {(nativeWerScore * 100).toFixed(1)}%
                 </Text>
               </View>
             </Card.Content>
@@ -607,6 +662,9 @@ const styles = StyleSheet.create({
   scoreDetail: {
     opacity: 0.7,
     marginTop: 4,
+  },
+  scoreCardTitle: {
+    fontSize: 16,
   },
   sentence: {
     marginTop: 8,
