@@ -1802,10 +1802,10 @@
           CHILDREN_INCLUDED: {
             minFrequency: 60,
             maxFrequency: 550, // 아동 음성 포함
-            sensitivity: 0.04, // 노이즈 차단 강화
-            energyThreshold: 0.015, // 2차 필터
+            sensitivity: 0.006, // ADULTS보다 민감하게
+            energyThreshold: 0.005, // 낮춰서 더 많은 포인트 감지
             boundaryTolerance: 20, // 경계값 허용 오차
-            description: "아동 포함 (60-500Hz)",
+            description: "아동 포함 (60-550Hz)",
           },
           ADULTS_ONLY: {
             minFrequency: 60,
@@ -1818,16 +1818,16 @@
           HIGH_NOISE: {
             minFrequency: 60,
             maxFrequency: 550,
-            sensitivity: 0.1, // 노이즈 많은 환경
-            energyThreshold: 0.02,
+            sensitivity: 0.02, // 노이즈 무시 (0.1은 너무 높음)
+            energyThreshold: 0.015, // 강한 에너지만 감지
             boundaryTolerance: 20,
             description: "시끄러운 환경",
           },
           QUIET_ENV: {
             minFrequency: 60,
             maxFrequency: 550,
-            sensitivity: 0.05, // 조용한 환경
-            energyThreshold: 0.01,
+            sensitivity: 0.004, // 작은 소리도 감지
+            energyThreshold: 0.003, // 더 많은 포인트 유지
             boundaryTolerance: 20,
             description: "조용한 환경",
           },
