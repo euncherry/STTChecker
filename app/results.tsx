@@ -10,6 +10,8 @@ import {
   Button,
   Card,
   Chip,
+  IconButton,
+  Menu,
   Text,
   TextInput,
   useTheme,
@@ -76,6 +78,7 @@ export default function ResultsScreen() {
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [showGraphs, setShowGraphs] = useState(false); // 그래프 표시 여부
+  const [showOnnxInfo, setShowOnnxInfo] = useState(false); // ONNX 정보 툴팁
 
   // 컴포넌트 마운트 시 STT 처리
   useEffect(() => {
@@ -388,10 +391,31 @@ export default function ResultsScreen() {
         {/* 점수 카드 */}
         {cerScore !== null && werScore !== null && (
           <Card style={styles.card} mode="elevated">
-            <Card.Title
-              title="🧠 ONNX 모델 정확도"
-              titleStyle={styles.scoreCardTitle}
-            />
+            <View style={styles.cardTitleWithInfo}>
+              <Text variant="titleMedium" style={styles.scoreCardTitle}>
+                🧠 ONNX 모델 정확도
+              </Text>
+              <Menu
+                visible={showOnnxInfo}
+                onDismiss={() => setShowOnnxInfo(false)}
+                anchor={
+                  <IconButton
+                    icon="information-outline"
+                    size={20}
+                    onPress={() => setShowOnnxInfo(true)}
+                    style={styles.infoIcon}
+                  />
+                }
+                contentStyle={styles.infoMenuContent}
+              >
+                <View style={styles.infoMenuTextContainer}>
+                  <Text variant="bodyMedium" style={styles.infoMenuText}>
+                    WWC AI모델이 분석한 실제 발음 정확도. 문맥 교정 없이 실제
+                    발음 그대로 인식합니다.
+                  </Text>
+                </View>
+              </Menu>
+            </View>
             <Card.Content style={styles.scoreContainer}>
               <View style={styles.scoreBox}>
                 <Text variant="headlineLarge" style={styles.score}>
@@ -690,6 +714,31 @@ const styles = StyleSheet.create({
   },
   scoreCardTitle: {
     fontSize: 16,
+    fontWeight: "600",
+  },
+  // ONNX 정보 아이콘 관련 스타일
+  cardTitleWithInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  infoIcon: {
+    margin: 0,
+  },
+  infoMenuContent: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    maxWidth: 280,
+  },
+  infoMenuTextContainer: {
+    padding: 16,
+  },
+  infoMenuText: {
+    lineHeight: 22,
+    color: "#333",
   },
   sentence: {
     marginTop: 8,
