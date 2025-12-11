@@ -4,13 +4,13 @@ import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
   Card,
   Chip,
-  Icon,
+  IconButton,
   Menu,
   Text,
   TextInput,
@@ -399,17 +399,12 @@ export default function ResultsScreen() {
                 visible={showOnnxInfo}
                 onDismiss={() => setShowOnnxInfo(false)}
                 anchor={
-                  <Pressable
-                    onPress={() => setShowOnnxInfo(true)}
-                    style={styles.infoIconPressable}
-                    hitSlop={8}
-                  >
-                    <Icon
-                      source="information-outline"
-                      size={20}
-                      color={theme.colors.primary}
-                    />
-                  </Pressable>
+                  <IconButton
+                    icon="information-outline"
+                    size={20}
+                    onPress={() => setShowOnnxInfo((prev) => !prev)}
+                    style={styles.infoIcon}
+                  />
                 }
                 contentStyle={styles.infoMenuContent}
               >
@@ -730,9 +725,8 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 4,
   },
-  infoIconPressable: {
-    padding: 8,
-    borderRadius: 20,
+  infoIcon: {
+    margin: 0,
   },
   infoMenuContent: {
     backgroundColor: "#fff",
