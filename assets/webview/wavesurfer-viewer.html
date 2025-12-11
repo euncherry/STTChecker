@@ -1793,49 +1793,68 @@
     <!-- Pitch Detection Configuration -->
     <script>
       // ============ Pitch Detection Configuration ============
+
+      // 🔒 원본 기본값 (변경 불가)
+      const DEFAULT_PROFILES = Object.freeze({
+        CHILDREN_INCLUDED: {
+          minFrequency: 60,
+          maxFrequency: 550,
+          sensitivity: 0.006,
+          energyThreshold: 0.005,
+          boundaryTolerance: 20,
+          description: "아동 포함 (60-550Hz)",
+        },
+        ADULTS_ONLY: {
+          minFrequency: 60,
+          maxFrequency: 350,
+          sensitivity: 0.008,
+          energyThreshold: 0.006,
+          boundaryTolerance: 15,
+          description: "성인만 (60-350Hz)",
+        },
+        HIGH_NOISE: {
+          minFrequency: 60,
+          maxFrequency: 550,
+          sensitivity: 0.02,
+          energyThreshold: 0.015,
+          boundaryTolerance: 20,
+          description: "시끄러운 환경",
+        },
+        QUIET_ENV: {
+          minFrequency: 60,
+          maxFrequency: 550,
+          sensitivity: 0.004,
+          energyThreshold: 0.003,
+          boundaryTolerance: 20,
+          description: "조용한 환경",
+        },
+      });
+
       const PITCH_CONFIG = {
         // 🎯 대상 그룹 선택: 'CHILDREN_INCLUDED', 'ADULTS_ONLY', 'HIGH_NOISE', 'QUIET_ENV'
         TARGET_GROUP: "ADULTS_ONLY",
 
-        // 프로파일 정의
+        // 프로파일 정의 (런타임에 수정 가능)
         PROFILES: {
-          CHILDREN_INCLUDED: {
-            minFrequency: 60,
-            maxFrequency: 550, // 아동 음성 포함
-            sensitivity: 0.006, // ADULTS보다 민감하게
-            energyThreshold: 0.005, // 낮춰서 더 많은 포인트 감지
-            boundaryTolerance: 20, // 경계값 허용 오차
-            description: "아동 포함 (60-550Hz)",
-          },
-          ADULTS_ONLY: {
-            minFrequency: 60,
-            maxFrequency: 350, // 성인만
-            sensitivity: 0.008, // 균형잡힌 감지
-            energyThreshold: 0.006, // 2차 필터
-            boundaryTolerance: 15, // 경계값 허용 오차
-            description: "성인만 (60-350Hz)",
-          },
-          HIGH_NOISE: {
-            minFrequency: 60,
-            maxFrequency: 550,
-            sensitivity: 0.02, // 노이즈 무시 (0.1은 너무 높음)
-            energyThreshold: 0.015, // 강한 에너지만 감지
-            boundaryTolerance: 20,
-            description: "시끄러운 환경",
-          },
-          QUIET_ENV: {
-            minFrequency: 60,
-            maxFrequency: 550,
-            sensitivity: 0.004, // 작은 소리도 감지
-            energyThreshold: 0.003, // 더 많은 포인트 유지
-            boundaryTolerance: 20,
-            description: "조용한 환경",
-          },
+          CHILDREN_INCLUDED: { ...DEFAULT_PROFILES.CHILDREN_INCLUDED },
+          ADULTS_ONLY: { ...DEFAULT_PROFILES.ADULTS_ONLY },
+          HIGH_NOISE: { ...DEFAULT_PROFILES.HIGH_NOISE },
+          QUIET_ENV: { ...DEFAULT_PROFILES.QUIET_ENV },
         },
 
         // 현재 설정 가져오기
         get current() {
           return this.PROFILES[this.TARGET_GROUP];
+        },
+
+        // 프로필을 기본값으로 초기화
+        resetProfile: function (profileName) {
+          if (DEFAULT_PROFILES[profileName]) {
+            this.PROFILES[profileName] = { ...DEFAULT_PROFILES[profileName] };
+            console.log("[Config] 🔄 Profile reset to default:", profileName);
+            return true;
+          }
+          return false;
         },
 
         // 설정 변경
@@ -3936,7 +3955,7 @@
         profileButtons.forEach((button) => {
           button.addEventListener("click", function () {
             const profileName = this.dataset.profile;
-            if (!profileName || !PITCH_CONFIG.PROFILES[profileName]) {
+            if (!profileName || !DEFAULT_PROFILES[profileName]) {
               console.error("[PitchControl] ❌ Invalid profile:", profileName);
               return;
             }
@@ -3945,17 +3964,19 @@
             profileButtons.forEach((btn) => btn.classList.remove("active"));
             this.classList.add("active");
 
-            // Change profile
+            // 🔄 프로필을 기본값으로 초기화 후 변경
+            PITCH_CONFIG.resetProfile(profileName);
             PITCH_CONFIG.TARGET_GROUP = profileName;
             const newConfig = PITCH_CONFIG.current;
 
             console.log(
               "[PitchControl] 🎯 Profile changed to:",
               profileName,
+              "(reset to default)",
               newConfig
             );
 
-            // Update slider values
+            // Update slider values with default values
             sensitivitySlider.value = newConfig.sensitivity;
             sensitivityValue.textContent = newConfig.sensitivity.toFixed(3);
             energySlider.value = newConfig.energyThreshold;
