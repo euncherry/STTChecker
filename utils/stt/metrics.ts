@@ -194,13 +194,15 @@ export const DIFFICULTY_PRESETS: Record<string, FinalScoreParams> = {
 };
 
 /**
- * 최종 점수 계산 (NLP CER 패널티 포함)
+ * 최종 점수 계산 (NLP CER 패널티 포함) - 가중 산술평균
  *
  * 공식:
  * - 발음 점수: score_pronunciation = max(0, 1 - α * CER'_raw)^γ
  * - 의미 전달: score_semantic = max(0, 1 - β * WER'_nlp)^δ
  * - 심각도 패널티: penalty_severity = max(0, 1 - λ * CER'_nlp)^ε
- * - 최종: FinalScore = 100 × (score_pronunciation)^w1 × (score_semantic)^w2 × (penalty_severity)^w3
+ * - 최종: FinalScore = 100 × (w1 × score_pronunciation + w2 × score_semantic + w3 × penalty_severity)
+ *
+ * 가중 산술평균 사용: 하나의 점수가 0이어도 다른 점수들이 반영됨
  *
  * @param onnxCer - ONNX 모델 기반 CER (발음 그대로, 0~1)
  * @param nlpCer - NLP STT 기반 CER (문맥 교정됨, 0~1)
@@ -246,12 +248,11 @@ export function calculateFinalScore(
   const cerNlpPrime = Math.max(0, nlpCer - tauP);
   const penaltySeverity = Math.pow(Math.max(0, 1 - lambda * cerNlpPrime), epsilon);
 
-  // Step 4: 최종 점수 (가중 기하평균)
+  // Step 4: 최종 점수 (가중 산술평균)
+  // 하나의 점수가 0이어도 다른 점수들이 반영됨
   const finalScore =
     100 *
-    Math.pow(scorePronunciation, w1) *
-    Math.pow(scoreSemantic, w2) *
-    Math.pow(penaltySeverity, w3);
+    (w1 * scorePronunciation + w2 * scoreSemantic + w3 * penaltySeverity);
 
   console.log("========================================");
   console.log("[FinalScore] 🏆 최종 점수 계산");
