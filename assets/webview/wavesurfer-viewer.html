@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>WaveSurfer Analysis</title>
-    <!-- v1.4.0 - WaveSurfer.js Full Spectrogram Plugin으로 완전 교체 -->
+    <!-- v1.5.0 - 피치 감지 파라미터 슬라이더 UI 추가 (sensitivity, energyThreshold) -->
 
     <!-- WaveSurfer.js 7.x (인라인 - 오프라인 지원) -->
     <script>
@@ -3301,6 +3301,114 @@
         margin-top: 12px;
         line-height: 1.5;
       }
+
+      /* Pitch Control Sliders */
+      .pitch-controls {
+        background: #f5f5f5;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+      }
+
+      .pitch-controls-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .slider-group {
+        margin-bottom: 12px;
+      }
+
+      .slider-group:last-child {
+        margin-bottom: 0;
+      }
+
+      .slider-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+
+      .slider-label {
+        font-size: 12px;
+        color: #555;
+      }
+
+      .slider-value {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6750a4;
+        background: #ede7f6;
+        padding: 2px 8px;
+        border-radius: 4px;
+        min-width: 60px;
+        text-align: center;
+      }
+
+      .slider-input {
+        width: 100%;
+        height: 6px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: #ddd;
+        border-radius: 3px;
+        outline: none;
+      }
+
+      .slider-input::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        background: #6750a4;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .slider-input::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        background: #6750a4;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .slider-description {
+        font-size: 10px;
+        color: #888;
+        margin-top: 4px;
+      }
+
+      .pitch-controls-updating {
+        font-size: 11px;
+        color: #6750a4;
+        margin-top: 8px;
+        display: none;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .pitch-controls-updating.visible {
+        display: flex;
+      }
+
+      .mini-spinner {
+        width: 12px;
+        height: 12px;
+        border: 2px solid #ede7f6;
+        border-top: 2px solid #6750a4;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
     </style>
   </head>
   <body>
@@ -3402,6 +3510,58 @@
               ></canvas>
             </div>
             <div class="pitch-info" id="pitch-user-info"></div>
+          </div>
+
+          <!-- Pitch Detection Controls -->
+          <div class="pitch-controls">
+            <div class="pitch-controls-title">
+              🎛️ 피치 감지 설정
+            </div>
+
+            <!-- Sensitivity Slider -->
+            <div class="slider-group">
+              <div class="slider-header">
+                <span class="slider-label">Sensitivity (1차 필터)</span>
+                <span class="slider-value" id="sensitivity-value">0.008</span>
+              </div>
+              <input
+                type="range"
+                class="slider-input"
+                id="sensitivity-slider"
+                min="0.001"
+                max="0.15"
+                step="0.001"
+                value="0.008"
+              />
+              <div class="slider-description">
+                값이 높을수록 강한 소리만 감지 (노이즈 차단 강화)
+              </div>
+            </div>
+
+            <!-- Energy Threshold Slider -->
+            <div class="slider-group">
+              <div class="slider-header">
+                <span class="slider-label">Energy Threshold (2차 필터)</span>
+                <span class="slider-value" id="energy-threshold-value">0.006</span>
+              </div>
+              <input
+                type="range"
+                class="slider-input"
+                id="energy-threshold-slider"
+                min="0.001"
+                max="0.05"
+                step="0.001"
+                value="0.006"
+              />
+              <div class="slider-description">
+                피치 감지 후 저에너지 프레임 추가 필터링
+              </div>
+            </div>
+
+            <div class="pitch-controls-updating" id="pitch-updating">
+              <div class="mini-spinner"></div>
+              <span>피치 그래프 업데이트 중...</span>
+            </div>
           </div>
 
           <div class="info-box">
@@ -3521,6 +3681,143 @@
         user: null,
         ref: null,
       };
+
+      // ============ Pitch Control Slider Setup ============
+
+      // Debounce utility function
+      function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+
+      // Recalculate pitch for a given wavesurfer instance
+      function recalculatePitch(wavesurfer, canvasId, infoId, resultKey) {
+        if (!wavesurfer) {
+          console.log("[PitchControl] ⚠️ Wavesurfer not available for", resultKey);
+          return;
+        }
+
+        try {
+          const audioBuffer = wavesurfer.getDecodedData();
+          if (!audioBuffer) {
+            console.log("[PitchControl] ⚠️ No audio data for", resultKey);
+            return;
+          }
+
+          const sampleRate = audioBuffer.sampleRate;
+          console.log("[PitchControl] 🔄 Recalculating pitch for", resultKey);
+
+          const pitchResult = detectPitchSimple(audioBuffer, sampleRate);
+
+          // Store the result
+          pitchResults[resultKey] = pitchResult;
+
+          // Redraw the pitch contour
+          drawPitchContour(canvasId, pitchResult.frequencies, pitchResult.baseFrequency);
+
+          // Update info display
+          displayPitchInfo(infoId, pitchResult);
+
+          console.log("[PitchControl] ✅ Pitch recalculated for", resultKey,
+            "- Valid points:", pitchResult.frequencies.filter(f => f > 0).length);
+        } catch (error) {
+          console.error("[PitchControl] ❌ Error recalculating pitch:", error);
+        }
+      }
+
+      // Recalculate all pitch graphs
+      function recalculateAllPitch() {
+        const updatingEl = document.getElementById("pitch-updating");
+        if (updatingEl) updatingEl.classList.add("visible");
+
+        console.log("[PitchControl] 🎛️ Recalculating all pitch graphs...");
+        console.log("[PitchControl] 📊 Current settings:",
+          "sensitivity=" + PITCH_CONFIG.current.sensitivity,
+          "energyThreshold=" + PITCH_CONFIG.current.energyThreshold);
+
+        // Small delay to show the updating indicator
+        setTimeout(() => {
+          // Recalculate user pitch
+          if (wavesurfers.userPitch) {
+            recalculatePitch(wavesurfers.userPitch, "pitch-user-canvas", "pitch-user-info", "user");
+          }
+
+          // Recalculate reference pitch
+          if (wavesurfers.refPitch) {
+            recalculatePitch(wavesurfers.refPitch, "pitch-ref-canvas", "pitch-ref-info", "ref");
+          }
+
+          if (updatingEl) updatingEl.classList.remove("visible");
+          console.log("[PitchControl] ✅ All pitch graphs updated");
+        }, 50);
+      }
+
+      // Debounced version for slider input
+      const debouncedRecalculatePitch = debounce(recalculateAllPitch, 300);
+
+      // Initialize sliders when DOM is ready
+      function initPitchControlSliders() {
+        const sensitivitySlider = document.getElementById("sensitivity-slider");
+        const sensitivityValue = document.getElementById("sensitivity-value");
+        const energySlider = document.getElementById("energy-threshold-slider");
+        const energyValue = document.getElementById("energy-threshold-value");
+
+        if (!sensitivitySlider || !energySlider) {
+          console.log("[PitchControl] ⚠️ Sliders not found, will retry...");
+          return false;
+        }
+
+        // Set initial values from PITCH_CONFIG
+        const currentConfig = PITCH_CONFIG.current;
+        sensitivitySlider.value = currentConfig.sensitivity;
+        sensitivityValue.textContent = currentConfig.sensitivity.toFixed(3);
+        energySlider.value = currentConfig.energyThreshold;
+        energyValue.textContent = currentConfig.energyThreshold.toFixed(3);
+
+        // Sensitivity slider event
+        sensitivitySlider.addEventListener("input", function() {
+          const value = parseFloat(this.value);
+          sensitivityValue.textContent = value.toFixed(3);
+
+          // Update PITCH_CONFIG
+          PITCH_CONFIG.PROFILES[PITCH_CONFIG.TARGET_GROUP].sensitivity = value;
+          console.log("[PitchControl] 🎚️ Sensitivity changed to:", value);
+
+          // Recalculate with debounce
+          debouncedRecalculatePitch();
+        });
+
+        // Energy threshold slider event
+        energySlider.addEventListener("input", function() {
+          const value = parseFloat(this.value);
+          energyValue.textContent = value.toFixed(3);
+
+          // Update PITCH_CONFIG
+          PITCH_CONFIG.PROFILES[PITCH_CONFIG.TARGET_GROUP].energyThreshold = value;
+          console.log("[PitchControl] 🎚️ Energy threshold changed to:", value);
+
+          // Recalculate with debounce
+          debouncedRecalculatePitch();
+        });
+
+        console.log("[PitchControl] ✅ Sliders initialized with values:",
+          "sensitivity=" + currentConfig.sensitivity,
+          "energyThreshold=" + currentConfig.energyThreshold);
+
+        return true;
+      }
+
+      // Try to initialize sliders (may need to retry after DOM is fully ready)
+      if (!initPitchControlSliders()) {
+        document.addEventListener("DOMContentLoaded", initPitchControlSliders);
+      }
 
       // Tab switching
       document.querySelectorAll(".tab-button").forEach((button) => {
