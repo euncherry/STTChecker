@@ -206,7 +206,7 @@ function decodeLogits(logits: any, vocabInfo: VocabInfo): string {
     console.warn("  1. 모든 타임스텝이 blank 토큰");
     console.warn("  2. 음성이 너무 작거나 무음");
     console.warn("  3. 모델이 입력을 인식하지 못함");
-    return "[EMPTY]";
+    return ""; // 빈 문자열 반환 (metrics.ts에서 예외 처리)
   }
 
   console.log(`[CTC Decoder] 📊 토큰 리스트: [${tokens.join(", ")}]`);
@@ -219,5 +219,5 @@ function decodeLogits(logits: any, vocabInfo: VocabInfo): string {
 
   console.log(`[CTC Decoder] 📊 최종 텍스트: "${text}"`);
 
-  return text || "[EMPTY]";
+  return text;
 }

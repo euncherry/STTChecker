@@ -1,6 +1,7 @@
 // app/results.tsx
 import type { ResultsScreenParams } from "@/types/navigation";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Alert, Platform, ScrollView, StyleSheet, View } from "react-native";
@@ -18,7 +19,20 @@ import { useONNX } from "../utils/onnx/onnxContext";
 import { saveHistory } from "../utils/storage/historyManager";
 import { preprocessAudioFile } from "../utils/stt/audioPreprocessor";
 import { runSTTInference } from "../utils/stt/inference";
-import { calculateCER, calculateWER } from "../utils/stt/metrics";
+import {
+  calculateCER,
+  calculateFinalScore,
+  calculateWER,
+} from "../utils/stt/metrics";
+
+// 점수에 따른 별점 계산 (0~5개)
+const getStarRating = (score: number): { filled: number; empty: number } => {
+  const stars = Math.round(score / 20); // 0~100점 → 0~5개
+  return {
+    filled: Math.min(5, Math.max(0, stars)),
+    empty: 5 - Math.min(5, Math.max(0, stars)),
+  };
+};
 
 export default function ResultsScreen() {
   const theme = useTheme();
@@ -53,8 +67,12 @@ export default function ResultsScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [recognizedText, setRecognizedText] = useState<string | null>(null);
   const [processingTime, setProcessingTime] = useState(0);
+  // ONNX 모델 기반 CER/WER
   const [cerScore, setCerScore] = useState<number | null>(null);
   const [werScore, setWerScore] = useState<number | null>(null);
+  // 네이티브 STT (Google/Siri) 기반 CER/WER
+  const [nativeCerScore, setNativeCerScore] = useState<number | null>(null);
+  const [nativeWerScore, setNativeWerScore] = useState<number | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [showGraphs, setShowGraphs] = useState(false); // 그래프 표시 여부
@@ -104,15 +122,34 @@ export default function ResultsScreen() {
 
       // 3. 평가 메트릭 계산
       if (targetText && targetText !== "입력 문장 없음") {
+        // ONNX 모델 기반 CER/WER
         const cer = calculateCER(targetText, transcription);
         const wer = calculateWER(targetText, transcription);
-
         setCerScore(cer);
         setWerScore(wer);
 
-        console.log("[ResultsScreen] 📊 평가 결과:");
+        console.log("[ResultsScreen] 📊 ONNX 모델 평가 결과:");
         console.log(`  - CER: ${(cer * 100).toFixed(1)}%`);
         console.log(`  - WER: ${(wer * 100).toFixed(1)}%`);
+
+        // 네이티브 STT (Google/Siri) 기반 CER/WER
+        if (realtimeTranscript) {
+          const nativeCer = calculateCER(targetText, realtimeTranscript);
+          const nativeWer = calculateWER(targetText, realtimeTranscript);
+          setNativeCerScore(nativeCer);
+          setNativeWerScore(nativeWer);
+
+          console.log("[ResultsScreen] 📊 네이티브 STT 평가 결과:");
+          console.log(`  - Native CER: ${(nativeCer * 100).toFixed(1)}%`);
+          console.log(`  - Native WER: ${(nativeWer * 100).toFixed(1)}%`);
+        } else {
+          // 네이티브 인식 결과 없음 → 100% 오류
+          setNativeCerScore(1.0);
+          setNativeWerScore(1.0);
+          console.log(
+            "[ResultsScreen] ⚠️ 네이티브 STT 결과 없음 → CER/WER 100%"
+          );
+        }
 
         // 자동 태그 제안
         suggestAutoTags(cer, wer);
@@ -216,6 +253,10 @@ export default function ResultsScreen() {
         audioFilePath: audioUri,
         cerScore,
         werScore,
+        // 네이티브 STT 데이터 추가
+        nativeRecognizedText: realtimeTranscript || undefined,
+        nativeCerScore: nativeCerScore ?? undefined,
+        nativeWerScore: nativeWerScore ?? undefined,
         tags,
         recordingDuration: parseInt(recordingDuration || "0"),
         processingTime,
@@ -308,10 +349,49 @@ export default function ResultsScreen() {
           </Card.Content>
         </Card>
 
+        {/* 🏆 최종 점수 카드 */}
+        {cerScore !== null &&
+          nativeCerScore !== null &&
+          nativeWerScore !== null &&
+          (() => {
+            // 최종 점수 계산: ONNX CER (발음) + NLP CER/WER (의미 전달 + 패널티)
+            const finalScore = calculateFinalScore(
+              cerScore,
+              nativeCerScore,
+              nativeWerScore
+            );
+            const { filled, empty } = getStarRating(finalScore);
+            return (
+              <Card style={styles.finalScoreCard} mode="elevated">
+                <LinearGradient
+                  colors={["#F3EDFF", "#FAF8FF"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.finalScoreGradient}
+                >
+                  <Text style={styles.finalScoreLabel}>최종 점수</Text>
+                  <Text style={styles.finalScoreValue}>{finalScore}점</Text>
+                  <View style={styles.starContainer}>
+                    <Text style={styles.starText}>
+                      {"★".repeat(filled)}
+                      {"☆".repeat(empty)}
+                    </Text>
+                  </View>
+                  <Text style={styles.finalScoreSubtext}>
+                    발음 정확도 종합 평가
+                  </Text>
+                </LinearGradient>
+              </Card>
+            );
+          })()}
+
         {/* 점수 카드 */}
         {cerScore !== null && werScore !== null && (
           <Card style={styles.card} mode="elevated">
-            <Card.Title title="📊 정확도 점수" />
+            <Card.Title
+              title="🧠 ONNX 모델 정확도"
+              titleStyle={styles.scoreCardTitle}
+            />
             <Card.Content style={styles.scoreContainer}>
               <View style={styles.scoreBox}>
                 <Text variant="headlineLarge" style={styles.score}>
@@ -329,6 +409,40 @@ export default function ResultsScreen() {
                 <Text variant="labelLarge">단어 정확도</Text>
                 <Text variant="bodySmall" style={styles.scoreDetail}>
                   WER: {(werScore * 100).toFixed(1)}%
+                </Text>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+
+        {/* 네이티브 STT 점수 카드 */}
+        {nativeCerScore !== null && nativeWerScore !== null && (
+          <Card style={styles.card} mode="elevated">
+            <Card.Title
+              title={
+                Platform.OS === "ios"
+                  ? "🍎 Siri 발음인식 정확도"
+                  : "🤖 Google 발음인식 정확도"
+              }
+              titleStyle={styles.scoreCardTitle}
+            />
+            <Card.Content style={styles.scoreContainer}>
+              <View style={styles.scoreBox}>
+                <Text variant="headlineLarge" style={styles.score}>
+                  {((1 - nativeCerScore) * 100).toFixed(0)}점
+                </Text>
+                <Text variant="labelLarge">문자 정확도</Text>
+                <Text variant="bodySmall" style={styles.scoreDetail}>
+                  CER: {(nativeCerScore * 100).toFixed(1)}%
+                </Text>
+              </View>
+              <View style={styles.scoreBox}>
+                <Text variant="headlineLarge" style={styles.score}>
+                  {((1 - nativeWerScore) * 100).toFixed(0)}점
+                </Text>
+                <Text variant="labelLarge">단어 정확도</Text>
+                <Text variant="bodySmall" style={styles.scoreDetail}>
+                  WER: {(nativeWerScore * 100).toFixed(1)}%
                 </Text>
               </View>
             </Card.Content>
@@ -380,7 +494,11 @@ export default function ResultsScreen() {
                 recognizedText ? {} : styles.emptySentence,
               ]}
             >
-              {recognizedText || "처리 중..."}
+              {recognizedText === null
+                ? "처리 중..."
+                : recognizedText === ""
+                  ? "ONNX 인식 결과 없음"
+                  : recognizedText}
             </Text>
           </Card.Content>
         </Card>
@@ -570,6 +688,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     marginTop: 4,
   },
+  scoreCardTitle: {
+    fontSize: 16,
+  },
   sentence: {
     marginTop: 8,
     padding: 12,
@@ -654,5 +775,48 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     opacity: 0.7,
+  },
+  // 🏆 최종 점수 스타일 (theme.ts 보라색 테마 기반)
+  finalScoreCard: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#6A00FF", // primary
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  finalScoreGradient: {
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  finalScoreLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6A00FF", // primary
+    marginBottom: 4,
+    letterSpacing: 1,
+  },
+  finalScoreValue: {
+    fontSize: 52,
+    fontWeight: "bold",
+    color: "#21005D", // onPrimaryContainer (진한 보라)
+    letterSpacing: -1,
+  },
+  starContainer: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  starText: {
+    fontSize: 24,
+    color: "#FBBF24", // 골드 (별점은 노란색 유지)
+    letterSpacing: 4,
+  },
+  finalScoreSubtext: {
+    fontSize: 13,
+    color: "#49454F", // onSurfaceVariant
+    marginTop: 4,
   },
 });
