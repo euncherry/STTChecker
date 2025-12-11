@@ -122,3 +122,128 @@ export function calculateWER(reference: string, hypothesis: string): number {
 
   return normalizedWer;
 }
+
+/**
+ * 최종 점수 계산 파라미터
+ */
+export interface FinalScoreParams {
+  // 발음 점수 (ONNX CER)
+  tau?: number; // 데드존 (기본값: 0.05)
+  alpha?: number; // 민감도 (기본값: 3.0)
+  gamma?: number; // 곡선 형태 (기본값: 0.9)
+  // 의미 전달 점수 (NLP WER)
+  tauW?: number; // 데드존 (기본값: 0.10)
+  beta?: number; // 민감도 (기본값: 1.5)
+  delta?: number; // 곡선 형태 (기본값: 1.0)
+  // 심각도 패널티 (NLP CER)
+  tauP?: number; // 데드존 (기본값: 0.08)
+  lambda?: number; // 민감도 (기본값: 2.5)
+  epsilon?: number; // 곡선 형태 (기본값: 1.0)
+  // 가중치
+  w1?: number; // 발음 비중 (기본값: 0.60)
+  w2?: number; // 의미 비중 (기본값: 0.25)
+  w3?: number; // 패널티 비중 (기본값: 0.15)
+}
+
+/**
+ * 난이도 프리셋
+ */
+export const DIFFICULTY_PRESETS: Record<string, FinalScoreParams> = {
+  easy: {
+    alpha: 2.0,
+    lambda: 1.5,
+    w1: 0.5,
+    w2: 0.35,
+    w3: 0.15,
+  },
+  normal: {
+    alpha: 3.0,
+    lambda: 2.5,
+    w1: 0.6,
+    w2: 0.25,
+    w3: 0.15,
+  },
+  hard: {
+    alpha: 4.0,
+    lambda: 4.0,
+    w1: 0.55,
+    w2: 0.2,
+    w3: 0.25,
+  },
+};
+
+/**
+ * 최종 점수 계산 (NLP CER 패널티 포함)
+ *
+ * 공식:
+ * - 발음 점수: score_pronunciation = max(0, 1 - α * CER'_raw)^γ
+ * - 의미 전달: score_semantic = max(0, 1 - β * WER'_nlp)^δ
+ * - 심각도 패널티: penalty_severity = max(0, 1 - λ * CER'_nlp)^ε
+ * - 최종: FinalScore = 100 × (score_pronunciation)^w1 × (score_semantic)^w2 × (penalty_severity)^w3
+ *
+ * @param onnxCer - ONNX 모델 기반 CER (발음 그대로, 0~1)
+ * @param nlpCer - NLP STT 기반 CER (문맥 교정됨, 0~1)
+ * @param nlpWer - NLP STT 기반 WER (문맥 교정됨, 0~1)
+ * @param params - 파라미터 (옵션)
+ * @returns 0~100 사이의 최종 점수
+ */
+export function calculateFinalScore(
+  onnxCer: number,
+  nlpCer: number,
+  nlpWer: number,
+  params: FinalScoreParams = {}
+): number {
+  // 기본값 설정
+  const {
+    // 발음 점수 파라미터
+    tau = 0.05,
+    alpha = 3.0,
+    gamma = 0.9,
+    // 의미 전달 점수 파라미터
+    tauW = 0.1,
+    beta = 1.5,
+    delta = 1.0,
+    // 심각도 패널티 파라미터
+    tauP = 0.08,
+    lambda = 2.5,
+    epsilon = 1.0,
+    // 가중치
+    w1 = 0.6,
+    w2 = 0.25,
+    w3 = 0.15,
+  } = params;
+
+  // Step 1: 발음 점수 (ONNX CER 기반)
+  const cerRawPrime = Math.max(0, onnxCer - tau);
+  const scorePronunciation = Math.pow(Math.max(0, 1 - alpha * cerRawPrime), gamma);
+
+  // Step 2: 의미 전달 점수 (NLP WER 기반)
+  const werNlpPrime = Math.max(0, nlpWer - tauW);
+  const scoreSemantic = Math.pow(Math.max(0, 1 - beta * werNlpPrime), delta);
+
+  // Step 3: 심각도 패널티 (NLP CER 기반)
+  const cerNlpPrime = Math.max(0, nlpCer - tauP);
+  const penaltySeverity = Math.pow(Math.max(0, 1 - lambda * cerNlpPrime), epsilon);
+
+  // Step 4: 최종 점수 (가중 기하평균)
+  const finalScore =
+    100 *
+    Math.pow(scorePronunciation, w1) *
+    Math.pow(scoreSemantic, w2) *
+    Math.pow(penaltySeverity, w3);
+
+  console.log("========================================");
+  console.log("[FinalScore] 🏆 최종 점수 계산");
+  console.log(`  입력값:`);
+  console.log(`    - ONNX CER: ${(onnxCer * 100).toFixed(1)}%`);
+  console.log(`    - NLP CER: ${(nlpCer * 100).toFixed(1)}%`);
+  console.log(`    - NLP WER: ${(nlpWer * 100).toFixed(1)}%`);
+  console.log(`  중간 점수:`);
+  console.log(`    - 발음 점수: ${(scorePronunciation * 100).toFixed(1)}%`);
+  console.log(`    - 의미 전달: ${(scoreSemantic * 100).toFixed(1)}%`);
+  console.log(`    - 심각도 패널티: ${(penaltySeverity * 100).toFixed(1)}%`);
+  console.log(`  최종 점수: ${finalScore.toFixed(1)}점`);
+  console.log("========================================");
+
+  return Math.round(finalScore);
+}

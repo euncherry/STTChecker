@@ -19,7 +19,7 @@ import { useONNX } from "../utils/onnx/onnxContext";
 import { saveHistory } from "../utils/storage/historyManager";
 import { preprocessAudioFile } from "../utils/stt/audioPreprocessor";
 import { runSTTInference } from "../utils/stt/inference";
-import { calculateCER, calculateWER } from "../utils/stt/metrics";
+import { calculateCER, calculateWER, calculateFinalScore } from "../utils/stt/metrics";
 
 // 점수에 따른 별점 계산 (0~5개)
 const getStarRating = (score: number): { filled: number; empty: number } => {
@@ -341,8 +341,9 @@ export default function ResultsScreen() {
         </Card>
 
         {/* 🏆 최종 점수 카드 */}
-        {cerScore !== null && werScore !== null && (() => {
-          const finalScore = 0; // TODO: 실제 점수 계산 로직 연결
+        {cerScore !== null && nativeCerScore !== null && nativeWerScore !== null && (() => {
+          // 최종 점수 계산: ONNX CER (발음) + NLP CER/WER (의미 전달 + 패널티)
+          const finalScore = calculateFinalScore(cerScore, nativeCerScore, nativeWerScore);
           const { filled, empty } = getStarRating(finalScore);
           return (
             <Card style={styles.finalScoreCard} mode="elevated">
