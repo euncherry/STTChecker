@@ -19,12 +19,19 @@ import { useONNX } from "../utils/onnx/onnxContext";
 import { saveHistory } from "../utils/storage/historyManager";
 import { preprocessAudioFile } from "../utils/stt/audioPreprocessor";
 import { runSTTInference } from "../utils/stt/inference";
-import { calculateCER, calculateWER, calculateFinalScore } from "../utils/stt/metrics";
+import {
+  calculateCER,
+  calculateFinalScore,
+  calculateWER,
+} from "../utils/stt/metrics";
 
 // 점수에 따른 별점 계산 (0~5개)
 const getStarRating = (score: number): { filled: number; empty: number } => {
   const stars = Math.round(score / 20); // 0~100점 → 0~5개
-  return { filled: Math.min(5, Math.max(0, stars)), empty: 5 - Math.min(5, Math.max(0, stars)) };
+  return {
+    filled: Math.min(5, Math.max(0, stars)),
+    empty: 5 - Math.min(5, Math.max(0, stars)),
+  };
 };
 
 export default function ResultsScreen() {
@@ -139,7 +146,9 @@ export default function ResultsScreen() {
           // 네이티브 인식 결과 없음 → 100% 오류
           setNativeCerScore(1.0);
           setNativeWerScore(1.0);
-          console.log("[ResultsScreen] ⚠️ 네이티브 STT 결과 없음 → CER/WER 100%");
+          console.log(
+            "[ResultsScreen] ⚠️ 네이티브 STT 결과 없음 → CER/WER 100%"
+          );
         }
 
         // 자동 태그 제안
@@ -341,37 +350,48 @@ export default function ResultsScreen() {
         </Card>
 
         {/* 🏆 최종 점수 카드 */}
-        {cerScore !== null && nativeCerScore !== null && nativeWerScore !== null && (() => {
-          // 최종 점수 계산: ONNX CER (발음) + NLP CER/WER (의미 전달 + 패널티)
-          const finalScore = calculateFinalScore(cerScore, nativeCerScore, nativeWerScore);
-          const { filled, empty } = getStarRating(finalScore);
-          return (
-            <Card style={styles.finalScoreCard} mode="elevated">
-              <LinearGradient
-                colors={["#EADDFF", "#F3EDFF", "#FAF8FF"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.finalScoreGradient}
-              >
-                <Text style={styles.finalScoreLabel}>최종 점수</Text>
-                <Text style={styles.finalScoreValue}>{finalScore}점</Text>
-                <View style={styles.starContainer}>
-                  <Text style={styles.starText}>
-                    {"★".repeat(filled)}{"☆".repeat(empty)}
+        {cerScore !== null &&
+          nativeCerScore !== null &&
+          nativeWerScore !== null &&
+          (() => {
+            // 최종 점수 계산: ONNX CER (발음) + NLP CER/WER (의미 전달 + 패널티)
+            const finalScore = calculateFinalScore(
+              cerScore,
+              nativeCerScore,
+              nativeWerScore
+            );
+            const { filled, empty } = getStarRating(finalScore);
+            return (
+              <Card style={styles.finalScoreCard} mode="elevated">
+                <LinearGradient
+                  colors={["#F3EDFF", "#FAF8FF"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.finalScoreGradient}
+                >
+                  <Text style={styles.finalScoreLabel}>최종 점수</Text>
+                  <Text style={styles.finalScoreValue}>{finalScore}점</Text>
+                  <View style={styles.starContainer}>
+                    <Text style={styles.starText}>
+                      {"★".repeat(filled)}
+                      {"☆".repeat(empty)}
+                    </Text>
+                  </View>
+                  <Text style={styles.finalScoreSubtext}>
+                    발음 정확도 종합 평가
                   </Text>
-                </View>
-                <Text style={styles.finalScoreSubtext}>
-                  발음 정확도 종합 평가
-                </Text>
-              </LinearGradient>
-            </Card>
-          );
-        })()}
+                </LinearGradient>
+              </Card>
+            );
+          })()}
 
         {/* 점수 카드 */}
         {cerScore !== null && werScore !== null && (
           <Card style={styles.card} mode="elevated">
-            <Card.Title title="🧠 ONNX 모델 정확도" titleStyle={styles.scoreCardTitle} />
+            <Card.Title
+              title="🧠 ONNX 모델 정확도"
+              titleStyle={styles.scoreCardTitle}
+            />
             <Card.Content style={styles.scoreContainer}>
               <View style={styles.scoreBox}>
                 <Text variant="headlineLarge" style={styles.score}>
@@ -399,7 +419,11 @@ export default function ResultsScreen() {
         {nativeCerScore !== null && nativeWerScore !== null && (
           <Card style={styles.card} mode="elevated">
             <Card.Title
-              title={Platform.OS === "ios" ? "🍎 Siri 발음인식 정확도" : "🤖 Google 발음인식 정확도"}
+              title={
+                Platform.OS === "ios"
+                  ? "🍎 Siri 발음인식 정확도"
+                  : "🤖 Google 발음인식 정확도"
+              }
               titleStyle={styles.scoreCardTitle}
             />
             <Card.Content style={styles.scoreContainer}>

@@ -1810,8 +1810,8 @@
           ADULTS_ONLY: {
             minFrequency: 60,
             maxFrequency: 350, // 성인만
-            sensitivity: 0.01, // 균형잡힌 감지
-            energyThreshold: 0.005, // 2차 필터
+            sensitivity: 0.008, // 균형잡힌 감지
+            energyThreshold: 0.006, // 2차 필터
             boundaryTolerance: 15, // 경계값 허용 오차
             description: "성인만 (60-350Hz)",
           },
@@ -3983,15 +3983,15 @@
             fftSamples: 512,
             height: 100,
             scale: "mel",
-            frequencyMax: 8000,
+            frequencyMax: 8192,
           }
         );
 
         // Create plugin with advanced settings
         // IMPORTANT: frequencyMax must be <= sampleRate/2 (Nyquist frequency)
-        // For 8kHz audio, max is 4000Hz
+        // For 16kHz audio, max is 8000Hz
         const nyquistFreq = audioBuffer.sampleRate / 2;
-        const maxFreq = Math.min(8000, nyquistFreq);
+        const maxFreq = Math.min(8192, nyquistFreq);
 
         console.log(
           "[WaveSurfer HTML] 🔊 Frequency range: 0-" +
