@@ -14,6 +14,7 @@ import {
   TextInput,
   useTheme,
 } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WaveSurferWebView from "../components/WaveSurferWebView";
 import { useONNX } from "../utils/onnx/onnxContext";
 import { saveHistory } from "../utils/storage/historyManager";
@@ -24,7 +25,6 @@ import {
   calculateFinalScore,
   calculateWER,
 } from "../utils/stt/metrics";
-
 // 점수에 따른 별점 계산 (0~5개)
 const getStarRating = (score: number): { filled: number; empty: number } => {
   const stars = Math.round(score / 20); // 0~100점 → 0~5개
@@ -35,6 +35,8 @@ const getStarRating = (score: number): { filled: number; empty: number } => {
 };
 
 export default function ResultsScreen() {
+  const insets = useSafeAreaInsets();
+
   const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<ResultsScreenParams>();
@@ -300,7 +302,7 @@ export default function ResultsScreen() {
   }
 
   return (
-    <View style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingBottom: insets.bottom }]}>
       <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={styles.contentContainer}

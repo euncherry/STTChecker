@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   },
   graphContainer: {
     marginTop: 16,
-    height: 500, // 그래프를 표시하기 위한 충분한 높이
+    height: 800, // 그래프를 표시하기 위한 충분한 높이
     borderRadius: 8,
     overflow: "hidden",
   },
