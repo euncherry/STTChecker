@@ -1,0 +1,44 @@
+# EAS Build ignore file
+# .gitignore 복사 후 assets/model/ 제외 (빌드에 모델 포함 필요)
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders - EAS에서 자체 생성
+/ios
+/android
+
+# NOTE: assets/model/ 는 EAS Build에 포함되어야 하므로 여기에 추가하지 않음
