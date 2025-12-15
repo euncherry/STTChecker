@@ -248,8 +248,8 @@ export function calculateFinalScore(
   const scoreSemantic = Math.pow(Math.max(0, 1 - beta * werNlpPrime), delta);
 
   // Step 3: 심각도 패널티 (NLP CER 기반) - 아예 틀렸을 때만 0점 처리용
-  const cerNlpPrime = Math.max(0, nlpCer - tauP);
-  const penaltySeverity = Math.pow(Math.max(0, 1 - lambda * cerNlpPrime), epsilon);
+  // NLP CER이 90% 이상이면 완전히 틀린 것으로 간주 → 0점
+  const penaltySeverity = nlpCer >= 0.9 ? 0 : 1;
 
   // Step 4: 기본 점수 계산 (w1, w2 정규화)
   const totalWeight = w1 + w2;
