@@ -171,21 +171,21 @@ export interface FinalScoreParams {
  */
 export const DIFFICULTY_PRESETS: Record<string, FinalScoreParams> = {
   easy: {
-    alpha: 2.0,
+    alpha: 1.0,
     lambda: 1.5,
     w1: 0.5,
     w2: 0.35,
     w3: 0.15,
   },
   normal: {
-    alpha: 3.0,
+    alpha: 1.5,
     lambda: 2.5,
     w1: 0.6,
     w2: 0.25,
     w3: 0.15,
   },
   hard: {
-    alpha: 4.0,
+    alpha: 2.0,
     lambda: 4.0,
     w1: 0.55,
     w2: 0.2,
@@ -194,15 +194,18 @@ export const DIFFICULTY_PRESETS: Record<string, FinalScoreParams> = {
 };
 
 /**
- * 최종 점수 계산 (NLP CER 패널티 포함) - 가중 산술평균
+ * 최종 점수 계산 (NLP CER 패널티 포함) - 곱셈 방식 패널티
  *
  * 공식:
  * - 발음 점수: score_pronunciation = max(0, 1 - α * CER'_raw)^γ
  * - 의미 전달: score_semantic = max(0, 1 - β * WER'_nlp)^δ
- * - 심각도 패널티: penalty_severity = max(0, 1 - λ * CER'_nlp)^ε
- * - 최종: FinalScore = 100 × (w1 × score_pronunciation + w2 × score_semantic + w3 × penalty_severity)
+ * - 심각도 패널티: penalty_severity = max(0, 1 - λ * CER'_nlp)^ε (곱셈 방식)
+ * - 기본 점수: baseScore = (w1 × score_pronunciation + w2 × score_semantic) / (w1 + w2)
+ * - 최종: FinalScore = 100 × baseScore × penalty_severity
  *
- * 가중 산술평균 사용: 하나의 점수가 0이어도 다른 점수들이 반영됨
+ * 심각도 패널티는 곱셈 방식으로 적용:
+ * - 아예 틀린 경우 (penalty = 0) → 최종 점수 0점
+ * - 정상적인 경우 (penalty ≈ 1) → 기본 점수 그대로
  *
  * @param onnxCer - ONNX 모델 기반 CER (발음 그대로, 0~1)
  * @param nlpCer - NLP STT 기반 CER (문맥 교정됨, 0~1)
@@ -220,7 +223,7 @@ export function calculateFinalScore(
   const {
     // 발음 점수 파라미터
     tau = 0.05,
-    alpha = 3.0,
+    alpha = 1.5,
     gamma = 0.9,
     // 의미 전달 점수 파라미터
     tauW = 0.1,
@@ -233,7 +236,7 @@ export function calculateFinalScore(
     // 가중치
     w1 = 0.6,
     w2 = 0.25,
-    w3 = 0.15,
+    w3 = 0.15, // w3는 이제 사용되지 않지만 호환성을 위해 유지
   } = params;
 
   // Step 1: 발음 점수 (ONNX CER 기반)
@@ -244,15 +247,18 @@ export function calculateFinalScore(
   const werNlpPrime = Math.max(0, nlpWer - tauW);
   const scoreSemantic = Math.pow(Math.max(0, 1 - beta * werNlpPrime), delta);
 
-  // Step 3: 심각도 패널티 (NLP CER 기반)
+  // Step 3: 심각도 패널티 (NLP CER 기반) - 아예 틀렸을 때만 0점 처리용
   const cerNlpPrime = Math.max(0, nlpCer - tauP);
   const penaltySeverity = Math.pow(Math.max(0, 1 - lambda * cerNlpPrime), epsilon);
 
-  // Step 4: 최종 점수 (가중 산술평균)
-  // 하나의 점수가 0이어도 다른 점수들이 반영됨
-  const finalScore =
-    100 *
-    (w1 * scorePronunciation + w2 * scoreSemantic + w3 * penaltySeverity);
+  // Step 4: 기본 점수 계산 (w1, w2 정규화)
+  const totalWeight = w1 + w2;
+  const baseScore =
+    (w1 * scorePronunciation + w2 * scoreSemantic) / totalWeight;
+
+  // Step 5: 최종 점수 (곱셈 방식 패널티 적용)
+  // 아예 틀린 경우에만 0점 처리, 그 외에는 기본 점수 유지
+  const finalScore = 100 * baseScore * penaltySeverity;
 
   console.log("========================================");
   console.log("[FinalScore] 🏆 최종 점수 계산");
@@ -263,7 +269,8 @@ export function calculateFinalScore(
   console.log(`  중간 점수:`);
   console.log(`    - 발음 점수: ${(scorePronunciation * 100).toFixed(1)}%`);
   console.log(`    - 의미 전달: ${(scoreSemantic * 100).toFixed(1)}%`);
-  console.log(`    - 심각도 패널티: ${(penaltySeverity * 100).toFixed(1)}%`);
+  console.log(`    - 기본 점수: ${(baseScore * 100).toFixed(1)}%`);
+  console.log(`    - 심각도 패널티 (곱셈): ${(penaltySeverity * 100).toFixed(1)}%`);
   console.log(`  최종 점수: ${finalScore.toFixed(1)}점`);
   console.log("========================================");
 
