@@ -77,9 +77,56 @@ export async function loadONNXModel(
       }
 
       modelPath = cachedFile.uri;
+    } else if (Platform.OS === "ios") {
+      // ✅ iOS: 앱 번들 내의 모델 파일 로드
+      const modelFileName = "wav2vec2_korean_final.onnx";
+      const cachedFile = new File(Paths.cache, modelFileName);
+
+      console.log("[ModelLoader] 📍 iOS 캐시 경로:", cachedFile.uri);
+
+      if (cachedFile.exists) {
+        const sizeMB = (cachedFile.size / 1024 / 1024).toFixed(2);
+        console.log("[ModelLoader] ✅ 캐시된 모델 발견!");
+        console.log(`[ModelLoader] 📦 파일 크기: ${sizeMB}MB`);
+      } else {
+        console.log(
+          "[ModelLoader] 📥 iOS 번들에서 모델 복사 중... (607MB, 30초~1분 소요)"
+        );
+        onProgress?.(10);
+
+        // iOS 번들 경로 (MainBundlePath 사용)
+        const bundlePath = `${RNFS.MainBundlePath}/model/${modelFileName}`;
+        const destPath = cachedFile.uri.replace("file://", "");
+
+        console.log("[ModelLoader] 🔍 번들 경로:", bundlePath);
+        console.log("[ModelLoader] 🔍 목적지 경로:", destPath);
+
+        try {
+          // 번들에서 캐시로 복사
+          await RNFS.copyFile(bundlePath, destPath);
+
+          onProgress?.(30);
+
+          // 복사 확인
+          if (cachedFile.exists) {
+            const sizeMB = (cachedFile.size / 1024 / 1024).toFixed(2);
+            console.log(`[ModelLoader] ✅ 모델 복사 완료! 크기: ${sizeMB}MB`);
+          } else {
+            throw new Error("모델 복사 후 캐시에서 찾을 수 없습니다");
+          }
+        } catch (copyError) {
+          console.error("[ModelLoader] iOS 복사 에러:", copyError);
+          throw new Error(
+            `iOS 번들 복사 실패: ${
+              copyError instanceof Error ? copyError.message : "알 수 없는 오류"
+            }`
+          );
+        }
+      }
+
+      modelPath = cachedFile.uri;
     } else {
-      // iOS는 다른 방식
-      throw new Error("iOS는 아직 구현되지 않았습니다");
+      throw new Error(`지원되지 않는 플랫폼: ${Platform.OS}`);
     }
 
     onProgress?.(40);
