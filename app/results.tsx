@@ -10,8 +10,10 @@ import {
   Button,
   Card,
   Chip,
+  IconButton,
   Text,
   TextInput,
+  Tooltip,
   useTheme,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -390,10 +392,14 @@ export default function ResultsScreen() {
         {/* 점수 카드 */}
         {cerScore !== null && werScore !== null && (
           <Card style={styles.card} mode="elevated">
-            <Card.Title
-              title="🧠 ONNX 모델 정확도"
-              titleStyle={styles.scoreCardTitle}
-            />
+            <View style={styles.cardTitleWithInfo}>
+              <Text variant="titleMedium" style={styles.scoreCardTitle}>
+                🧠 ONNX 모델 정확도
+              </Text>
+              <Tooltip title="WWC AI모델이 분석한 실제 발음 정확도. 문맥 교정 없이 실제 발음 그대로 인식합니다.">
+                <IconButton icon="information-outline" size={20} onPress={() => {}} />
+              </Tooltip>
+            </View>
             <Card.Content style={styles.scoreContainer}>
               <View style={styles.scoreBox}>
                 <Text variant="headlineLarge" style={styles.score}>
@@ -692,6 +698,14 @@ const styles = StyleSheet.create({
   },
   scoreCardTitle: {
     fontSize: 16,
+    fontWeight: "600",
+  },
+  cardTitleWithInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   sentence: {
     marginTop: 8,
