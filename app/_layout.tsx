@@ -1,4 +1,6 @@
 // app/_layout.tsx
+import "../global.css";
+import { PortalHost } from "@rn-primitives/portal";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -104,6 +106,9 @@ function RootLayoutNav() {
         onDismiss={dismissUpgradeModal}
         androidVersion={capabilities?.androidApiLevel ?? null}
       />
+
+      {/* Portal Host for tooltips and other overlays */}
+      <PortalHost />
     </>
   );
 }
