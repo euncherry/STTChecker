@@ -396,7 +396,11 @@ export default function ResultsScreen() {
               <Text variant="titleMedium" style={styles.scoreCardTitle}>
                 🧠 ONNX 모델 정확도
               </Text>
-              <Tooltip title="WWC AI모델이 분석한 실제 발음 정확도. 문맥 교정 없이 실제 발음 그대로 인식합니다.">
+              <Tooltip
+                title="WWC AI모델이 분석한 실제 발음 정확도. 문맥 교정 없이 실제 발음 그대로 인식합니다."
+                enterTouchDelay={0}
+                leaveTouchDelay={3000}
+              >
                 <IconButton icon="information-outline" size={20} onPress={() => {}} />
               </Tooltip>
             </View>
